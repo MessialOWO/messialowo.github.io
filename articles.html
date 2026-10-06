@@ -693,7 +693,10 @@ function deleteBoard(board) {
 function pickRandom() {
   var withArt = boards.filter(function (b) { return !!articleOfBoard(b.id); });
   if (!withArt.length) { status('还没有任何文章，无从随机。先写一篇吧。', 'err'); return; }
-  var board = withArt[Math.floor(Math.random() * withArt.length)];
+  // 尽量别连续抽到同一篇（只有一篇时只能重复）
+  var pool = withArt.filter(function (b) { return b.id !== currentBoardId; });
+  if (!pool.length) pool = withArt;
+  var board = pool[Math.floor(Math.random() * pool.length)];
   currentSection = board.section;
   currentBoardId = board.id;
   hideForm();
