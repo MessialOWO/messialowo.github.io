@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<meta name="description" content="江湾期刊 · 达州市高级中学江湾城校区 高2025级1班班级网站：卷首语、作品集、留言板。">
 <title>江湾期刊 | 达州市高级中学江湾城校区 高2025级1班</title>
 <style>
   :root {
@@ -82,12 +84,12 @@
   .card .info h3 { font-size: 1rem; margin-bottom: 4px; }
   .card .info p { font-size: .85rem; color: var(--muted); }
   .card .del {
-    position: absolute; top: 8px; right: 8px; width: 28px; height: 28px;
+    position: absolute; top: 8px; right: 8px; width: 36px; height: 36px;
     border-radius: 50%; background: rgba(0,0,0,.5); color: #fff;
-    font-size: 1.1rem; line-height: 1; padding: 0; opacity: 0; transition: opacity .2s;
+    font-size: 1.15rem; line-height: 1; padding: 0; opacity: 0; transition: opacity .2s;
   }
   .card:hover .del { opacity: 1; }
-  .empty { text-align: center; color: #aaa; padding: 40px 0; }
+  .empty { text-align: center; color: var(--muted); padding: 40px 0; }
 
   /* 留言板 */
   .gb-form {
@@ -140,12 +142,59 @@
   .gb-time { font-size: .8rem; color: var(--muted); }
   .gb-content { white-space: pre-wrap; word-break: break-word; }
   .gb-delete {
-    position: absolute; top: 10px; right: 12px; background: none; border: none;
-    color: var(--muted); cursor: pointer; font-size: 1.3rem; line-height: 1;
-    opacity: 0; transition: opacity .2s, color .2s; padding: 0;
+    position: absolute; top: 6px; right: 6px; background: none; border: none;
+    color: var(--muted); cursor: pointer; font-size: 1.5rem; line-height: 1;
+    opacity: 0; transition: opacity .2s, color .2s; padding: 6px 10px;
+    border-radius: 8px;
   }
   .gb-item:hover .gb-delete { opacity: 1; }
-  .gb-delete:hover { color: var(--accent); }
+  .gb-delete:hover { color: var(--accent); background: var(--accent-light); }
+
+  /* 触摸设备（手机/平板）没有 hover，删除按钮必须常显，否则删不掉 */
+  @media (hover: none) {
+    .card .del, .gb-delete { opacity: 1; }
+  }
+
+  /* 留言板连接状态提示条 */
+  .gb-status {
+    font-size: .85rem; color: var(--muted); padding: 10px 14px;
+    border-radius: 8px; background: var(--accent-light); border-left: 4px solid var(--accent);
+    margin-bottom: 20px; line-height: 1.6;
+  }
+  .gb-status.ok { background: #eef7ee; border-left-color: #4a8f4a; color: #35663a; }
+  .gb-status.err { background: #fdecec; border-left-color: var(--accent); color: #8c2a20; }
+  .gb-status[hidden] { display: none; }
+  .gb-who { font-size: .85rem; color: var(--muted); margin-bottom: 16px; }
+
+  /* 头像选择器：底色 + emoji */
+  .emoji-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .emoji-pick {
+    width: 44px; height: 44px; font-size: 1.3rem; line-height: 1;
+    border-radius: 50%; border: 2px solid var(--border); background: #fff;
+    cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center;
+    transition: transform .15s, border-color .15s;
+  }
+  .emoji-pick:hover { transform: scale(1.08); }
+  .emoji-pick.on { border-color: var(--accent); background: var(--accent-light); }
+
+  .color-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+  .color-pick {
+    width: 36px; height: 36px; border-radius: 50%; cursor: pointer; padding: 0;
+    border: 2px solid transparent; box-shadow: 0 0 0 1px var(--border) inset;
+    transition: transform .15s;
+  }
+  .color-pick:hover { transform: scale(1.1); }
+  .color-pick.on { border-color: #2c2c2c; }
+
+  /* 头像圆圈（底色 + emoji），回复里用小号 */
+  .avatar-circle {
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+    line-height: 1; user-select: none;
+  }
+  .avatar-circle.big  { width: 48px; height: 48px; font-size: 1.4rem; }
+  .avatar-circle.small{ width: 28px; height: 28px; font-size: .95rem; }
+  .avatar-preview .avatar-circle { width: 100%; height: 100%; font-size: 1.6rem; border-radius: 50%; }
 
   .gb-actions { display: flex; gap: 8px; margin-top: 10px; }
   .gb-action-btn {
@@ -176,14 +225,14 @@
   .gb-reply-time { font-size: .75rem; color: var(--muted); }
   .gb-reply-content { white-space: pre-wrap; word-break: break-word; margin-top: 4px; }
 
-  .reply-form { margin-top: 12px; display: flex; gap: 8px; }
+  .reply-form { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
   .reply-form input {
-    flex: 1; padding: 8px 12px; border: 1px solid var(--border);
-    border-radius: 8px; font-family: inherit; font-size: .9rem;
+    flex: 1 1 140px; min-width: 0; padding: 8px 12px; border: 1px solid var(--border);
+    border-radius: 8px; font-family: inherit; font-size: 16px;
     background: var(--bg); color: var(--text);
   }
   .reply-form input:focus { outline: none; border-color: var(--accent); }
-  .reply-form button { padding: 8px 16px; font-size: .9rem; }
+  .reply-form button { padding: 8px 16px; font-size: .95rem; flex-shrink: 0; }
 
   .note {
     font-size: .85rem; color: var(--muted); margin-bottom: 20px;
@@ -197,10 +246,21 @@
   footer p { margin-bottom: 8px; }
 
   @media (max-width: 600px) {
-    .journal-name { font-size: 2.2rem; letter-spacing: 3px; }
+    .journal-name { font-size: clamp(2rem, 9vw, 2.6rem); letter-spacing: clamp(2px, 1.5vw, 4px); }
     section h3 { font-size: 1.3rem; }
     .article-card, .gb-form, #work-form, .quote-item { padding: 20px; }
     .gb-delete { opacity: 1; }
+    .gb-name, .gb-reply-name { overflow-wrap: anywhere; }
+  }
+  @media (max-width: 480px) {
+    .container { padding: 0 16px; }
+    .grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+    .card img { height: 120px; }
+    .card .info { padding: 8px 10px; }
+    .card .info h3 { font-size: .9rem; }
+    .gb-item { padding: 14px; gap: 12px; }
+    .gb-avatar { width: 40px; height: 40px; }
+    .avatar-upload { flex-wrap: wrap; gap: 12px; }
   }
 </style>
 </head>
@@ -269,18 +329,22 @@
     <h3>留言板 <small>Guestbook</small></h3>
 
     <div class="note">
-      名字和头像会自动记住，下次打开不用重填。留言、点赞、回复目前刷新后会清空，等部署服务器后即可长期保存。
+      名字和头像会自动记住，下次打开不用重填。留言已接入云端数据库，<strong>所有人打开都能看到</strong>，换手机、清缓存也不会丢。
     </div>
+
+    <div class="gb-status" id="gb-status" hidden></div>
 
     <div class="gb-form">
       <label for="gb-name">你的名字（必填）</label>
       <input type="text" id="gb-name" maxlength="20" placeholder="输入名字或昵称">
 
-      <label>头像（必填，可上传自己的图片）</label>
+      <label>头像（选一个 emoji + 底色）</label>
       <div class="avatar-upload">
-        <div class="avatar-preview" id="avatar-preview">未选择</div>
-        <label for="gb-avatar-file">选择图片</label>
-        <input type="file" id="gb-avatar-file" accept="image/*">
+        <div class="avatar-preview" id="avatar-preview"></div>
+        <div style="flex:1;min-width:0">
+          <div class="emoji-row" id="emoji-row"></div>
+          <div class="color-row" id="color-row"></div>
+        </div>
       </div>
 
       <label for="gb-content">留言内容</label>
@@ -299,44 +363,128 @@
 </div>
 
 <script>
+/* ========== 通用小工具 ========== */
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function safeSrc(s) {
+  return /^(data:image\/(png|jpeg|jpg|webp|gif);base64,|https?:\/\/)/i.test(s || '') ? s : '';
+}
+function copyText(text, tip) {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(
+      () => alert('已复制到剪贴板。\n' + tip),
+      () => prompt('自动复制失败，请长按全选手动复制：', text)
+    );
+  } else {
+    prompt('请长按全选手动复制下面的代码：', text);
+  }
+}
+/* 上传前压缩：手机原图 3-5MB，直接存 localStorage 必爆配额 */
+function compressImage(file, maxEdge, quality) {
+  return new Promise((resolve, reject) => {
+    if (!file.type || file.type.indexOf('image/') !== 0) return reject(new Error('这不是图片文件'));
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(cv.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('图片解码失败（HEIC 请先在相册里转成 JPG 再上传）'));
+    };
+    img.src = url;
+  });
+}
+
 /* ========== 作品集 ========== */
 (function () {
   const KEY = 'class_works_v1';
-  let works = JSON.parse(localStorage.getItem(KEY) || '[]');
+  let works = [];
+  try {
+    const parsed = JSON.parse(localStorage.getItem(KEY) || '[]');
+    works = Array.isArray(parsed) ? parsed.filter(w => w && typeof w === 'object') : [];
+  } catch (e) {
+    console.warn('作品集数据损坏，已重置', e);
+    try { localStorage.removeItem(KEY); } catch (_) {}
+    works = [];
+  }
   let pendingImg = '';
   const $ = id => document.getElementById(id);
   const grid = $('grid'), form = $('work-form');
+  // 页面里手写的作品先备份下来，render 时保留，避免「本地为空就把静态内容清掉」
+  const staticHTML = grid ? grid.innerHTML : '';
 
-  function render() {
-    if (!works.length) {
-      grid.innerHTML = '<div class="empty">还没有作品，点上方按钮添加</div>';
-      return;
+  function usedKB() {
+    let n = 0;
+    try { for (const k of Object.keys(localStorage)) n += (localStorage.getItem(k) || '').length; } catch (_) {}
+    return Math.round(n * 2 / 1024);
+  }
+
+  function saveWorks() {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(works));
+      return true;
+    } catch (err) {
+      const quota = err && (err.name === 'QuotaExceededError' || err.name === 'NS_ERROR_DOM_QUOTA_REACHED'
+                         || err.code === 22 || err.code === 1014);
+      alert(quota
+        ? '本地存储已满（已用约 ' + usedKB() + ' KB，上限约 5000 KB）。\n请先删掉几件旧作品，或把图片放进网站仓库的 img 目录。'
+        : '保存失败：' + (err && err.message ? err.message : err) + '\n（无痕模式下浏览器会禁止本地存储）');
+      return false;
     }
-    grid.innerHTML = works.map((w, i) => `
-      <div class="card">
-        <img src="${w.img}" alt="${w.title}">
-        <div class="info"><h3>${w.title}</h3><p>${w.author}</p></div>
-        <button class="del" data-i="${i}">×</button>
-      </div>`).join('');
-    grid.querySelectorAll('.del').forEach(b => {
+  }
+
+  function bindDel() {
+    grid.querySelectorAll('.del[data-i]').forEach(b => {
       b.onclick = () => {
         if (!confirm('删除这个作品？')) return;
         works.splice(+b.dataset.i, 1);
-        localStorage.setItem(KEY, JSON.stringify(works));
+        saveWorks();
         render();
       };
     });
   }
 
+  function render() {
+    const local = works.map((w, i) => `
+      <div class="card">
+        <img src="${esc(safeSrc(w.img))}" alt="${esc(w.title)}">
+        <div class="info"><h3>${esc(w.title)}</h3><p>${esc(w.author)}</p></div>
+        <button class="del" type="button" data-i="${i}" aria-label="删除">×</button>
+      </div>`).join('');
+    grid.innerHTML = staticHTML + local;
+    if (local) {
+      bindDel();
+    } else if (!staticHTML.trim()) {
+      grid.innerHTML = '<div class="empty">还没有作品，点上方按钮添加</div>';
+    }
+  }
+
   $('btn-add').onclick = () => form.classList.add('show');
   $('btn-cancel').onclick = () => { form.classList.remove('show'); reset(); };
 
-  $('f-img').onchange = e => {
+  $('f-img').onchange = async e => {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => { pendingImg = ev.target.result; };
-    reader.readAsDataURL(file);
+    try {
+      pendingImg = await compressImage(file, 1200, 0.82);
+    } catch (err) {
+      alert(err.message);
+      e.target.value = '';
+      pendingImg = '';
+    }
   };
 
   $('btn-save').onclick = () => {
@@ -346,7 +494,7 @@
     if (!title) return alert('请填标题');
     if (!author) return alert('请填作者');
     works.push({ img: pendingImg, title, author });
-    localStorage.setItem(KEY, JSON.stringify(works));
+    if (!saveWorks()) { works.pop(); return; }   // 存不下就回滚，保证内存与存储一致
     render(); reset(); form.classList.remove('show');
   };
 
@@ -356,219 +504,383 @@
   }
 
   $('btn-clear').onclick = () => {
-    if (!confirm('确定清空所有作品？')) return;
-    works = []; localStorage.setItem(KEY, '[]'); render();
+    if (!works.length) return alert('现在没有本地作品');
+    if (!confirm('确定清空所有本地作品？（共 ' + works.length + ' 件，不可恢复）')) return;
+    works = [];
+    if (!saveWorks()) return;
+    render();
   };
 
   $('btn-export').onclick = () => {
-    if (!works.length) return alert('还没有作品');
-    const html = works.map(w =>
-      `      <div class="card">\n        <img src="${w.img}" alt="${w.title}">\n        <div class="info">\n          <h3>${w.title}</h3>\n          <p>${w.author}</p>\n        </div>\n      </div>`
+    if (!works.length) return alert('还没有本地作品');
+    const cards = works.map(w =>
+      '      <div class="card">\n' +
+      '        <img src="' + esc(safeSrc(w.img)) + '" alt="' + esc(w.title) + '">\n' +
+      '        <div class="info">\n' +
+      '          <h3>' + esc(w.title) + '</h3>\n' +
+      '          <p>' + esc(w.author) + '</p>\n' +
+      '        </div>\n' +
+      '      </div>'
     ).join('\n');
-    const full = `<div class="grid">\n${html}\n    </div>`;
-    navigator.clipboard.writeText(full).then(
-      () => alert('已复制到剪贴板，粘贴到 index.html 的 <div class="grid"> 里即可'),
-      () => prompt('复制下面代码：', full)
-    );
+    copyText(cards, '把它粘贴到 index.html 里 <div class="grid" id="grid"> 与 </div> 之间（注意保留这个 id，不要整个替换）');
   };
 
   render();
 })();
 
-/* ========== 留言板：帖子+点赞+回复，头像可上传 ========== */
+
+/* ========== 留言板：Supabase 云端持久化（帖子 + 点赞 + 回复） ========== */
 (function () {
-  const NAME_KEY = 'jiangwan_gb_name';
-  const AVATAR_KEY = 'jiangwan_gb_avatar';   // 存头像 base64
+  /* ---- 后端配置：这两个值公开在前端是设计如此，安全性由数据库 RLS 保证 ---- */
+  var SB_URL = 'https://wvqrnkgjwnlhjhfuonts.supabase.co';
+  var SB_KEY = 'sb_publishable_cGy9MFHh3-t2i0kEnbHeeg_A1-rUMaF';
+  var SB_JS  = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';
 
-  let messages = [];
-  let selectedAvatar = localStorage.getItem(AVATAR_KEY) || '';
+  var NAME_KEY   = 'jiangwan_gb_name';
+  var LOOK_KEY   = 'jiangwan_gb_look';       // { emoji, color }
+  var DEVICE_KEY = 'jiangwan_gb_device';
+  var LIKED_KEY  = 'jiangwan_gb_liked';      // 本地缓存的「我赞过的」
+  var PAGE_SIZE  = 50;
+  var EMOJIS = ['🙂','🐹','🐰','🦊','🐼','🐨','🐯','🦁','🐸','🐧','🐳','🦄','🌻','🌙','⚡','🍀'];
+  var COLORS = ['#c0392b','#e67e22','#d4a017','#27ae60','#16a085','#2980b9','#8e44ad','#d95f8f','#5d6d7e','#2c3e50'];
 
-  const $ = id => document.getElementById(id);
-  const nameInput = $('gb-name'), contentInput = $('gb-content');
-  const previewEl = $('avatar-preview'), fileInput = $('gb-avatar-file');
-  const listEl = $('gb-list');
+  var $ = function (id) { return document.getElementById(id); };
+  var statusEl   = $('gb-status');
+  var listEl     = $('gb-list');
+  var nameInput  = $('gb-name');
+  var contentInput = $('gb-content');
+  var previewEl  = $('avatar-preview');
+  var emojiRow   = $('emoji-row');
+  var colorRow   = $('color-row');
+  var submitBtn  = $('gb-submit');
 
+  /* ---- 本机身份 ---- */
+  var selectedEmoji = '🙂';
+  var selectedColor = COLORS[0];
+  var deviceId = '';
+  var sb = null;
+  var messages = [];
+  var repliesByMsg = {};
+  var likedSet = {};
+  var connected = false;
+  var busy = false;
+
+  var savedLook = null;
+  try { savedLook = JSON.parse(localStorage.getItem(LOOK_KEY) || 'null'); } catch (e) { savedLook = null; }
+  if (savedLook && typeof savedLook === 'object') {
+    if (EMOJIS.indexOf(savedLook.emoji) >= 0) selectedEmoji = savedLook.emoji;
+    if (COLORS.indexOf(savedLook.color) >= 0) selectedColor = savedLook.color;
+  } else {
+    selectedEmoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+    selectedColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+  }
   nameInput.value = localStorage.getItem(NAME_KEY) || '';
 
-  function refreshPreview() {
-    if (selectedAvatar) {
-      previewEl.innerHTML = '<img src="' + selectedAvatar + '" alt="头像">';
-    } else {
-      previewEl.innerHTML = '未选择';
-    }
-  }
-  refreshPreview();
-
-  fileInput.onchange = e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (file.size > 500 * 1024) {
-      if (!confirm('图片有点大（超过 500KB），可能占用较多本地空间，继续吗？')) {
-        fileInput.value = '';
-        return;
-      }
-    }
-    const reader = new FileReader();
-    reader.onload = ev => {
-      selectedAvatar = ev.target.result;
-      try {
-        localStorage.setItem(AVATAR_KEY, selectedAvatar);
-      } catch (err) {
-        alert('头像太大，本地存储放不下。换一张小一点的图片吧。');
-        selectedAvatar = '';
-        localStorage.removeItem(AVATAR_KEY);
-      }
-      refreshPreview();
-    };
-    reader.readAsDataURL(file);
-  };
-
-  nameInput.addEventListener('input', () => {
-    localStorage.setItem(NAME_KEY, nameInput.value.trim());
-  });
-
-  function fmt(ts) {
-    const d = new Date(ts), p = n => n < 10 ? '0' + n : n;
-    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  function saveLook() {
+    try { localStorage.setItem(LOOK_KEY, JSON.stringify({ emoji: selectedEmoji, color: selectedColor })); } catch (e) {}
   }
 
-  function uid() {
-    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  function newDeviceId() {
+    var rnd = '';
+    if (window.crypto && window.crypto.randomUUID) return 'gb-' + window.crypto.randomUUID();
+    rnd = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    return 'gb-' + Date.now().toString(36) + rnd;
+  }
+  deviceId = localStorage.getItem(DEVICE_KEY) || '';
+  if (!deviceId || deviceId.length < 8 || deviceId.length > 64) {
+    deviceId = newDeviceId();
+    try { localStorage.setItem(DEVICE_KEY, deviceId); } catch (e) {}
   }
 
-  function currentUserName() {
-    return (localStorage.getItem(NAME_KEY) || nameInput.value || '').trim();
+  try {
+    likedSet = JSON.parse(localStorage.getItem(LIKED_KEY) || '{}') || {};
+    if (typeof likedSet !== 'object' || likedSet === null) likedSet = {};
+  } catch (e) { likedSet = {}; }
+
+  function persistLiked() {
+    try { localStorage.setItem(LIKED_KEY, JSON.stringify(likedSet)); } catch (e) {}
   }
 
-  function makeAvatarEl(src, size) {
-    const el = document.createElement('div');
-    el.className = size === 'small' ? 'gb-reply-avatar' : 'gb-avatar';
-    if (src) {
-      const img = document.createElement('img');
-      img.src = src;
-      img.alt = '头像';
-      el.appendChild(img);
-    } else {
-      el.style.background = '#eee';
-    }
+  /* ---- 状态提示 ---- */
+  function status(text, kind) {
+    if (!statusEl) return;
+    if (!text) { statusEl.hidden = true; statusEl.textContent = ''; return; }
+    statusEl.hidden = false;
+    statusEl.className = 'gb-status' + (kind ? ' ' + kind : '');
+    statusEl.textContent = text;
+  }
+
+  /* ---- 头像圆圈：底色 + emoji（不用图片，天然无 XSS、不占存储） ---- */
+  function avatarCircle(color, emoji, size) {
+    var el = document.createElement('div');
+    el.className = 'avatar-circle ' + (size === 'small' ? 'small' : 'big');
+    el.style.background = /^#[0-9a-fA-F]{6}$/.test(color || '') ? color : COLORS[0];
+    el.textContent = emoji || '🙂';
     return el;
   }
 
+  function refreshPreview() {
+    previewEl.textContent = '';
+    previewEl.appendChild(avatarCircle(selectedColor, selectedEmoji, 'big'));
+  }
+
+  function buildPickers() {
+    emojiRow.textContent = '';
+    EMOJIS.forEach(function (em) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'emoji-pick' + (em === selectedEmoji ? ' on' : '');
+      b.textContent = em;
+      b.setAttribute('aria-label', '选择头像 ' + em);
+      b.onclick = function () {
+        selectedEmoji = em;
+        saveLook(); buildPickers(); refreshPreview();
+      };
+      emojiRow.appendChild(b);
+    });
+    colorRow.textContent = '';
+    COLORS.forEach(function (c) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'color-pick' + (c === selectedColor ? ' on' : '');
+      b.style.background = c;
+      b.setAttribute('aria-label', '选择底色 ' + c);
+      b.onclick = function () {
+        selectedColor = c;
+        saveLook(); buildPickers(); refreshPreview();
+      };
+      colorRow.appendChild(b);
+    });
+  }
+
+  /* ---- 时间格式 ---- */
+  function fmt(ts) {
+    var d = new Date(ts);
+    if (isNaN(d.getTime())) return '';
+    var p = function (n) { return n < 10 ? '0' + n : '' + n; };
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+
+  function currentUserName() {
+    return (nameInput.value || localStorage.getItem(NAME_KEY) || '').trim();
+  }
+
+  /* ---- 错误翻译：把 Supabase 的英文错误变成人话 ---- */
+  function friendlyError(err, doingWhat) {
+    if (!err) return '操作失败，请稍后再试';
+    var m = err.message || String(err);
+    if (err.code === '42501' || /row-level security/i.test(m)) {
+      return doingWhat === '点赞'
+        ? '点赞失败了，刷新页面后再试。'
+        : '发得太快了：同一台设备 1 分钟最多发 3 条留言 / 6 条回复，歇一会儿再发～';
+    }
+    if (/Failed to fetch|NetworkError|Load failed|timeout/i.test(m)) {
+      return '连不上服务器（可能是网络问题），请检查网络后刷新页面。';
+    }
+    if (/invalid device id/i.test(m)) return '本机标识异常，请刷新页面后重试。';
+    if (/message not found/i.test(m)) return '这条留言可能已被删除。';
+    if (/duplicate key/i.test(m)) return '重复操作，已忽略。';
+    return (doingWhat || '操作') + '失败：' + m;
+  }
+
+  /* ---- 数据读写 ---- */
+  function loadMessages() {
+    return sb.from('messages')
+      .select('id,created_at,name,content,avatar_color,avatar_emoji,like_count,reply_count')
+      .eq('hidden', false)
+      .order('created_at', { ascending: false })
+      .limit(PAGE_SIZE)
+      .then(function (res) {
+        if (res.error) throw res.error;
+        messages = (res.data || []).slice().reverse();
+        var ids = messages.map(function (m) { return m.id; });
+        if (!ids.length) { repliesByMsg = {}; return null; }
+        return sb.from('replies')
+          .select('id,message_id,created_at,name,content,avatar_color,avatar_emoji')
+          .in('message_id', ids)
+          .order('created_at', { ascending: true })
+          .limit(400)
+          .then(function (r2) {
+            if (r2.error) throw r2.error;
+            repliesByMsg = {};
+            (r2.data || []).forEach(function (r) {
+              (repliesByMsg[r.message_id] = repliesByMsg[r.message_id] || []).push(r);
+            });
+            return null;
+          });
+      });
+  }
+
+  function loadLiked() {
+    return sb.rpc('liked_message_ids', { p_device_id: deviceId }).then(function (res) {
+      if (res.error) return null;          // 拿不到就用本地缓存，不影响使用
+      var raw = res.data;
+      if (typeof raw === 'string') { try { raw = JSON.parse(raw); } catch (e) { raw = []; } }
+      if (!Array.isArray(raw)) {
+        raw = (raw && typeof raw === 'object') ? [raw] : [];
+      }
+      var next = {};
+      raw.forEach(function (row) {
+        var id = (row && typeof row === 'object')
+          ? (row.liked_message_ids || row.message_id || row.id)
+          : row;
+        if (id) next[id] = true;
+      });
+      likedSet = next;
+      persistLiked();
+      return null;
+    });
+  }
+
+  function withBusy(btn, fn) {
+    if (busy) return;
+    busy = true;
+    var old = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = '发送中…'; }
+    Promise.resolve().then(fn).catch(function (e) {
+      console.error(e);
+      status(friendlyError(e, '操作'), 'err');
+    }).then(function () {
+      busy = false;
+      if (btn) { btn.disabled = false; btn.textContent = old; }
+    });
+  }
+
+  /* ---- 渲染 ---- */
   function createReplyEl(reply) {
-    const rEl = document.createElement('div');
+    var rEl = document.createElement('div');
     rEl.className = 'gb-reply';
+    rEl.appendChild(avatarCircle(reply.avatar_color, reply.avatar_emoji, 'small'));
 
-    const rAv = makeAvatarEl(reply.avatar, 'small');
-
-    const rBody = document.createElement('div');
+    var rBody = document.createElement('div');
     rBody.className = 'gb-reply-body';
-
-    const rHead = document.createElement('div');
-    const rName = document.createElement('span');
+    var rHead = document.createElement('div');
+    var rName = document.createElement('span');
     rName.className = 'gb-reply-name';
-    rName.textContent = reply.name;
-    const rTime = document.createElement('span');
+    rName.textContent = reply.name;                      // textContent：天然转义
+    var rTime = document.createElement('span');
     rTime.className = 'gb-reply-time';
-    rTime.textContent = fmt(reply.time);
+    rTime.textContent = fmt(reply.created_at);
     rHead.appendChild(rName);
     rHead.appendChild(rTime);
-
-    const rContent = document.createElement('div');
+    var rContent = document.createElement('div');
     rContent.className = 'gb-reply-content';
     rContent.textContent = reply.content;
-
     rBody.appendChild(rHead);
     rBody.appendChild(rContent);
-    rEl.appendChild(rAv);
     rEl.appendChild(rBody);
     return rEl;
   }
 
   function createPostEl(msg) {
-    const item = document.createElement('div');
+    var item = document.createElement('div');
     item.className = 'gb-item';
+    item.appendChild(avatarCircle(msg.avatar_color, msg.avatar_emoji, 'big'));
 
-    const av = makeAvatarEl(msg.avatar, 'big');
-
-    const body = document.createElement('div');
+    var body = document.createElement('div');
     body.className = 'gb-body';
 
-    const header = document.createElement('div');
+    var header = document.createElement('div');
     header.className = 'gb-header';
-    const nameEl = document.createElement('span');
+    var nameEl = document.createElement('span');
     nameEl.className = 'gb-name';
     nameEl.textContent = msg.name;
-    const timeEl = document.createElement('span');
+    var timeEl = document.createElement('span');
     timeEl.className = 'gb-time';
-    timeEl.textContent = fmt(msg.time);
+    timeEl.textContent = fmt(msg.created_at);
     header.appendChild(nameEl);
     header.appendChild(timeEl);
 
-    const content = document.createElement('div');
+    var content = document.createElement('div');
     content.className = 'gb-content';
     content.textContent = msg.content;
 
-    const repliesEl = document.createElement('div');
+    var replies = repliesByMsg[msg.id] || [];
+    var repliesEl = document.createElement('div');
     repliesEl.className = 'gb-replies';
-    if (!msg.replies.length) repliesEl.hidden = true;
-    msg.replies.forEach(r => repliesEl.appendChild(createReplyEl(r)));
+    if (!replies.length) repliesEl.hidden = true;
+    replies.forEach(function (r) { repliesEl.appendChild(createReplyEl(r)); });
 
-    const replyForm = document.createElement('div');
+    var replyForm = document.createElement('div');
     replyForm.className = 'reply-form';
     replyForm.hidden = true;
-    const replyInput = document.createElement('input');
+    var replyInput = document.createElement('input');
     replyInput.type = 'text';
     replyInput.maxLength = 300;
     replyInput.placeholder = '回复 ' + msg.name + '……';
-    const replySend = document.createElement('button');
+    var replySend = document.createElement('button');
     replySend.type = 'button';
     replySend.className = 'btn-main';
     replySend.textContent = '发送';
-    replySend.onclick = () => {
-      const name = currentUserName();
+    replySend.onclick = function () {
+      var name = currentUserName();
       if (!name) { alert('请先在上方填写你的名字'); nameInput.focus(); return; }
-      if (!selectedAvatar) { alert('请先上传你的头像'); fileInput.focus(); return; }
-      const text = replyInput.value.trim();
-      if (!text) { alert('回复内容不能为空'); return; }
-      msg.replies.push({
-        id: uid(),
-        name: name.slice(0, 20),
-        avatar: selectedAvatar,
-        content: text.slice(0, 300),
-        time: Date.now()
+      var text = replyInput.value.trim();
+      if (!text) { alert('回复内容不能为空'); replyInput.focus(); return; }
+      withBusy(replySend, function () {
+        return sb.from('replies').insert({
+          message_id: msg.id, device_id: deviceId,
+          name: name.slice(0, 20), content: text.slice(0, 300),
+          avatar_color: selectedColor, avatar_emoji: selectedEmoji
+        }).then(function (res) {
+          if (res.error) throw res.error;
+          replyInput.value = '';
+          return reload();
+        });
       });
-      render();
     };
-    replyInput.addEventListener('keydown', e => {
+    replyInput.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') { e.preventDefault(); replySend.click(); }
     });
     replyForm.appendChild(replyInput);
     replyForm.appendChild(replySend);
 
-    const actions = document.createElement('div');
+    var actions = document.createElement('div');
     actions.className = 'gb-actions';
 
-    const likeBtn = document.createElement('button');
+    var liked = !!likedSet[msg.id];
+    var likeBtn = document.createElement('button');
     likeBtn.type = 'button';
-    likeBtn.className = 'gb-action-btn' + (msg.liked ? ' liked' : '');
-    likeBtn.textContent = '👍 ' + msg.likes;
-    likeBtn.onclick = () => {
-      if (msg.liked) { msg.likes -= 1; msg.liked = false; }
-      else { msg.likes += 1; msg.liked = true; }
-      render();
+    likeBtn.className = 'gb-action-btn' + (liked ? ' liked' : '');
+    likeBtn.textContent = '👍 ' + (msg.like_count || 0);
+    likeBtn.onclick = function () {
+      if (busy) return;
+      busy = true;
+      sb.rpc('like_message', { p_message_id: msg.id, p_device_id: deviceId }).then(function (res) {
+        if (res.error) throw res.error;
+        var out = res.data;
+        if (typeof out === 'string') { try { out = JSON.parse(out); } catch (e) {} }
+        if (out && typeof out === 'object') {
+          msg.like_count = out.like_count;
+          if (out.liked) likedSet[msg.id] = true; else delete likedSet[msg.id];
+          persistLiked();
+          likeBtn.className = 'gb-action-btn' + (out.liked ? ' liked' : '');
+          likeBtn.textContent = '👍 ' + out.like_count;
+        }
+      }).catch(function (e) {
+        console.error(e);
+        status(friendlyError(e, '点赞'), 'err');
+      }).then(function () { busy = false; });
     };
 
-    const replyBtn = document.createElement('button');
+    var replyBtn = document.createElement('button');
     replyBtn.type = 'button';
     replyBtn.className = 'gb-action-btn';
-    replyBtn.textContent = '💬 回复' + (msg.replies.length ? ' ' + msg.replies.length : '');
-    replyBtn.onclick = () => {
+    replyBtn.textContent = '💬 回复' + (replies.length ? ' ' + replies.length : '');
+    replyBtn.onclick = function () {
       replyForm.hidden = !replyForm.hidden;
       if (!replyForm.hidden) replyInput.focus();
     };
 
+    var copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'gb-action-btn';
+    copyBtn.textContent = '📋 复制';
+    copyBtn.onclick = function () { copyText(msg.content, '内容已复制'); };
+
     actions.appendChild(likeBtn);
     actions.appendChild(replyBtn);
+    actions.appendChild(copyBtn);
 
     body.appendChild(header);
     body.appendChild(content);
@@ -576,56 +888,100 @@
     body.appendChild(repliesEl);
     body.appendChild(replyForm);
 
-    const del = document.createElement('button');
-    del.className = 'gb-delete';
-    del.type = 'button';
-    del.textContent = '×';
-    del.title = '删除这条留言';
-    del.onclick = () => {
-      if (!confirm('删除这条留言？')) return;
-      messages = messages.filter(m => m.id !== msg.id);
-      render();
-    };
-
-    item.appendChild(av);
     item.appendChild(body);
-    item.appendChild(del);
     return item;
   }
 
   function render() {
-    listEl.innerHTML = '';
+    listEl.textContent = '';
     if (!messages.length) {
-      listEl.innerHTML = '<div class="empty">还没有留言，来发第一条吧～</div>';
+      var empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.textContent = connected ? '还没有留言，来发第一条吧～' : '留言加载中……';
+      listEl.appendChild(empty);
       return;
     }
-    messages.slice().reverse().forEach(msg => {
-      listEl.appendChild(createPostEl(msg));
+    messages.forEach(function (msg) { listEl.appendChild(createPostEl(msg)); });
+  }
+
+  function reload() {
+    if (!sb) return Promise.resolve();
+    return loadMessages().then(function () { render(); });
+  }
+
+  /* ---- 发布留言 ---- */
+  submitBtn.onclick = function () {
+    var name = nameInput.value.trim();
+    var content = contentInput.value.trim();
+    if (!name) { alert('请填写你的名字'); nameInput.focus(); return; }
+    if (!content) { alert('请写点内容再发布'); contentInput.focus(); return; }
+    if (!connected) { status('还没连上服务器，暂时发不了。请检查网络后刷新页面。', 'err'); return; }
+    withBusy(submitBtn, function () {
+      return sb.from('messages').insert({
+        device_id: deviceId,
+        name: name.slice(0, 20),
+        content: content.slice(0, 500),
+        avatar_color: selectedColor,
+        avatar_emoji: selectedEmoji
+      }).then(function (res) {
+        if (res.error) throw res.error;
+        contentInput.value = '';
+        try { localStorage.setItem(NAME_KEY, name); } catch (e) {}
+        status('发布成功 ✅', 'ok');
+        setTimeout(function () { status(''); }, 2500);
+        return reload();
+      });
+    });
+  };
+
+  nameInput.addEventListener('input', function () {
+    try { localStorage.setItem(NAME_KEY, nameInput.value.trim()); } catch (e) {}
+  });
+
+  /* ---- 启动 ---- */
+  buildPickers();
+  refreshPreview();
+  render();
+  status('正在连接留言服务器……');
+
+  function boot() {
+    if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
+      status('留言服务器脚本加载失败（CDN 可能被网络拦截）。页面其它内容正常，请换网络或稍后刷新重试。', 'err');
+      return;
+    }
+    try {
+      sb = window.supabase.createClient(SB_URL, SB_KEY, {
+        auth: { persistSession: true, autoRefreshToken: true }
+      });
+    } catch (e) {
+      status('留言功能初始化失败：' + e.message, 'err');
+      return;
+    }
+    // 匿名登录：给这台设备一个稳定身份。失败也不影响留言（device_id 是本地生成的）
+    sb.auth.signInAnonymously().then(function (res) {
+      if (res && res.error) console.warn('匿名登录失败（不影响留言）', res.error);
+    }).catch(function (e) { console.warn('匿名登录异常（不影响留言）', e); })
+    .then(function () {
+      return loadMessages().then(function () { return loadLiked(); });
+    })
+    .then(function () {
+      connected = true;
+      render();
+      status('已连接云端 · 共 ' + messages.length + ' 条留言（本机身份：' + (currentUserName() || '未填名字') + ' ' + selectedEmoji + '）', 'ok');
+    })
+    .catch(function (e) {
+      console.error(e);
+      connected = false;
+      render();
+      status(friendlyError(e, '加载留言') + '（页面其它内容照常可用）', 'err');
     });
   }
 
-  $('gb-submit').onclick = () => {
-    const name = nameInput.value.trim();
-    const content = contentInput.value.trim();
-    if (!name) { alert('请填写你的名字'); nameInput.focus(); return; }
-    if (!selectedAvatar) { alert('请先上传你的头像'); fileInput.focus(); return; }
-    if (!content) { alert('请写点内容再发布'); contentInput.focus(); return; }
-
-    messages.push({
-      id: uid(),
-      name: name.slice(0, 20),
-      avatar: selectedAvatar,
-      content: content.slice(0, 500),
-      time: Date.now(),
-      likes: 0,
-      liked: false,
-      replies: []
-    });
-    contentInput.value = '';
-    render();
-  };
-
-  render();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
 })();
 </script>
 </body>
