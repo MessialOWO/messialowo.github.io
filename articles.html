@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light">
-<meta name="description" content="江湾期刊 · 期刊文章：散文、诗歌、议论、班级新闻四个专区，每区多个板块。">
+<meta name="description" content="江湾期刊 · 期刊文章：散文、诗歌、议论、班级新闻、学习与知识五个专区，每区多个板块。">
 <title>期刊文章 | 江湾期刊</title>
 <style>
   :root {
@@ -140,7 +140,7 @@
   <header>
     <div class="school">达州市高级中学江湾城校区 · 高2025级1班</div>
     <div class="journal-name"><a href="./">江湾期刊</a></div>
-    <div class="issue">期刊文章 · 散文 / 诗歌 / 议论 / 班级新闻</div>
+    <div class="issue">期刊文章 · 散文 / 诗歌 / 议论 / 班级新闻 / 学习与知识</div>
   </header>
 
   <nav>
@@ -178,6 +178,7 @@
 </div>
 
 <script src="./vendor/supabase.js"></script>
+<script src="./vendor/jw-client.js"></script>
 <script>
 var SB_URL = 'https://wvqrnkgjwnlhjhfuonts.supabase.co';
 var SB_KEY = 'sb_publishable_cGy9MFHh3-t2i0kEnbHeeg_A1-rUMaF';
@@ -185,10 +186,11 @@ var SB_BUCKET = 'avatars';
 var PW_SALT = 'jw-salt-2026';
 
 var SECTIONS = [
-  { id: 'essay',   name: '散文',     en: 'Prose',  icon: '🖋' },
-  { id: 'poem',    name: '诗歌',     en: 'Poetry', icon: '🌾' },
-  { id: 'opinion', name: '议论',     en: 'Essay',  icon: '💬' },
-  { id: 'news',    name: '班级新闻', en: 'News',   icon: '📰' }
+  { id: 'essay',   name: '散文',       en: 'Prose',  icon: '🖋' },
+  { id: 'poem',    name: '诗歌',       en: 'Poetry', icon: '🌾' },
+  { id: 'opinion', name: '议论',       en: 'Essay',  icon: '💬' },
+  { id: 'news',    name: '班级新闻',   en: 'News',   icon: '📰' },
+  { id: 'study',   name: '学习与知识', en: 'Study',  icon: '📚' }
 ];
 
 var $ = function (id) { return document.getElementById(id); };
@@ -831,49 +833,43 @@ renderBoards();
 renderPanel();
 status('正在连接云端……');
 
-(function boot() {
-  if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
-    status('组件加载失败（vendor/supabase.js 没加载到）。请检查网络后刷新。', 'err');
+/* 连接由 vendor/jw-client.js 负责：它会做超时、重试、并给出明确报错，
+   这样万一手机网络连不上 Supabase，页面不会一直卡在"正在连接云端"。 */
+(function () {
+  function loadAllWithTimeout() {
+    return JW.withTimeout(loadAll(), 20000, '加载文章').then(function () { return null; });
+  }
+  if (!window.JW) {
+    status('云端组件没加载到（vendor/jw-client.js 缺失）。请下拉刷新页面重试。', 'err');
+    connected = false;
+    renderPanel();
     return;
   }
-  try {
-    sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
-  } catch (e) { status('初始化失败：' + e.message, 'err'); return; }
+  JW.whenReady(function (err) {
+    if (err) {
+      connected = false;
+      renderPanel();
+      status('连不上云端：' + (err.message || err) + '。请下拉刷新，或换 WiFi/流量再试。', 'err');
+      return;
+    }
+    sb = JW.sb;
+    uid = JW.uid || '';
+    deviceId = JW.deviceId;
+    try {
+      var cached = JSON.parse(localStorage.getItem('jiangwan_art_liked') || '{}');
+      if (cached && typeof cached === 'object') likedSet = cached;
+    } catch (e) {}
 
-  deviceId = localStorage.getItem('jiangwan_gb_device') || '';
-  if (!deviceId || deviceId.length < 8 || deviceId.length > 64) {
-    deviceId = (window.crypto && window.crypto.randomUUID) ? ('gb-' + window.crypto.randomUUID())
-      : ('gb-' + Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2));
-    try { localStorage.setItem('jiangwan_gb_device', deviceId); } catch (e) {}
-  }
-  try {
-    var cached = JSON.parse(localStorage.getItem('jiangwan_art_liked') || '{}');
-    if (cached && typeof cached === 'object') likedSet = cached;
-  } catch (e) {}
-
-  sb.auth.signInAnonymously().then(function (res) {
-    if (res && res.error) console.warn('匿名登录失败（封面上传会不可用）', res.error);
-    else if (res && res.data && res.data.user) uid = res.data.user.id || '';
-  }).catch(function (e) { console.warn('匿名登录异常', e); })
-    .then(function () {
-      if (uid) return null;
-      return sb.auth.getSession().then(function (r) {
-        var u = r && r.data && r.data.session && r.data.session.user;
-        if (u && u.id) uid = u.id;
-        return null;
-      }).catch(function () { return null; });
-    })
-    .then(loadAll)
-    .then(function () {
+    JW.retry(loadAllWithTimeout, 2).then(function () {
       connected = true;
       renderBoards(); renderPanel(); status('');
-    })
-    .catch(function (e) {
+    }).catch(function (e) {
       console.error(e);
       connected = false;
       renderPanel();
-      status(friendly(e, '加载文章') + '（页面其它内容照常可用）', 'err');
+      status(friendly(e, '加载文章') + '。请下拉刷新页面重试。', 'err');
     });
+  });
 })();
 </script>
 </body>
