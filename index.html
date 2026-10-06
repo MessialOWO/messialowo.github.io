@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>江湾期刊 | 达州市高级中学江湾城校区 高2025级1班</title>
+<style>
+  :root {
+    --bg: #faf9f6; --text: #2c2c2c; --muted: #6b6b6b;
+    --card: #fff; --accent: #c0392b; --accent-light: #f9eae8; --border: #e8e4dd;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Georgia", "Songti SC", "SimSun", serif;
+    background: var(--bg); color: var(--text); line-height: 1.8;
+  }
+  .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+
+  header { text-align: center; padding: 48px 0 24px; border-bottom: 3px double var(--border); }
+  .school { font-size: .95rem; letter-spacing: 2px; color: var(--muted); margin-bottom: 8px; }
+  .journal-name { font-size: 3rem; font-weight: 700; letter-spacing: 6px; color: var(--accent); margin-bottom: 8px; }
+  .issue { font-size: 1rem; color: var(--muted); letter-spacing: 1px; }
+  .issue span { display: inline-block; margin: 0 12px; }
+
+  nav {
+    display: flex; justify-content: center; flex-wrap: wrap;
+    gap: 8px 24px; padding: 20px 0; border-bottom: 1px solid var(--border); margin-bottom: 40px;
+  }
+  nav a { color: var(--muted); text-decoration: none; font-size: .95rem; letter-spacing: 1px; transition: color .2s; }
+  nav a:hover { color: var(--accent); }
+
+  section { margin-bottom: 60px; }
+  section h3 {
+    font-size: 1.6rem; color: var(--accent); border-left: 5px solid var(--accent);
+    padding-left: 16px; margin-bottom: 24px; letter-spacing: 2px;
+  }
+  section h3 small { font-size: .9rem; color: var(--muted); margin-left: 12px; letter-spacing: 0; }
+
+  .quote-item {
+    background: var(--card); border-radius: 12px; padding: 28px 32px;
+    margin-bottom: 20px; border: 1px solid var(--border);
+    border-left: 5px solid var(--accent);
+    box-shadow: 0 2px 12px rgba(0,0,0,.03);
+  }
+  .quote-item .quote-text {
+    font-size: 1.15rem; color: var(--text); line-height: 2;
+    margin-bottom: 12px; font-style: italic;
+  }
+  .quote-item .quote-text::before { content: "「"; color: var(--accent); font-style: normal; }
+  .quote-item .quote-text::after { content: "」"; color: var(--accent); font-style: normal; }
+  .quote-item .quote-author { text-align: right; color: var(--muted); font-size: .95rem; }
+  .quote-item .quote-author::before { content: "—— "; }
+
+  .bar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
+  button {
+    font-family: inherit; font-size: .95rem; cursor: pointer;
+    border: none; border-radius: 8px; padding: 10px 20px; transition: opacity .2s;
+  }
+  button:hover { opacity: .85; }
+  .btn-main { background: var(--accent); color: #fff; }
+  .btn-ghost { background: #eee; color: #333; }
+
+  #work-form {
+    display: none; background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px; margin-bottom: 24px;
+  }
+  #work-form.show { display: block; }
+  #work-form label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 6px; }
+  #work-form input[type="text"] {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: 8px; font-family: inherit; font-size: 1rem; margin-bottom: 16px;
+  }
+  #work-form input[type="file"] { margin-bottom: 16px; font-size: .9rem; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    overflow: hidden; position: relative;
+  }
+  .card img { width: 100%; height: 180px; object-fit: cover; display: block; }
+  .card .info { padding: 12px 14px; }
+  .card .info h3 { font-size: 1rem; margin-bottom: 4px; }
+  .card .info p { font-size: .85rem; color: var(--muted); }
+  .card .del {
+    position: absolute; top: 8px; right: 8px; width: 28px; height: 28px;
+    border-radius: 50%; background: rgba(0,0,0,.5); color: #fff;
+    font-size: 1.1rem; line-height: 1; padding: 0; opacity: 0; transition: opacity .2s;
+  }
+  .card:hover .del { opacity: 1; }
+  .empty { text-align: center; color: #aaa; padding: 40px 0; }
+
+  /* 留言板 */
+  .gb-form {
+    background: var(--card); border-radius: 12px; padding: 24px;
+    border: 1px solid var(--border); margin-bottom: 32px;
+  }
+  .gb-form label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 8px; }
+  .gb-form input[type="text"], .gb-form textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: 8px; font-family: inherit; font-size: 1rem;
+    background: var(--bg); color: var(--text); margin-bottom: 16px;
+  }
+  .gb-form textarea { min-height: 100px; resize: vertical; }
+  .gb-form input:focus, .gb-form textarea:focus { outline: none; border-color: var(--accent); }
+
+  /* 头像上传 */
+  .avatar-upload {
+    display: flex; align-items: center; gap: 16px; margin-bottom: 16px;
+  }
+  .avatar-preview {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: #f0f0f0 center/cover no-repeat;
+    display: flex; align-items: center; justify-content: center;
+    color: #aaa; font-size: .75rem; flex-shrink: 0;
+    border: 2px solid var(--border); overflow: hidden;
+  }
+  .avatar-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .avatar-upload label {
+    display: inline-block; padding: 8px 16px; background: #eee; color: #333;
+    border-radius: 8px; cursor: pointer; font-size: .9rem; margin: 0;
+    transition: opacity .2s;
+  }
+  .avatar-upload label:hover { opacity: .85; }
+  .avatar-upload input[type="file"] { display: none; }
+
+  .gb-list { display: flex; flex-direction: column; gap: 16px; }
+  .gb-item {
+    display: flex; gap: 16px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 12px; padding: 20px; position: relative;
+  }
+  .gb-avatar {
+    width: 48px; height: 48px; border-radius: 50%; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; background: #f0f0f0;
+  }
+  .gb-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .gb-body { flex: 1; min-width: 0; }
+  .gb-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; flex-wrap: wrap; }
+  .gb-name { font-weight: 700; }
+  .gb-time { font-size: .8rem; color: var(--muted); }
+  .gb-content { white-space: pre-wrap; word-break: break-word; }
+  .gb-delete {
+    position: absolute; top: 10px; right: 12px; background: none; border: none;
+    color: var(--muted); cursor: pointer; font-size: 1.3rem; line-height: 1;
+    opacity: 0; transition: opacity .2s, color .2s; padding: 0;
+  }
+  .gb-item:hover .gb-delete { opacity: 1; }
+  .gb-delete:hover { color: var(--accent); }
+
+  .gb-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .gb-action-btn {
+    background: none; border: none; padding: 4px 10px; cursor: pointer;
+    color: var(--muted); font-size: .9rem; font-family: inherit;
+    border-radius: 6px; transition: background .2s, color .2s;
+  }
+  .gb-action-btn:hover { background: var(--accent-light); color: var(--accent); }
+  .gb-action-btn.liked { color: var(--accent); font-weight: 600; background: var(--accent-light); }
+
+  .gb-replies {
+    margin-top: 12px; padding-top: 12px;
+    border-top: 1px dashed var(--border);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .gb-reply {
+    display: flex; gap: 10px; align-items: flex-start;
+    background: var(--bg); border-radius: 8px; padding: 10px 12px;
+  }
+  .gb-reply-avatar {
+    width: 28px; height: 28px; border-radius: 50%; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; background: #f0f0f0;
+  }
+  .gb-reply-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .gb-reply-body { flex: 1; min-width: 0; font-size: .9rem; }
+  .gb-reply-name { font-weight: 600; margin-right: 8px; }
+  .gb-reply-time { font-size: .75rem; color: var(--muted); }
+  .gb-reply-content { white-space: pre-wrap; word-break: break-word; margin-top: 4px; }
+
+  .reply-form { margin-top: 12px; display: flex; gap: 8px; }
+  .reply-form input {
+    flex: 1; padding: 8px 12px; border: 1px solid var(--border);
+    border-radius: 8px; font-family: inherit; font-size: .9rem;
+    background: var(--bg); color: var(--text);
+  }
+  .reply-form input:focus { outline: none; border-color: var(--accent); }
+  .reply-form button { padding: 8px 16px; font-size: .9rem; }
+
+  .note {
+    font-size: .85rem; color: var(--muted); margin-bottom: 20px;
+    padding: 12px 16px; background: #fdf6e3; border-radius: 8px; border-left: 4px solid #e6b800;
+  }
+
+  footer {
+    text-align: center; padding: 40px 0; border-top: 3px double var(--border);
+    margin-top: 60px; color: var(--muted); font-size: .9rem;
+  }
+  footer p { margin-bottom: 8px; }
+
+  @media (max-width: 600px) {
+    .journal-name { font-size: 2.2rem; letter-spacing: 3px; }
+    section h3 { font-size: 1.3rem; }
+    .article-card, .gb-form, #work-form, .quote-item { padding: 20px; }
+    .gb-delete { opacity: 1; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="school">达州市高级中学江湾城校区 · 高2025级1班</div>
+    <div class="journal-name">江湾期刊</div>
+    <div class="issue"><span>创刊号</span><span>2026年 春</span></div>
+  </header>
+
+  <nav>
+    <a href="#journal">卷首语</a>
+    <a href="#works">作品集</a>
+    <a href="#guestbook">留言板</a>
+  </nav>
+
+  <main id="journal">
+    <section>
+      <h3>卷首语 <small>Preface</small></h3>
+
+      <div class="quote-item">
+        <div class="quote-text">青春不是一段时光，而是一种心境。</div>
+        <div class="quote-author">塞缪尔·厄尔曼</div>
+      </div>
+      <div class="quote-item">
+        <div class="quote-text">恰同学少年，风华正茂；书生意气，挥斥方遒。</div>
+        <div class="quote-author">毛泽东《沁园春·长沙》</div>
+      </div>
+      <div class="quote-item">
+        <div class="quote-text">青年之字典，无"困难"之字；青年之口头，无"障碍"之语。</div>
+        <div class="quote-author">李大钊</div>
+      </div>
+      <div class="quote-item">
+        <div class="quote-text">愿中国青年都摆脱冷气，只是向上走，不必听自暴自弃者流的话。</div>
+        <div class="quote-author">鲁迅</div>
+      </div>
+      <div class="quote-item">
+        <div class="quote-text">以青春之我，创建青春之家庭，青春之国家，青春之民族。</div>
+        <div class="quote-author">李大钊《青春》</div>
+      </div>
+    </section>
+  </main>
+
+  <section id="works">
+    <h3>作品集 <small>Gallery</small></h3>
+    <div class="bar">
+      <button class="btn-main" id="btn-add">+ 添加作品</button>
+      <button class="btn-ghost" id="btn-export">导出代码</button>
+      <button class="btn-ghost" id="btn-clear">清空全部</button>
+    </div>
+    <div id="work-form">
+      <label>作品图片</label>
+      <input type="file" id="f-img" accept="image/*">
+      <label>标题</label>
+      <input type="text" id="f-title" placeholder="作品标题">
+      <label>作者</label>
+      <input type="text" id="f-author" placeholder="作者姓名">
+      <button class="btn-main" id="btn-save">保存</button>
+      <button class="btn-ghost" id="btn-cancel">取消</button>
+    </div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <section id="guestbook">
+    <h3>留言板 <small>Guestbook</small></h3>
+
+    <div class="note">
+      名字和头像会自动记住，下次打开不用重填。留言、点赞、回复目前刷新后会清空，等部署服务器后即可长期保存。
+    </div>
+
+    <div class="gb-form">
+      <label for="gb-name">你的名字（必填）</label>
+      <input type="text" id="gb-name" maxlength="20" placeholder="输入名字或昵称">
+
+      <label>头像（必填，可上传自己的图片）</label>
+      <div class="avatar-upload">
+        <div class="avatar-preview" id="avatar-preview">未选择</div>
+        <label for="gb-avatar-file">选择图片</label>
+        <input type="file" id="gb-avatar-file" accept="image/*">
+      </div>
+
+      <label for="gb-content">留言内容</label>
+      <textarea id="gb-content" maxlength="500" placeholder="写点什么……"></textarea>
+
+      <button class="btn-main" id="gb-submit" type="button">发布留言</button>
+    </div>
+
+    <div class="gb-list" id="gb-list"></div>
+  </section>
+
+  <footer>
+    <p>《江湾期刊》· 达州市高级中学江湾城校区 高2025级1班 主办</p>
+    <p>© 2026 高2025级1班</p>
+  </footer>
+</div>
+
+<script>
+/* ========== 作品集 ========== */
+(function () {
+  const KEY = 'class_works_v1';
+  let works = JSON.parse(localStorage.getItem(KEY) || '[]');
+  let pendingImg = '';
+  const $ = id => document.getElementById(id);
+  const grid = $('grid'), form = $('work-form');
+
+  function render() {
+    if (!works.length) {
+      grid.innerHTML = '<div class="empty">还没有作品，点上方按钮添加</div>';
+      return;
+    }
+    grid.innerHTML = works.map((w, i) => `
+      <div class="card">
+        <img src="${w.img}" alt="${w.title}">
+        <div class="info"><h3>${w.title}</h3><p>${w.author}</p></div>
+        <button class="del" data-i="${i}">×</button>
+      </div>`).join('');
+    grid.querySelectorAll('.del').forEach(b => {
+      b.onclick = () => {
+        if (!confirm('删除这个作品？')) return;
+        works.splice(+b.dataset.i, 1);
+        localStorage.setItem(KEY, JSON.stringify(works));
+        render();
+      };
+    });
+  }
+
+  $('btn-add').onclick = () => form.classList.add('show');
+  $('btn-cancel').onclick = () => { form.classList.remove('show'); reset(); };
+
+  $('f-img').onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => { pendingImg = ev.target.result; };
+    reader.readAsDataURL(file);
+  };
+
+  $('btn-save').onclick = () => {
+    const title = $('f-title').value.trim();
+    const author = $('f-author').value.trim();
+    if (!pendingImg) return alert('请选择图片');
+    if (!title) return alert('请填标题');
+    if (!author) return alert('请填作者');
+    works.push({ img: pendingImg, title, author });
+    localStorage.setItem(KEY, JSON.stringify(works));
+    render(); reset(); form.classList.remove('show');
+  };
+
+  function reset() {
+    $('f-img').value = ''; $('f-title').value = ''; $('f-author').value = '';
+    pendingImg = '';
+  }
+
+  $('btn-clear').onclick = () => {
+    if (!confirm('确定清空所有作品？')) return;
+    works = []; localStorage.setItem(KEY, '[]'); render();
+  };
+
+  $('btn-export').onclick = () => {
+    if (!works.length) return alert('还没有作品');
+    const html = works.map(w =>
+      `      <div class="card">\n        <img src="${w.img}" alt="${w.title}">\n        <div class="info">\n          <h3>${w.title}</h3>\n          <p>${w.author}</p>\n        </div>\n      </div>`
+    ).join('\n');
+    const full = `<div class="grid">\n${html}\n    </div>`;
+    navigator.clipboard.writeText(full).then(
+      () => alert('已复制到剪贴板，粘贴到 index.html 的 <div class="grid"> 里即可'),
+      () => prompt('复制下面代码：', full)
+    );
+  };
+
+  render();
+})();
+
+/* ========== 留言板：帖子+点赞+回复，头像可上传 ========== */
+(function () {
+  const NAME_KEY = 'jiangwan_gb_name';
+  const AVATAR_KEY = 'jiangwan_gb_avatar';   // 存头像 base64
+
+  let messages = [];
+  let selectedAvatar = localStorage.getItem(AVATAR_KEY) || '';
+
+  const $ = id => document.getElementById(id);
+  const nameInput = $('gb-name'), contentInput = $('gb-content');
+  const previewEl = $('avatar-preview'), fileInput = $('gb-avatar-file');
+  const listEl = $('gb-list');
+
+  nameInput.value = localStorage.getItem(NAME_KEY) || '';
+
+  function refreshPreview() {
+    if (selectedAvatar) {
+      previewEl.innerHTML = '<img src="' + selectedAvatar + '" alt="头像">';
+    } else {
+      previewEl.innerHTML = '未选择';
+    }
+  }
+  refreshPreview();
+
+  fileInput.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 500 * 1024) {
+      if (!confirm('图片有点大（超过 500KB），可能占用较多本地空间，继续吗？')) {
+        fileInput.value = '';
+        return;
+      }
+    }
+    const reader = new FileReader();
+    reader.onload = ev => {
+      selectedAvatar = ev.target.result;
+      try {
+        localStorage.setItem(AVATAR_KEY, selectedAvatar);
+      } catch (err) {
+        alert('头像太大，本地存储放不下。换一张小一点的图片吧。');
+        selectedAvatar = '';
+        localStorage.removeItem(AVATAR_KEY);
+      }
+      refreshPreview();
+    };
+    reader.readAsDataURL(file);
+  };
+
+  nameInput.addEventListener('input', () => {
+    localStorage.setItem(NAME_KEY, nameInput.value.trim());
+  });
+
+  function fmt(ts) {
+    const d = new Date(ts), p = n => n < 10 ? '0' + n : n;
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+
+  function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  function currentUserName() {
+    return (localStorage.getItem(NAME_KEY) || nameInput.value || '').trim();
+  }
+
+  function makeAvatarEl(src, size) {
+    const el = document.createElement('div');
+    el.className = size === 'small' ? 'gb-reply-avatar' : 'gb-avatar';
+    if (src) {
+      const img = document.createElement('img');
+      img.src = src;
+      img.alt = '头像';
+      el.appendChild(img);
+    } else {
+      el.style.background = '#eee';
+    }
+    return el;
+  }
+
+  function createReplyEl(reply) {
+    const rEl = document.createElement('div');
+    rEl.className = 'gb-reply';
+
+    const rAv = makeAvatarEl(reply.avatar, 'small');
+
+    const rBody = document.createElement('div');
+    rBody.className = 'gb-reply-body';
+
+    const rHead = document.createElement('div');
+    const rName = document.createElement('span');
+    rName.className = 'gb-reply-name';
+    rName.textContent = reply.name;
+    const rTime = document.createElement('span');
+    rTime.className = 'gb-reply-time';
+    rTime.textContent = fmt(reply.time);
+    rHead.appendChild(rName);
+    rHead.appendChild(rTime);
+
+    const rContent = document.createElement('div');
+    rContent.className = 'gb-reply-content';
+    rContent.textContent = reply.content;
+
+    rBody.appendChild(rHead);
+    rBody.appendChild(rContent);
+    rEl.appendChild(rAv);
+    rEl.appendChild(rBody);
+    return rEl;
+  }
+
+  function createPostEl(msg) {
+    const item = document.createElement('div');
+    item.className = 'gb-item';
+
+    const av = makeAvatarEl(msg.avatar, 'big');
+
+    const body = document.createElement('div');
+    body.className = 'gb-body';
+
+    const header = document.createElement('div');
+    header.className = 'gb-header';
+    const nameEl = document.createElement('span');
+    nameEl.className = 'gb-name';
+    nameEl.textContent = msg.name;
+    const timeEl = document.createElement('span');
+    timeEl.className = 'gb-time';
+    timeEl.textContent = fmt(msg.time);
+    header.appendChild(nameEl);
+    header.appendChild(timeEl);
+
+    const content = document.createElement('div');
+    content.className = 'gb-content';
+    content.textContent = msg.content;
+
+    const repliesEl = document.createElement('div');
+    repliesEl.className = 'gb-replies';
+    if (!msg.replies.length) repliesEl.hidden = true;
+    msg.replies.forEach(r => repliesEl.appendChild(createReplyEl(r)));
+
+    const replyForm = document.createElement('div');
+    replyForm.className = 'reply-form';
+    replyForm.hidden = true;
+    const replyInput = document.createElement('input');
+    replyInput.type = 'text';
+    replyInput.maxLength = 300;
+    replyInput.placeholder = '回复 ' + msg.name + '……';
+    const replySend = document.createElement('button');
+    replySend.type = 'button';
+    replySend.className = 'btn-main';
+    replySend.textContent = '发送';
+    replySend.onclick = () => {
+      const name = currentUserName();
+      if (!name) { alert('请先在上方填写你的名字'); nameInput.focus(); return; }
+      if (!selectedAvatar) { alert('请先上传你的头像'); fileInput.focus(); return; }
+      const text = replyInput.value.trim();
+      if (!text) { alert('回复内容不能为空'); return; }
+      msg.replies.push({
+        id: uid(),
+        name: name.slice(0, 20),
+        avatar: selectedAvatar,
+        content: text.slice(0, 300),
+        time: Date.now()
+      });
+      render();
+    };
+    replyInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); replySend.click(); }
+    });
+    replyForm.appendChild(replyInput);
+    replyForm.appendChild(replySend);
+
+    const actions = document.createElement('div');
+    actions.className = 'gb-actions';
+
+    const likeBtn = document.createElement('button');
+    likeBtn.type = 'button';
+    likeBtn.className = 'gb-action-btn' + (msg.liked ? ' liked' : '');
+    likeBtn.textContent = '👍 ' + msg.likes;
+    likeBtn.onclick = () => {
+      if (msg.liked) { msg.likes -= 1; msg.liked = false; }
+      else { msg.likes += 1; msg.liked = true; }
+      render();
+    };
+
+    const replyBtn = document.createElement('button');
+    replyBtn.type = 'button';
+    replyBtn.className = 'gb-action-btn';
+    replyBtn.textContent = '💬 回复' + (msg.replies.length ? ' ' + msg.replies.length : '');
+    replyBtn.onclick = () => {
+      replyForm.hidden = !replyForm.hidden;
+      if (!replyForm.hidden) replyInput.focus();
+    };
+
+    actions.appendChild(likeBtn);
+    actions.appendChild(replyBtn);
+
+    body.appendChild(header);
+    body.appendChild(content);
+    body.appendChild(actions);
+    body.appendChild(repliesEl);
+    body.appendChild(replyForm);
+
+    const del = document.createElement('button');
+    del.className = 'gb-delete';
+    del.type = 'button';
+    del.textContent = '×';
+    del.title = '删除这条留言';
+    del.onclick = () => {
+      if (!confirm('删除这条留言？')) return;
+      messages = messages.filter(m => m.id !== msg.id);
+      render();
+    };
+
+    item.appendChild(av);
+    item.appendChild(body);
+    item.appendChild(del);
+    return item;
+  }
+
+  function render() {
+    listEl.innerHTML = '';
+    if (!messages.length) {
+      listEl.innerHTML = '<div class="empty">还没有留言，来发第一条吧～</div>';
+      return;
+    }
+    messages.slice().reverse().forEach(msg => {
+      listEl.appendChild(createPostEl(msg));
+    });
+  }
+
+  $('gb-submit').onclick = () => {
+    const name = nameInput.value.trim();
+    const content = contentInput.value.trim();
+    if (!name) { alert('请填写你的名字'); nameInput.focus(); return; }
+    if (!selectedAvatar) { alert('请先上传你的头像'); fileInput.focus(); return; }
+    if (!content) { alert('请写点内容再发布'); contentInput.focus(); return; }
+
+    messages.push({
+      id: uid(),
+      name: name.slice(0, 20),
+      avatar: selectedAvatar,
+      content: content.slice(0, 500),
+      time: Date.now(),
+      likes: 0,
+      liked: false,
+      replies: []
+    });
+    contentInput.value = '';
+    render();
+  };
+
+  render();
+})();
+</script>
+</body>
+</html>
