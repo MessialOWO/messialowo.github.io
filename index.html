@@ -199,6 +199,16 @@
   .up-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
   .up-hint { font-size: .8rem; color: var(--muted); line-height: 1.6; flex: 1; min-width: 140px; }
   .avatar-preview img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 50%; }
+  /* 关键：圆圈里的图片必须被容器尺寸约束住，否则上传的照片会按原图尺寸撑开 */
+  .avatar-circle img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+    border-radius: 50%; max-width: 100%; max-height: 100%;
+  }
+  .avatar-circle.big  img { width: 48px; height: 48px; }
+  .avatar-circle.small img { width: 28px; height: 28px; }
+  .avatar-preview .avatar-circle, .avatar-preview .avatar-circle img {
+    width: 64px; height: 64px;
+  }
   .up-clear {
     background: none; border: 1px solid var(--border); color: var(--muted);
     border-radius: 8px; padding: 6px 12px; font-size: .85rem; cursor: pointer;
@@ -264,6 +274,15 @@
     margin-top: 60px; color: var(--muted); font-size: .9rem;
   }
   footer p { margin-bottom: 8px; }
+  footer .contact-line { margin-top: 18px; letter-spacing: 2px; color: var(--text); font-weight: 700; }
+  footer .contact-list {
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 22px;
+    margin-bottom: 18px;
+  }
+  footer .contact-item { white-space: nowrap; }
+  footer .contact-item b { color: var(--text); font-weight: 600; }
+  footer a { color: var(--accent); text-decoration: none; border-bottom: 1px dashed var(--accent); }
+  footer a:hover { opacity: .75; }
 
   @media (max-width: 600px) {
     .journal-name { font-size: clamp(2rem, 9vw, 2.6rem); letter-spacing: clamp(2px, 1.5vw, 4px); }
@@ -339,7 +358,8 @@
       <button class="btn-ghost" id="btn-clear">清空全部</button>
     </div>
     <div id="work-form">
-      <label>作品图片</label>
+      <div class="gb-status" id="work-note" hidden></div>
+      <label>作品图片（会自动压缩到 1400 像素再上传）</label>
       <input type="file" id="f-img" accept="image/*">
       <label>标题</label>
       <input type="text" id="f-title" placeholder="作品标题">
@@ -400,6 +420,12 @@
 
   <footer>
     <p>《江湾期刊》· 达州市高级中学江湾城校区 高2025级1班 主办</p>
+    <p class="contact-line">联系方式</p>
+    <p class="contact-list">
+      <span class="contact-item">微信：<b>EqualAcorn28027</b></span>
+      <span class="contact-item">QQ：<a href="https://qm.qq.com/cgi-bin/qm/qr?k=&amp;uin=2961001891" target="_blank" rel="noopener">2961001891</a></span>
+      <span class="contact-item">邮箱：<a href="mailto:equalacorn28027@outlook.com">equalacorn28027@outlook.com</a></span>
+    </p>
     <p>© 2026 高2025级1班</p>
   </footer>
 </div>
@@ -474,23 +500,33 @@ function compressImage(file, maxEdge, quality) {
   if (btn) btn.onclick = showRandom;
 })();
 
-/* ========== 作品集 ========== */
+/* ========== 作品集（云端存储） ========== */
 (function () {
-  const KEY = 'class_works_v1';
-  let works = [];
-  try {
-    const parsed = JSON.parse(localStorage.getItem(KEY) || '[]');
-    works = Array.isArray(parsed) ? parsed.filter(w => w && typeof w === 'object') : [];
-  } catch (e) {
-    console.warn('作品集数据损坏，已重置', e);
-    try { localStorage.removeItem(KEY); } catch (_) {}
-    works = [];
-  }
-  let pendingImg = '';
   const $ = id => document.getElementById(id);
   const grid = $('grid'), form = $('work-form');
-  // 页面里手写的作品先备份下来，render 时保留，避免「本地为空就把静态内容清掉」
   const staticHTML = grid ? grid.innerHTML : '';
+  const NAME_KEY = 'jiangwan_work_author';
+
+  var works = [];          // 云端作品
+  var connected = false;
+  var pendingImg = '';     // 压缩后的 dataURL
+  var pendingBlob = null;  // 待上传的 JPEG
+  var busy = false;
+
+  function setNote(text, kind) {
+    var el = $('work-note');
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = 'gb-status' + (kind ? ' ' + kind : '');
+    el.hidden = !text;
+  }
+
+  function avatarUrlOf(path) {
+    var base = (window.JW && JW.storagePublic) ? JW.storagePublic : '';
+    if (!base || typeof path !== 'string') return '';
+    if (!/^[A-Za-z0-9-]{1,64}\/[A-Za-z0-9._-]{1,80}$/.test(path)) return '';
+    return base + path;
+  }
 
   function usedKB() {
     let n = 0;
@@ -498,102 +534,300 @@ function compressImage(file, maxEdge, quality) {
     return Math.round(n * 2 / 1024);
   }
 
-  function saveWorks() {
+  /* localStorage 里只留一份待续传的草稿（图太大就存不进去，此时退化为只读提示） */
+  function saveDraft() {
     try {
-      localStorage.setItem(KEY, JSON.stringify(works));
+      localStorage.setItem('class_works_draft', JSON.stringify({ img: pendingImg, title: $('f-title').value, author: $('f-author').value }));
       return true;
     } catch (err) {
-      const quota = err && (err.name === 'QuotaExceededError' || err.name === 'NS_ERROR_DOM_QUOTA_REACHED'
-                         || err.code === 22 || err.code === 1014);
-      alert(quota
-        ? '本地存储已满（已用约 ' + usedKB() + ' KB，上限约 5000 KB）。\n请先删掉几件旧作品，或把图片放进网站仓库的 img 目录。'
-        : '保存失败：' + (err && err.message ? err.message : err) + '\n（无痕模式下浏览器会禁止本地存储）');
+      const quota = err && (err.name === 'QuotaExceededError' || err.code === 22 || err.code === 1014);
+      if (quota) setNote('本地存储放不下这张图的草稿（已用约 ' + usedKB() + ' KB），不过不影响上传。', 'err');
       return false;
     }
   }
 
   function bindDel() {
-    grid.querySelectorAll('.del[data-i]').forEach(b => {
+    grid.querySelectorAll('.del[data-id]').forEach(b => {
       b.onclick = () => {
-        if (!confirm('删除这个作品？')) return;
-        works.splice(+b.dataset.i, 1);
-        saveWorks();
-        render();
+        if (!confirm('删除这件作品？（同时会删掉云端图片，不可恢复）')) return;
+        var id = b.dataset.id;
+        var path = b.dataset.path || '';
+        if (!connected || !window.JW || !JW.sb) { setNote('还没连上云端，删不了。请检查网络后重试。', 'err'); return; }
+        busy = true;
+        JW.sb.from('works').delete().eq('id', id).then(function (res) {
+          if (res.error) throw res.error;
+          if (path) return JW.sb.storage.from(JW.bucket).remove([path]).then(function () { return null; });
+          return null;
+        }).then(function () {
+          works = works.filter(w => w.id !== id);
+          render();
+          setNote('已删除。', 'ok');
+          setTimeout(function () { setNote(''); }, 2000);
+        }).catch(function (e) {
+          console.error(e);
+          setNote('删除失败：' + (e.message || e), 'err');
+        }).then(function () { busy = false; });
       };
     });
   }
 
   function render() {
-    const local = works.map((w, i) => `
-      <div class="card">
-        <img src="${esc(safeSrc(w.img))}" alt="${esc(w.title)}">
-        <div class="info"><h3>${esc(w.title)}</h3><p>${esc(w.author)}</p></div>
-        <button class="del" type="button" data-i="${i}" aria-label="删除">×</button>
-      </div>`).join('');
-    grid.innerHTML = staticHTML + local;
-    if (local) {
+    var cloud = works.map(function (w, i) {
+      var url = avatarUrlOf(w.image_path);
+      return '' +
+        '<div class="card">\n' +
+        '        <img src="' + esc(url) + '" alt="' + esc(w.title) + '" loading="lazy" decoding="async">\n' +
+        '        <div class="info"><h3>' + esc(w.title) + '</h3><p>' + esc(w.author) + '</p></div>\n' +
+        '        <button class="del" type="button" data-id="' + esc(w.id) + '" data-path="' + esc(w.image_path) + '" aria-label="删除">×</button>\n' +
+        '      </div>';
+    }).join('');
+    grid.innerHTML = staticHTML + cloud;
+    if (cloud) {
       bindDel();
     } else if (!staticHTML.trim()) {
-      grid.innerHTML = '<div class="empty">还没有作品，点上方按钮添加</div>';
+      grid.innerHTML = '<div class="empty">' + (connected ? '还没有作品，点上方按钮添加' : '作品加载中……') + '</div>';
     }
   }
 
-  $('btn-add').onclick = () => form.classList.add('show');
-  $('btn-cancel').onclick = () => { form.classList.remove('show'); reset(); };
+  function compressForWork(file) {
+    return new Promise(function (resolve, reject) {
+      if (!file.type || file.type.indexOf('image/') !== 0) return reject(new Error('这不是图片文件'));
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        URL.revokeObjectURL(url);
+        var maxEdge = 1400;
+        var scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+        var w = Math.max(1, Math.round(img.width * scale));
+        var h = Math.max(1, Math.round(img.height * scale));
+        var cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        var ctx = cv.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        var dataUrl = cv.toDataURL('image/jpeg', 0.8);
+        var done = function (blob) { resolve({ dataUrl: dataUrl, blob: blob }); };
+        if (cv.toBlob) cv.toBlob(function (b) { b ? done(b) : reject(new Error('图片编码失败')); }, 'image/jpeg', 0.8);
+        else {
+          try {
+            var bin = atob(dataUrl.split(',')[1]);
+            var arr = new Uint8Array(bin.length);
+            for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+            done(new Blob([arr], { type: 'image/jpeg' }));
+          } catch (e) { reject(e); }
+        }
+      };
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        reject(new Error('图片解码失败（HEIC 请先在相册里转成 JPG）'));
+      };
+      img.src = url;
+    });
+  }
 
-  $('f-img').onchange = async e => {
-    const file = e.target.files[0];
+  $('btn-add').onclick = function () { form.classList.add('show'); };
+  $('btn-cancel').onclick = function () { form.classList.remove('show'); reset(); };
+
+  $('f-img').onchange = function (e) {
+    var file = e.target.files && e.target.files[0];
     if (!file) return;
-    try {
-      pendingImg = await compressImage(file, 1200, 0.82);
-    } catch (err) {
-      alert(err.message);
+    if (file.size > 20 * 1024 * 1024) {
+      alert('图片太大了（超过 20MB），请换一张。');
       e.target.value = '';
-      pendingImg = '';
+      return;
     }
+    setNote('正在压缩图片……');
+    compressForWork(file).then(function (out) {
+      pendingImg = out.dataUrl;
+      pendingBlob = out.blob;
+      saveDraft();
+      var kb = Math.round(out.blob.size / 1024);
+      setNote('图片已就绪（压缩后约 ' + kb + ' KB），填好标题和作者后点保存。', 'ok');
+    }).catch(function (err) {
+      alert(err.message);
+      pendingImg = ''; pendingBlob = null;
+      e.target.value = '';
+      setNote('');
+    });
   };
 
-  $('btn-save').onclick = () => {
-    const title = $('f-title').value.trim();
-    const author = $('f-author').value.trim();
-    if (!pendingImg) return alert('请选择图片');
+  $('btn-save').onclick = function () {
+    var title = $('f-title').value.trim();
+    var author = $('f-author').value.trim();
+    if (!pendingImg || !pendingBlob) return alert('请先选择作品图片');
     if (!title) return alert('请填标题');
     if (!author) return alert('请填作者');
-    works.push({ img: pendingImg, title, author });
-    if (!saveWorks()) { works.pop(); return; }   // 存不下就回滚，保证内存与存储一致
-    render(); reset(); form.classList.remove('show');
+    if (busy) return;
+    if (!connected || !window.JW || !JW.sb) { setNote('还没连上云端，暂时传不了作品。请检查网络后重试。', 'err'); return; }
+
+    busy = true;
+    var saveBtn = $('btn-save');
+    saveBtn.disabled = true;
+    saveBtn.textContent = '上传中…';
+    setNote('正在上传作品图片……');
+
+    var uid = JW.uid || ('anon-' + Date.now().toString(36));
+    var path = uid + '/work-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8) + '.jpg';
+
+    JW.sb.storage.from(JW.bucket).upload(path, pendingBlob, { contentType: 'image/jpeg', upsert: false })
+      .then(function (res) {
+        if (res.error) throw res.error;
+        return JW.sb.from('works').insert({
+          title: title.slice(0, 40),
+          author: author.slice(0, 20),
+          image_path: path,
+          device_id: JW.deviceId
+        });
+      })
+      .then(function (res) {
+        if (res && res.error) throw res.error;
+        try { localStorage.setItem(NAME_KEY, author); } catch (e) {}
+        var draft = localStorage.getItem('class_works_draft');
+        if (draft) { try { localStorage.removeItem('class_works_draft'); } catch (e) {} }
+        reset();
+        form.classList.remove('show');
+        setNote('作品已上传到云端 ✅ 所有人现在都能看到了。', 'ok');
+        setTimeout(function () { setNote(''); }, 3500);
+        return loadWorks();
+      })
+      .catch(function (err) {
+        console.error(err);
+        var m = err && err.message ? err.message : String(err);
+        if (err && err.code === '42501') m = '传得太快了：1 分钟最多 6 件，歇一会儿再传。';
+        else if (/Bucket not found/i.test(m)) m = '存储桶还没建好（请先执行第四步 SQL）';
+        else if (/row-level security|AccessDenied/i.test(m)) m = '没有上传权限（请确认匿名登录已开启）';
+        else if (/Failed to fetch|NetworkError|Load failed/i.test(m)) m = '网络断了，图片没传上去。请重试。';
+        setNote('上传失败：' + m, 'err');
+      })
+      .then(function () {
+        busy = false;
+        saveBtn.disabled = false;
+        saveBtn.textContent = '保存';
+      });
   };
 
   function reset() {
     $('f-img').value = ''; $('f-title').value = ''; $('f-author').value = '';
-    pendingImg = '';
+    pendingImg = ''; pendingBlob = null;
   }
 
-  $('btn-clear').onclick = () => {
-    if (!works.length) return alert('现在没有本地作品');
-    if (!confirm('确定清空所有本地作品？（共 ' + works.length + ' 件，不可恢复）')) return;
-    works = [];
-    if (!saveWorks()) return;
-    render();
+  $('btn-export').onclick = function () {
+    if (!works.length) return alert('云端还没有作品');
+    var cards = works.map(function (w) {
+      var url = avatarUrlOf(w.image_path);
+      return '      <div class="card">\n' +
+             '        <img src="' + esc(url) + '" alt="' + esc(w.title) + '">\n' +
+             '        <div class="info">\n' +
+             '          <h3>' + esc(w.title) + '</h3>\n' +
+             '          <p>' + esc(w.author) + '</p>\n' +
+             '        </div>\n' +
+             '      </div>';
+    }).join('\n');
+    copyText(cards, '把它粘贴到 index.html 里 <div class="grid" id="grid"> 与 </div> 之间（这样即使以后不用数据库，作品也留在页面里）');
   };
 
-  $('btn-export').onclick = () => {
-    if (!works.length) return alert('还没有本地作品');
-    const cards = works.map(w =>
-      '      <div class="card">\n' +
-      '        <img src="' + esc(safeSrc(w.img)) + '" alt="' + esc(w.title) + '">\n' +
-      '        <div class="info">\n' +
-      '          <h3>' + esc(w.title) + '</h3>\n' +
-      '          <p>' + esc(w.author) + '</p>\n' +
-      '        </div>\n' +
-      '      </div>'
-    ).join('\n');
-    copyText(cards, '把它粘贴到 index.html 里 <div class="grid" id="grid"> 与 </div> 之间（注意保留这个 id，不要整个替换）');
-  };
+  function loadWorks() {
+    if (!window.JW || !JW.sb) return Promise.resolve();
+    return JW.sb.from('works')
+      .select('id,created_at,title,author,image_path')
+      .eq('hidden', false)
+      .order('created_at', { ascending: false })
+      .limit(200)
+      .then(function (res) {
+        if (res.error) throw res.error;
+        works = res.data || [];
+        connected = true;
+        render();
+      });
+  }
 
+  /* 首次渲染：先显示页面里手写的静态作品 */
   render();
+
+  /* 等留言板把 Supabase 客户端初始化好，再拉云端作品 */
+  document.addEventListener('jw:ready', function () {
+    loadWorks().catch(function (e) {
+      console.error(e);
+      connected = false;
+      render();
+      setNote('作品加载失败：' + (e.message || e) + '（页面其它内容照常可用）', 'err');
+    });
+  });
+
+  /* 恢复上次填的作者名，省得每次重填 */
+  try {
+    var savedAuthor = localStorage.getItem(NAME_KEY);
+    if (savedAuthor) $('f-author').value = savedAuthor;
+  } catch (e) {}
 })();
 
+/* ========== 共用云端连接（作品集与留言板共用同一个客户端） ========== */
+var JW = {
+  url: 'https://wvqrnkgjwnlhjhfuonts.supabase.co',
+  key: 'sb_publishable_cGy9MFHh3-t2i0kEnbHeeg_A1-rUMaF',
+  bucket: 'avatars',
+  sb: null,
+  uid: '',
+  deviceId: '',
+  ready: false,
+  error: null,
+  _waiters: [],
+  whenReady: function (cb) { if (JW.ready) cb(JW.error); else JW._waiters.push(cb); },
+  _settle: function (err) {
+    JW.error = err || null;
+    JW.ready = true;
+    JW._waiters.splice(0).forEach(function (cb) { try { cb(JW.error); } catch (e) { console.error(e); } });
+    try { document.dispatchEvent(new Event('jw:ready')); } catch (e) {}
+  }
+};
+JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
+
+(function () {
+  function newDeviceId() {
+    if (window.crypto && window.crypto.randomUUID) return 'gb-' + window.crypto.randomUUID();
+    return 'gb-' + Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  }
+  JW.deviceId = localStorage.getItem('jiangwan_gb_device') || '';
+  if (!JW.deviceId || JW.deviceId.length < 8 || JW.deviceId.length > 64) {
+    JW.deviceId = newDeviceId();
+    try { localStorage.setItem('jiangwan_gb_device', JW.deviceId); } catch (e) {}
+  }
+
+  function bootShared() {
+    if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
+      document.addEventListener('jw:sdk-fallback', bootShared, { once: true });
+      return;
+    }
+    try {
+      JW.sb = window.supabase.createClient(JW.url, JW.key, {
+        auth: { persistSession: true, autoRefreshToken: true }
+      });
+    } catch (e) {
+      JW._settle(e);
+      return;
+    }
+    JW.sb.auth.signInAnonymously().then(function (res) {
+      if (res && res.error) {
+        console.warn('匿名登录失败（图片上传会不可用）', res.error);
+      } else if (res && res.data && res.data.user) {
+        JW.uid = res.data.user.id || '';
+      }
+    }).catch(function (e) { console.warn('匿名登录异常（图片上传会不可用）', e); })
+      .then(function () {
+        if (JW.uid) return null;
+        return JW.sb.auth.getSession().then(function (r) {
+          var u = r && r.data && r.data.session && r.data.session.user;
+          if (u && u.id) JW.uid = u.id;
+          return null;
+        }).catch(function () { return null; });
+      })
+      .then(function () { JW._settle(null); })
+      .catch(function (e) { JW._settle(e); });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootShared);
+  else bootShared();
+})();
 
 /* ========== 留言板：Supabase 云端持久化（帖子 + 点赞 + 回复） ========== */
 (function () {
@@ -674,7 +908,7 @@ function compressImage(file, maxEdge, quality) {
     rnd = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
     return 'gb-' + Date.now().toString(36) + rnd;
   }
-  deviceId = localStorage.getItem(DEVICE_KEY) || '';
+  deviceId = (window.JW && JW.deviceId) || localStorage.getItem(DEVICE_KEY) || '';
   if (!deviceId || deviceId.length < 8 || deviceId.length > 64) {
     deviceId = newDeviceId();
     try { localStorage.setItem(DEVICE_KEY, deviceId); } catch (e) {}
@@ -1202,7 +1436,10 @@ function compressImage(file, maxEdge, quality) {
       status('正在从备用地址加载留言组件……');
       var s = document.createElement('script');
       s.src = SB_JS_FALLBACK;
-      s.onload = function () { boot2(); };
+      s.onload = function () {
+        // SDK 从备用 CDN 加载成功，通知共用模块重新初始化
+        document.dispatchEvent(new Event('jw:sdk-fallback'));
+      };
       s.onerror = function () {
         status('留言组件加载失败（网络可能拦截了外部脚本）。页面其它内容正常可用，请换网络或稍后刷新重试。', 'err');
       };
@@ -1213,35 +1450,14 @@ function compressImage(file, maxEdge, quality) {
   }
 
   function boot2() {
-    if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
+    if (!window.JW || !JW.sb) {
       status('留言组件加载失败。页面其它内容正常可用，请换网络或稍后刷新重试。', 'err');
       return;
     }
-    try {
-      sb = window.supabase.createClient(SB_URL, SB_KEY, {
-        auth: { persistSession: true, autoRefreshToken: true }
-      });
-    } catch (e) {
-      status('留言功能初始化失败：' + e.message, 'err');
-      return;
-    }
-    // 匿名登录：给这台设备一个稳定身份，同时用它作为头像上传的目录名。
-    // 失败不影响发留言（device_id 是本地生成的），只是传不了图片头像。
-    sb.auth.signInAnonymously().then(function (res) {
-      if (res && res.error) {
-        console.warn('匿名登录失败（图片头像会不可用）', res.error);
-      } else if (res && res.data && res.data.user) {
-        currentUserId = res.data.user.id || '';
-      }
-    }).catch(function (e) { console.warn('匿名登录异常（图片头像会不可用）', e); })
-    .then(function () {
-      if (currentUserId) return null;      // 刷新页面时已有会话，直接取当前 uid
-      return sb.auth.getSession().then(function (r) {
-        var u = r && r.data && r.data.session && r.data.session.user;
-        if (u && u.id) currentUserId = u.id;
-        return null;
-      }).catch(function () { return null; });
-    })
+    // 复用共用连接：同一次匿名登录，作品集和留言板用同一个身份
+    sb = JW.sb;
+    currentUserId = JW.uid || '';
+    Promise.resolve()
     .then(function () {
       return loadMessages().then(function () { return loadLiked(); });
     })
@@ -1260,10 +1476,27 @@ function compressImage(file, maxEdge, quality) {
     });
   }
 
+  function startWhenSharedReady() {
+    if (window.JW) {
+      JW.whenReady(function () {
+        if (JW.error) {
+          connected = false;
+          render();
+          status('连不上云端：' + (JW.error.message || JW.error) + '（页面其它内容照常可用）', 'err');
+          return;
+        }
+        boot2();
+      });
+    } else {
+      // 共用模块还没就位（脚本顺序异常），退回自己启动
+      boot();
+    }
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
+    document.addEventListener('DOMContentLoaded', startWhenSharedReady);
   } else {
-    boot();
+    startWhenSharedReady();
   }
 })();
 </script>
