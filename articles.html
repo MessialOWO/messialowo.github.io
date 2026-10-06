@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<meta name="description" content="江湾期刊 · 期刊文章：散文、诗歌、议论、班级新闻四个专区，每区多个板块。">
+<title>期刊文章 | 江湾期刊</title>
+<style>
+  :root {
+    --bg: #faf9f6; --text: #2c2c2c; --muted: #6b6b6b;
+    --card: #fff; --accent: #c0392b; --accent-light: #f9eae8; --border: #e8e4dd;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Georgia", "Songti SC", "SimSun", serif; background: var(--bg); color: var(--text); line-height: 1.8; }
+  .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+
+  header { text-align: center; padding: 44px 0 20px; border-bottom: 3px double var(--border); }
+  .school { font-size: .95rem; letter-spacing: 2px; color: var(--muted); margin-bottom: 8px; }
+  .journal-name { font-size: clamp(2rem, 9vw, 2.8rem); font-weight: 700; letter-spacing: 5px; color: var(--accent); margin-bottom: 6px; }
+  .journal-name a { color: inherit; text-decoration: none; }
+  .issue { font-size: .95rem; color: var(--muted); letter-spacing: 1px; }
+
+  nav { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 22px; padding: 18px 0; border-bottom: 1px solid var(--border); }
+  nav a { color: var(--muted); text-decoration: none; font-size: .95rem; letter-spacing: 1px; }
+  nav a:hover { color: var(--accent); }
+  nav a.on { color: var(--accent); font-weight: 700; }
+
+  .section-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 30px 0 18px; }
+  .section-tab {
+    flex: 1 1 130px; padding: 12px 8px; border: 1px solid var(--border); border-radius: 10px;
+    background: var(--card); cursor: pointer; font-family: inherit; font-size: .95rem;
+    color: var(--muted); text-align: center; transition: all .18s;
+  }
+  .section-tab b { display: block; font-size: 1.05rem; color: var(--text); margin-bottom: 2px; }
+  .section-tab small { display: block; font-size: .72rem; letter-spacing: 1px; opacity: .7; }
+  .section-tab:hover { border-color: var(--accent); }
+  .section-tab.on { background: var(--accent); border-color: var(--accent); }
+  .section-tab.on b, .section-tab.on small { color: #fff; opacity: 1; }
+
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+  .toolbar button { font-family: inherit; font-size: .9rem; cursor: pointer; border-radius: 20px; padding: 8px 16px; border: 1px solid var(--border); background: var(--card); color: var(--muted); }
+  .toolbar button:hover { border-color: var(--accent); color: var(--accent); }
+  .toolbar button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .toolbar button.primary:hover { color: #fff; opacity: .88; }
+
+  .boards { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+  .board-chip {
+    font-family: inherit; font-size: .92rem; cursor: pointer; padding: 8px 14px;
+    border: 1px solid var(--border); border-radius: 20px; background: var(--card); color: var(--text);
+    display: inline-flex; align-items: center; gap: 6px; transition: all .16s;
+  }
+  .board-chip:hover { border-color: var(--accent); }
+  .board-chip.on { background: var(--accent-light); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+  .board-chip .dot { width: 7px; height: 7px; border-radius: 50%; background: #bbb; flex-shrink: 0; }
+  .board-chip.has .dot { background: #4a8f4a; }
+
+  .panel { margin-bottom: 60px; }
+
+  .article { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 32px; box-shadow: 0 2px 12px rgba(0,0,0,.03); }
+  .article-head { border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 22px; }
+  .article-title { font-size: 1.75rem; line-height: 1.4; margin-bottom: 10px; letter-spacing: 1px; }
+  .article-meta { font-size: .88rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 18px; }
+  .article-cover { width: 100%; border-radius: 10px; margin-bottom: 22px; display: block; }
+  .article-body { font-size: 1.06rem; line-height: 2.05; }
+  .article-body p { margin-bottom: 1.1em; text-indent: 2em; }
+  .article-body h2 { font-size: 1.2rem; margin: 1.6em 0 .8em; padding-left: 12px; border-left: 4px solid var(--accent); text-indent: 0; }
+  .article-body blockquote { margin: 1.2em 0; padding: 10px 18px; border-left: 3px solid var(--border); background: var(--bg); color: #444; font-style: italic; text-indent: 0; }
+
+  .empty-article { background: var(--card); border: 1px dashed var(--border); border-radius: 12px; padding: 52px 26px; text-align: center; color: var(--muted); }
+  .empty-article b { display: block; font-size: 1.08rem; color: var(--text); margin-bottom: 10px; }
+
+  .bar { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 22px; }
+  button { font-family: inherit; font-size: .95rem; cursor: pointer; border: none; border-radius: 8px; padding: 10px 20px; transition: opacity .2s; }
+  button:hover { opacity: .85; }
+  button:disabled { opacity: .5; cursor: default; }
+  .btn-main { background: var(--accent); color: #fff; }
+  .btn-ghost { background: #eee; color: #333; }
+
+  .form-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+  .form-card[hidden] { display: none; }
+  .form-card label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 8px; }
+  .form-card input[type="text"], .form-card input[type="password"], .form-card textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+    font-family: inherit; font-size: 1rem; background: var(--bg); color: var(--text); margin-bottom: 16px;
+  }
+  .form-card input:focus, .form-card textarea:focus { outline: none; border-color: var(--accent); }
+  .form-card textarea { min-height: 240px; resize: vertical; line-height: 1.85; font-size: .98rem; }
+  .form-row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .form-row > div { flex: 1 1 200px; }
+  .hint { font-size: .82rem; color: var(--muted); line-height: 1.75; margin-bottom: 16px; }
+
+  .status { font-size: .88rem; padding: 10px 14px; border-radius: 8px; margin-bottom: 18px; background: var(--accent-light); border-left: 4px solid var(--accent); line-height: 1.7; }
+  .status[hidden] { display: none; }
+  .status.ok  { background: #eef7ee; border-left-color: #4a8f4a; color: #35663a; }
+  .status.err { background: #fdecec; border-left-color: var(--accent); color: #8c2a20; }
+
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 24px; padding-top: 18px; border-top: 1px dashed var(--border); }
+  .action-btn { background: none; border: 1px solid var(--border); border-radius: 20px; padding: 7px 16px; color: var(--muted); font-size: .9rem; }
+  .action-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .action-btn.liked { border-color: var(--accent); color: var(--accent); background: var(--accent-light); font-weight: 600; }
+
+  .comments { margin-top: 26px; }
+  .comments h4 { font-size: 1rem; margin-bottom: 14px; color: var(--muted); letter-spacing: 1px; }
+  .comment { background: var(--bg); border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; }
+  .comment-head { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; margin-bottom: 4px; }
+  .comment-name { font-weight: 700; font-size: .95rem; overflow-wrap: anywhere; }
+  .comment-time { font-size: .75rem; color: var(--muted); }
+  .comment-body { white-space: pre-wrap; word-break: break-word; font-size: .95rem; }
+  .comment-form { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .comment-form input {
+    flex: 1 1 120px; min-width: 0; padding: 9px 12px; border: 1px solid var(--border);
+    border-radius: 8px; font-family: inherit; font-size: 16px; background: var(--bg); color: var(--text);
+  }
+  .comment-form input:focus { outline: none; border-color: var(--accent); }
+  .comment-form input.grow { flex: 3 1 200px; }
+  .comment-form button { padding: 9px 18px; flex-shrink: 0; }
+
+  footer { text-align: center; padding: 40px 0; border-top: 3px double var(--border); margin-top: 20px; color: var(--muted); font-size: .9rem; }
+  footer p { margin-bottom: 8px; }
+  footer .contact-line { margin-top: 18px; letter-spacing: 2px; color: var(--text); font-weight: 700; }
+  footer .contact-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 22px; margin-bottom: 18px; }
+  footer .contact-item { white-space: nowrap; }
+  footer .contact-item b { color: var(--text); font-weight: 600; }
+  footer a { color: var(--accent); text-decoration: none; border-bottom: 1px dashed var(--accent); }
+  footer a:hover { opacity: .75; }
+
+  @media (max-width: 600px) {
+    .container { padding: 0 16px; }
+    .article { padding: 20px; }
+    .article-title { font-size: 1.4rem; }
+    .article-body { font-size: 1rem; }
+    .section-tab { flex: 1 1 calc(50% - 8px); }
+    .form-card { padding: 18px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="school">达州市高级中学江湾城校区 · 高2025级1班</div>
+    <div class="journal-name"><a href="./">江湾期刊</a></div>
+    <div class="issue">期刊文章 · 散文 / 诗歌 / 议论 / 班级新闻</div>
+  </header>
+
+  <nav>
+    <a href="./">首页</a>
+    <a href="./#works">作品集</a>
+    <a href="./#guestbook">留言板</a>
+    <a href="./articles.html" class="on">期刊文章</a>
+  </nav>
+
+  <div class="section-tabs" id="section-tabs"></div>
+
+  <div class="toolbar">
+    <button type="button" class="primary" id="btn-random">🎲 随机看一篇文章</button>
+    <button type="button" id="btn-new-board">＋ 新建板块</button>
+    <button type="button" id="btn-refresh">↻ 刷新</button>
+  </div>
+
+  <div class="status" id="status" hidden></div>
+
+  <div class="boards" id="boards"></div>
+  <div class="panel" id="panel">
+    <div class="empty-article">正在加载……</div>
+  </div>
+
+  <footer>
+    <p>《江湾期刊》· 达州市高级中学江湾城校区 高2025级1班 主办</p>
+    <p class="contact-line">联系方式</p>
+    <p class="contact-list">
+      <span class="contact-item">微信：<b>EqualAcorn28027</b></span>
+      <span class="contact-item">QQ：<a href="https://qm.qq.com/cgi-bin/qm/qr?k=&amp;uin=2961001891" target="_blank" rel="noopener">2961001891</a></span>
+      <span class="contact-item">邮箱：<a href="mailto:equalacorn28027@outlook.com">equalacorn28027@outlook.com</a></span>
+    </p>
+    <p>© 2026 高2025级1班</p>
+  </footer>
+</div>
+
+<script src="./vendor/supabase.js"></script>
+<script>
+var SB_URL = 'https://wvqrnkgjwnlhjhfuonts.supabase.co';
+var SB_KEY = 'sb_publishable_cGy9MFHh3-t2i0kEnbHeeg_A1-rUMaF';
+var SB_BUCKET = 'avatars';
+var PW_SALT = 'jw-salt-2026';
+
+var SECTIONS = [
+  { id: 'essay',   name: '散文',     en: 'Prose',  icon: '🖋' },
+  { id: 'poem',    name: '诗歌',     en: 'Poetry', icon: '🌾' },
+  { id: 'opinion', name: '议论',     en: 'Essay',  icon: '💬' },
+  { id: 'news',    name: '班级新闻', en: 'News',   icon: '📰' }
+];
+
+var $ = function (id) { return document.getElementById(id); };
+var sb = null, uid = '', deviceId = '', connected = false;
+var boards = [], articles = [], commentCache = {}, likedSet = {};
+var currentSection = 'essay', currentBoardId = '';
+var busy = false;
+var pendingCover = { path: '' };
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function coverUrl(path) {
+  if (typeof path !== 'string' || !/^[A-Za-z0-9-]{1,64}\/[A-Za-z0-9._-]{1,80}$/.test(path)) return '';
+  return SB_URL + '/storage/v1/object/public/' + SB_BUCKET + '/' + path;
+}
+function fmt(ts) {
+  var d = new Date(ts);
+  if (isNaN(d.getTime())) return '';
+  var p = function (n) { return n < 10 ? '0' + n : '' + n; };
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+function status(text, kind) {
+  var el = $('status');
+  if (!text) { el.hidden = true; el.textContent = ''; return; }
+  el.hidden = false;
+  el.className = 'status' + (kind ? ' ' + kind : '');
+  el.textContent = text;
+}
+function sha256Hex(text) {
+  if (window.crypto && window.crypto.subtle && window.TextEncoder) {
+    return window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then(function (buf) {
+      return Array.prototype.map.call(new Uint8Array(buf), function (b) {
+        return ('0' + b.toString(16)).slice(-2);
+      }).join('');
+    });
+  }
+  return Promise.reject(new Error('这个浏览器不支持加密接口，请换 Chrome 或系统浏览器'));
+}
+function isBadPw(e) {
+  var m = (e && e.message) ? e.message : String(e || '');
+  return /bad password/i.test(m);
+}
+function friendly(e, doing) {
+  var m = (e && e.message) ? e.message : String(e || '');
+  if (/bad password/i.test(m)) return '密码不对。';
+  if (/board not found/i.test(m)) return '这个板块不存在了，请刷新页面。';
+  if (/duplicate key|boards_section_name_idx/i.test(m)) return '这个区里已经有同名板块了，换个名字。';
+  if (/bad (section|title|author|body|cover|board)/i.test(m)) return '内容格式不对：标题 1-60 字、作者 1-20 字、正文 1-20000 字。';
+  if (/row-level security|42501/i.test(m)) return (doing === '评论' ? '评论发得太快了，1 分钟最多 5 条。' : '没有权限执行这个操作。');
+  if (/Failed to fetch|NetworkError|Load failed|timeout/i.test(m)) return '网络断了，请检查网络后重试。';
+  if (/Bucket not found/i.test(m)) return '存储桶还没建好（请先执行第五步 SQL）。';
+  return (doing || '操作') + '失败：' + m;
+}
+function articleOfBoard(boardId) {
+  for (var i = 0; i < articles.length; i++) if (articles[i].board_id === boardId) return articles[i];
+  return null;
+}
+function boardById(id) {
+  for (var i = 0; i < boards.length; i++) if (boards[i].id === id) return boards[i];
+  return null;
+}
+function sectionById(id) {
+  for (var i = 0; i < SECTIONS.length; i++) if (SECTIONS[i].id === id) return SECTIONS[i];
+  return SECTIONS[0];
+}
+
+/* ---------------- 顶部区切换 ---------------- */
+function renderSectionTabs() {
+  var box = $('section-tabs');
+  box.textContent = '';
+  SECTIONS.forEach(function (s) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'section-tab' + (s.id === currentSection ? ' on' : '');
+    b.innerHTML = '<b>' + s.icon + ' ' + esc(s.name) + '</b><small>' + esc(s.en) + '</small>';
+    b.onclick = function () {
+      if (currentSection === s.id) return;
+      currentSection = s.id;
+      currentBoardId = '';
+      hideForm();
+      renderSectionTabs();
+      renderBoards();
+      renderPanel();
+    };
+    box.appendChild(b);
+  });
+}
+
+/* ---------------- 板块条 ---------------- */
+function renderBoards() {
+  var box = $('boards');
+  box.textContent = '';
+  var list = boards.filter(function (b) { return b.section === currentSection; });
+  if (!list.length) {
+    var tip = document.createElement('div');
+    tip.style.cssText = 'color:var(--muted);font-size:.9rem;padding:6px 0';
+    tip.textContent = '这个区还没有板块，点上面「＋ 新建板块」加一个。';
+    box.appendChild(tip);
+    return;
+  }
+  list.forEach(function (b) {
+    var art = articleOfBoard(b.id);
+    var chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'board-chip' + (b.id === currentBoardId ? ' on' : '') + (art ? ' has' : '');
+    chip.innerHTML = '<span class="dot"></span>' + esc(b.name) + (art ? '' : '（空）');
+    chip.onclick = function () {
+      currentBoardId = b.id;
+      hideForm();
+      renderBoards();
+      renderPanel();
+    };
+    box.appendChild(chip);
+  });
+}
+
+/* ---------------- 正文排版 ---------------- */
+function renderBody(text) {
+  var wrap = document.createElement('div');
+  wrap.className = 'article-body';
+  String(text || '').split(/\r?\n/).forEach(function (raw) {
+    var line = raw.trim();
+    if (!line) return;
+    var el;
+    if (line.indexOf('## ') === 0) { el = document.createElement('h2'); el.textContent = line.slice(3); }
+    else if (line.indexOf('> ') === 0) { el = document.createElement('blockquote'); el.textContent = line.slice(2); }
+    else { el = document.createElement('p'); el.textContent = line; }
+    wrap.appendChild(el);
+  });
+  if (!wrap.childNodes.length) {
+    var p = document.createElement('p');
+    p.textContent = '(这篇文章还没有正文)';
+    wrap.appendChild(p);
+  }
+  return wrap;
+}
+
+/* ---------------- 评论区 ---------------- */
+function renderComments(host, article) {
+  var box = document.createElement('div');
+  box.className = 'comments';
+  var list = commentCache[article.id] || [];
+  var h = document.createElement('h4');
+  h.textContent = '评论 ' + list.length;
+  box.appendChild(h);
+
+  list.forEach(function (c) {
+    var item = document.createElement('div');
+    item.className = 'comment';
+    var head = document.createElement('div');
+    head.className = 'comment-head';
+    var nm = document.createElement('span'); nm.className = 'comment-name'; nm.textContent = c.name;
+    var tm = document.createElement('span'); tm.className = 'comment-time'; tm.textContent = fmt(c.created_at);
+    head.appendChild(nm); head.appendChild(tm);
+    var body = document.createElement('div'); body.className = 'comment-body'; body.textContent = c.content;
+    item.appendChild(head); item.appendChild(body);
+    box.appendChild(item);
+  });
+  if (!list.length) {
+    var none = document.createElement('div');
+    none.className = 'comment-body';
+    none.style.color = 'var(--muted)';
+    none.textContent = '还没有评论，来说两句～';
+    box.appendChild(none);
+  }
+
+  var form = document.createElement('div');
+  form.className = 'comment-form';
+  var nameInput = document.createElement('input');
+  nameInput.type = 'text'; nameInput.maxLength = 20; nameInput.placeholder = '你的名字';
+  nameInput.value = localStorage.getItem('jiangwan_cmt_name') || '';
+  var textInput = document.createElement('input');
+  textInput.type = 'text'; textInput.maxLength = 500; textInput.className = 'grow';
+  textInput.placeholder = '写点评论……';
+  var sendBtn = document.createElement('button');
+  sendBtn.type = 'button'; sendBtn.className = 'btn-main'; sendBtn.textContent = '发表';
+  sendBtn.onclick = function () {
+    if (busy) return;
+    var nm2 = nameInput.value.trim(), c2 = textInput.value.trim();
+    if (!nm2) { alert('请填你的名字'); nameInput.focus(); return; }
+    if (!c2) { alert('评论不能为空'); textInput.focus(); return; }
+    if (!connected) { status('还没连上云端，暂时发不了评论。', 'err'); return; }
+    busy = true; sendBtn.disabled = true; sendBtn.textContent = '发送中…';
+    sb.from('article_comments').insert({
+      article_id: article.id, device_id: deviceId, name: nm2.slice(0, 20), content: c2.slice(0, 500)
+    }).then(function (res) {
+      if (res.error) throw res.error;
+      try { localStorage.setItem('jiangwan_cmt_name', nm2); } catch (e) {}
+      textInput.value = '';
+      status('评论已发布 ✅', 'ok');
+      setTimeout(function () { if ($('status').textContent === '评论已发布 ✅') status(''); }, 2500);
+      return loadComments([article.id]);
+    }).then(function () {
+      renderPanel();
+    }).catch(function (e) {
+      console.error(e);
+      status(friendly(e, '评论'), 'err');
+    }).then(function () {
+      busy = false; sendBtn.disabled = false; sendBtn.textContent = '发表';
+    });
+  };
+  textInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); sendBtn.click(); }
+  });
+  form.appendChild(nameInput); form.appendChild(textInput); form.appendChild(sendBtn);
+  box.appendChild(form);
+  host.appendChild(box);
+}
+
+/* ---------------- 一篇文章 ---------------- */
+function renderArticle(panel, board, article) {
+  var section = sectionById(board.section);
+  var card = document.createElement('article');
+  card.className = 'article';
+
+  var head = document.createElement('div');
+  head.className = 'article-head';
+  var title = document.createElement('h2');
+  title.className = 'article-title';
+  title.textContent = article.title;
+  var meta = document.createElement('div');
+  meta.className = 'article-meta';
+  [ '作者：' + article.author, '发布：' + fmt(article.created_at),
+    '专区：' + section.name, '板块：' + board.name ].forEach(function (t) {
+    var s = document.createElement('span'); s.textContent = t; meta.appendChild(s);
+  });
+  head.appendChild(title); head.appendChild(meta);
+  card.appendChild(head);
+
+  var cover = coverUrl(article.cover_path);
+  if (cover) {
+    var img = document.createElement('img');
+    img.className = 'article-cover'; img.src = cover; img.alt = article.title; img.loading = 'lazy';
+    card.appendChild(img);
+  }
+  card.appendChild(renderBody(article.body));
+
+  var actions = document.createElement('div');
+  actions.className = 'actions';
+
+  var liked = !!likedSet[article.id];
+  var likeBtn = document.createElement('button');
+  likeBtn.type = 'button';
+  likeBtn.className = 'action-btn' + (liked ? ' liked' : '');
+  likeBtn.textContent = '👍 赞 ' + (article.like_count || 0);
+  likeBtn.onclick = function () {
+    if (busy || !connected) return;
+    busy = true;
+    sb.rpc('like_article', { p_article_id: article.id, p_device_id: deviceId }).then(function (res) {
+      if (res.error) throw res.error;
+      var out = res.data;
+      if (typeof out === 'string') { try { out = JSON.parse(out); } catch (e) {} }
+      if (out && typeof out === 'object') {
+        article.like_count = out.like_count;
+        if (out.liked) likedSet[article.id] = true; else delete likedSet[article.id];
+        try { localStorage.setItem('jiangwan_art_liked', JSON.stringify(likedSet)); } catch (e) {}
+        likeBtn.className = 'action-btn' + (out.liked ? ' liked' : '');
+        likeBtn.textContent = '👍 赞 ' + out.like_count;
+      }
+    }).catch(function (e) {
+      console.error(e); status(friendly(e, '点赞'), 'err');
+    }).then(function () { busy = false; });
+  };
+
+  var editBtn = document.createElement('button');
+  editBtn.type = 'button'; editBtn.className = 'action-btn'; editBtn.textContent = '✏️ 修改这篇';
+  editBtn.onclick = function () { openForm(board, article); };
+
+  var delBtn = document.createElement('button');
+  delBtn.type = 'button'; delBtn.className = 'action-btn'; delBtn.textContent = '🗑 删掉这篇';
+  delBtn.onclick = function () {
+    var pw = prompt('删除《' + article.title + '》\n请输入管理密码：');
+    if (pw === null || !pw.trim()) return;
+    status('正在校验密码……');
+    sha256Hex(PW_SALT + '|' + pw.trim())
+      .then(function (hash) { return sb.rpc('delete_article', { p_article_id: article.id, p_pw_hash: hash }); })
+      .then(function (res) {
+        if (res.error) throw res.error;
+        var out = res.data;
+        if (typeof out === 'string') { try { out = JSON.parse(out); } catch (e) {} }
+        if (!out || out.deleted !== true) throw new Error('bad password');
+        status('文章已删除，这个板块现在可以写新文章了。', 'ok');
+        return loadAll();
+      })
+      .then(function () { renderBoards(); renderPanel(); })
+      .catch(function (e) {
+        console.error(e);
+        status(isBadPw(e) ? '密码不对，文章没有删除。' : friendly(e, '删除'), 'err');
+      });
+  };
+
+  var randomBtn = document.createElement('button');
+  randomBtn.type = 'button'; randomBtn.className = 'action-btn'; randomBtn.textContent = '🎲 换一篇看';
+  randomBtn.onclick = pickRandom;
+
+  actions.appendChild(likeBtn); actions.appendChild(editBtn);
+  actions.appendChild(delBtn); actions.appendChild(randomBtn);
+  card.appendChild(actions);
+
+  renderComments(card, article);
+  panel.appendChild(card);
+}
+
+/* ---------------- 空板块 ---------------- */
+function renderEmptyBoard(panel, board) {
+  var section = sectionById(board.section);
+  var box = document.createElement('div');
+  box.className = 'empty-article';
+  var b = document.createElement('b');
+  b.textContent = '「' + board.name + '」板块还没有文章';
+  var p = document.createElement('p');
+  p.textContent = '一个板块放一篇文章。点下面的按钮写这一板块的文章（需要管理密码）。';
+  box.appendChild(b); box.appendChild(p);
+  panel.appendChild(box);
+
+  var bar = document.createElement('div');
+  bar.className = 'bar';
+  var btn = document.createElement('button');
+  btn.type = 'button'; btn.className = 'btn-main'; btn.textContent = '＋ 写「' + board.name + '」的文章';
+  btn.onclick = function () { openForm(board, null); };
+  var del = document.createElement('button');
+  del.type = 'button'; del.className = 'btn-ghost'; del.textContent = '🗑 删掉这个板块';
+  del.onclick = function () { deleteBoard(board); };
+  bar.appendChild(btn); bar.appendChild(del);
+  panel.appendChild(bar);
+}
+
+/* ---------------- 表单：写/改文章 ---------------- */
+function openForm(board, article) {
+  hideForm();
+  var form = document.createElement('div');
+  form.className = 'form-card';
+  form.id = 'editor';
+  var hint = document.createElement('div');
+  hint.className = 'hint';
+  hint.textContent = (article ? '修改「' : '写「') + board.name + '」板块的文章（' + sectionById(board.section).name
+    + '）　—　提交需要管理密码。正文排版：空行分段，「## 」开头是小标题，「> 」开头是引用。';
+  form.appendChild(hint);
+
+  var row = document.createElement('div');
+  row.className = 'form-row';
+  row.innerHTML =
+    '<div><label>标题</label><input type="text" id="f-title" maxlength="60" placeholder="文章标题"></div>' +
+    '<div><label>作者</label><input type="text" id="f-author" maxlength="20" placeholder="作者姓名"></div>';
+  form.appendChild(row);
+
+  var cover = document.createElement('div');
+  cover.innerHTML =
+    '<label>封面图（可不传）</label>' +
+    '<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:16px">' +
+      '<img id="cover-preview" alt="封面预览" style="width:120px;height:74px;object-fit:cover;border-radius:8px;border:1px solid var(--border);display:none">' +
+      '<label class="btn-ghost" style="margin:0;padding:10px 16px;border-radius:8px;cursor:pointer;font-size:.9rem" for="f-cover">选择封面图</label>' +
+      '<input type="file" id="f-cover" accept="image/*" style="display:none">' +
+      '<button type="button" class="btn-ghost" id="btn-cover-clear">清除封面</button>' +
+    '</div>';
+  form.appendChild(cover);
+  form.insertAdjacentHTML('beforeend',
+    '<label>正文</label><textarea id="f-body" placeholder="把文章粘到这里……"></textarea>' +
+    '<label>管理密码</label><input type="password" id="f-pw" placeholder="写/改文章需要密码" autocomplete="current-password">');
+
+  var bar = document.createElement('div');
+  bar.className = 'bar';
+  var save = document.createElement('button');
+  save.type = 'button'; save.className = 'btn-main';
+  save.textContent = article ? '保存修改' : '发布文章';
+  var cancel = document.createElement('button');
+  cancel.type = 'button'; cancel.className = 'btn-ghost'; cancel.textContent = '取消';
+  cancel.onclick = hideForm;
+  bar.appendChild(save); bar.appendChild(cancel);
+  form.appendChild(bar);
+
+  var panel = $('panel');
+  panel.insertBefore(form, panel.firstChild);
+
+  $('f-title').value = article ? article.title : '';
+  $('f-author').value = article ? article.author : (localStorage.getItem('jiangwan_art_author') || '');
+  $('f-body').value = article ? article.body : '';
+  pendingCover = { path: article ? (article.cover_path || '') : '' };
+  refreshCoverPreview();
+
+  $('f-cover').onchange = function (e) {
+    var file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (file.size > 20 * 1024 * 1024) { alert('封面太大了（超过 20MB）。'); e.target.value = ''; return; }
+    if (!uid) { status('还在连接服务器，稍等一下再选图。', 'err'); e.target.value = ''; return; }
+    status('正在压缩并上传封面……');
+    compressCover(file).then(function (blob) {
+      var path = uid + '/cover-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8) + '.jpg';
+      return sb.storage.from(SB_BUCKET).upload(path, blob, { contentType: 'image/jpeg', upsert: false })
+        .then(function (res) {
+          if (res.error) throw res.error;
+          pendingCover = { path: path };
+          refreshCoverPreview();
+          status('封面已上传 ✅ 填好密码再提交。', 'ok');
+        });
+    }).catch(function (err) { console.error(err); status(friendly(err, '封面'), 'err'); })
+      .then(function () { e.target.value = ''; });
+  };
+  $('btn-cover-clear').onclick = function () { pendingCover = { path: '' }; refreshCoverPreview(); };
+
+  save.onclick = function () {
+    if (busy) return;
+    var title = $('f-title').value.trim(), author = $('f-author').value.trim();
+    var body = $('f-body').value.trim(), pw = $('f-pw').value;
+    if (!title) { alert('请填标题'); $('f-title').focus(); return; }
+    if (!author) { alert('请填作者'); $('f-author').focus(); return; }
+    if (!body) { alert('正文不能空着'); $('f-body').focus(); return; }
+    if (!pw.trim()) { alert('请输入管理密码'); $('f-pw').focus(); return; }
+    if (!connected) { status('还没连上云端，暂时发不了。', 'err'); return; }
+    busy = true; save.disabled = true; save.textContent = '提交中…';
+    status('正在校验密码并提交……');
+    sha256Hex(PW_SALT + '|' + pw.trim())
+      .then(function (hash) {
+        return sb.rpc('save_article', {
+          p_board_id: board.id, p_title: title, p_author: author, p_body: body,
+          p_cover_path: pendingCover.path || null, p_pw_hash: hash, p_device_id: deviceId
+        });
+      })
+      .then(function (res) {
+        if (res.error) throw res.error;
+        try { localStorage.setItem('jiangwan_art_author', author); } catch (e) {}
+        status('已保存 ✅', 'ok');
+        hideForm();
+        return loadAll();
+      })
+      .then(function () {
+        renderBoards(); renderPanel();
+        setTimeout(function () { if (/已保存/.test($('status').textContent)) status(''); }, 3000);
+      })
+      .catch(function (e) {
+        console.error(e);
+        status(isBadPw(e) ? '密码不对，文章没有保存。' : friendly(e, '发布'), 'err');
+      })
+      .then(function () { busy = false; save.disabled = false; save.textContent = article ? '保存修改' : '发布文章'; });
+  };
+}
+
+function refreshCoverPreview() {
+  var img = $('cover-preview');
+  if (!img) return;
+  var url = coverUrl(pendingCover.path);
+  if (url) { img.src = url; img.style.display = 'block'; }
+  else { img.removeAttribute('src'); img.style.display = 'none'; }
+}
+function hideForm() {
+  var f = $('editor');
+  if (f) f.remove();
+}
+
+/* ---------------- 新建 / 删除板块 ---------------- */
+$('btn-new-board').onclick = function () {
+  var section = sectionById(currentSection);
+  var name = prompt('在「' + section.name + '」区里新建一个板块\n请输入板块名（1-20 字）：');
+  if (name === null || !name.trim()) return;
+  var pw = prompt('请输入管理密码：');
+  if (pw === null || !pw.trim()) return;
+  status('正在新建板块……');
+  sha256Hex(PW_SALT + '|' + pw.trim())
+    .then(function (hash) { return sb.rpc('create_board', { p_section: currentSection, p_name: name.trim(), p_pw_hash: hash }); })
+    .then(function (res) {
+      if (res.error) throw res.error;
+      var out = res.data;
+      if (typeof out === 'string') { try { out = JSON.parse(out); } catch (e) {} }
+      status('板块已新建 ✅ 现在可以写这个板块的文章了。', 'ok');
+      return loadAll().then(function () {
+        if (out && out.id) currentBoardId = out.id;
+        renderBoards(); renderPanel();
+      });
+    })
+    .catch(function (e) {
+      console.error(e);
+      status(isBadPw(e) ? '密码不对，板块没有新建。' : friendly(e, '新建板块'), 'err');
+    });
+};
+
+function deleteBoard(board) {
+  var pw = prompt('删除板块「' + board.name + '」\n它里面的文章、评论都会一起删掉。\n请输入管理密码：');
+  if (pw === null || !pw.trim()) return;
+  status('正在校验密码……');
+  sha256Hex(PW_SALT + '|' + pw.trim())
+    .then(function (hash) { return sb.rpc('delete_board', { p_board_id: board.id, p_pw_hash: hash }); })
+    .then(function (res) {
+      if (res.error) throw res.error;
+      var out = res.data;
+      if (typeof out === 'string') { try { out = JSON.parse(out); } catch (e) {} }
+      if (!out || out.deleted !== true) throw new Error('bad password');
+      status('板块已删除。', 'ok');
+      if (currentBoardId === board.id) currentBoardId = '';
+      return loadAll();
+    })
+    .then(function () { renderBoards(); renderPanel(); })
+    .catch(function (e) {
+      console.error(e);
+      status(isBadPw(e) ? '密码不对，板块没有删除。' : friendly(e, '删除板块'), 'err');
+    });
+}
+
+/* ---------------- 随机一篇文章 ---------------- */
+function pickRandom() {
+  var withArt = boards.filter(function (b) { return !!articleOfBoard(b.id); });
+  if (!withArt.length) { status('还没有任何文章，无从随机。先写一篇吧。', 'err'); return; }
+  var board = withArt[Math.floor(Math.random() * withArt.length)];
+  currentSection = board.section;
+  currentBoardId = board.id;
+  hideForm();
+  renderSectionTabs();
+  renderBoards();
+  renderPanel();
+  status('🎲 随机抽到：' + sectionById(board.section).name + ' · ' + board.name, 'ok');
+  window.scrollTo({ top: $('boards').offsetTop - 20, behavior: 'smooth' });
+}
+$('btn-random').onclick = pickRandom;
+$('btn-refresh').onclick = function () {
+  if (!connected) return;
+  status('正在刷新……');
+  loadAll().then(function () { renderBoards(); renderPanel(); status('已刷新', 'ok'); setTimeout(function () { status(''); }, 1500); })
+    .catch(function (e) { status(friendly(e, '刷新'), 'err'); });
+};
+
+/* ---------------- 面板渲染 ---------------- */
+function renderPanel() {
+  var panel = $('panel');
+  panel.textContent = '';
+  if (!connected) {
+    var d = document.createElement('div');
+    d.className = 'empty-article';
+    d.textContent = '正在连接云端……';
+    panel.appendChild(d);
+    return;
+  }
+  var list = boards.filter(function (b) { return b.section === currentSection; });
+  if (!list.length) {
+    var e1 = document.createElement('div');
+    e1.className = 'empty-article';
+    e1.innerHTML = '<b>这个区还没有板块</b>点上方「＋ 新建板块」加一个，然后写文章。';
+    panel.appendChild(e1);
+    return;
+  }
+  if (!currentBoardId || !boardById(currentBoardId)) currentBoardId = list[0].id;
+  var board = boardById(currentBoardId);
+  var article = articleOfBoard(board.id);
+  if (article) renderArticle(panel, board, article);
+  else renderEmptyBoard(panel, board);
+}
+
+/* ---------------- 数据加载 ---------------- */
+function loadBoards() {
+  return sb.from('boards').select('id,section,name,sort_order,created_at')
+    .order('section', { ascending: true }).order('sort_order', { ascending: true }).order('created_at', { ascending: true })
+    .then(function (res) {
+      if (res.error) throw res.error;
+      boards = res.data || [];
+    });
+}
+function loadArticles() {
+  return sb.from('articles')
+    .select('id,board_id,title,author,body,cover_path,like_count,created_at,updated_at')
+    .eq('hidden', false).limit(300)
+    .then(function (res) {
+      if (res.error) throw res.error;
+      articles = res.data || [];
+    });
+}
+function loadComments(ids) {
+  if (!ids.length) { commentCache = {}; return Promise.resolve(); }
+  return sb.from('article_comments')
+    .select('id,article_id,created_at,name,content')
+    .in('article_id', ids).eq('hidden', false)
+    .order('created_at', { ascending: true }).limit(800)
+    .then(function (res) {
+      if (res.error) throw res.error;
+      commentCache = {};
+      (res.data || []).forEach(function (c) {
+        (commentCache[c.article_id] = commentCache[c.article_id] || []).push(c);
+      });
+    });
+}
+function loadLikes() {
+  return sb.rpc('liked_article_ids', { p_device_id: deviceId }).then(function (res) {
+    if (res.error) return null;
+    var raw = res.data;
+    if (typeof raw === 'string') { try { raw = JSON.parse(raw); } catch (e) { raw = []; } }
+    if (!Array.isArray(raw)) raw = raw ? [raw] : [];
+    likedSet = {};
+    raw.forEach(function (r) {
+      var id = (r && typeof r === 'object') ? (r.liked_article_ids || r.article_id || r.id) : r;
+      if (id) likedSet[id] = true;
+    });
+    try { localStorage.setItem('jiangwan_art_liked', JSON.stringify(likedSet)); } catch (e) {}
+    return null;
+  });
+}
+function loadAll() {
+  return loadBoards().then(loadArticles).then(function () {
+    return loadComments(articles.map(function (a) { return a.id; }));
+  }).then(loadLikes);
+}
+
+/* ---------------- 封面压缩 ---------------- */
+function compressCover(file) {
+  return new Promise(function (resolve, reject) {
+    if (!file.type || file.type.indexOf('image/') !== 0) return reject(new Error('这不是图片文件'));
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function () {
+      URL.revokeObjectURL(url);
+      var maxEdge = 1200;
+      var scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+      var w = Math.max(1, Math.round(img.width * scale));
+      var h = Math.max(1, Math.round(img.height * scale));
+      var cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      var ctx = cv.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      var done = function (blob) { resolve(blob); };
+      if (cv.toBlob) cv.toBlob(function (b) { b ? done(b) : reject(new Error('封面编码失败')); }, 'image/jpeg', 0.82);
+      else {
+        var dataUrl = cv.toDataURL('image/jpeg', 0.82);
+        var bin = atob(dataUrl.split(',')[1]);
+        var arr = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+        done(new Blob([arr], { type: 'image/jpeg' }));
+      }
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('图片解码失败（HEIC 请先转成 JPG）')); };
+    img.src = url;
+  });
+}
+
+/* ---------------- 启动 ---------------- */
+renderSectionTabs();
+renderBoards();
+renderPanel();
+status('正在连接云端……');
+
+(function boot() {
+  if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
+    status('组件加载失败（vendor/supabase.js 没加载到）。请检查网络后刷新。', 'err');
+    return;
+  }
+  try {
+    sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
+  } catch (e) { status('初始化失败：' + e.message, 'err'); return; }
+
+  deviceId = localStorage.getItem('jiangwan_gb_device') || '';
+  if (!deviceId || deviceId.length < 8 || deviceId.length > 64) {
+    deviceId = (window.crypto && window.crypto.randomUUID) ? ('gb-' + window.crypto.randomUUID())
+      : ('gb-' + Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2));
+    try { localStorage.setItem('jiangwan_gb_device', deviceId); } catch (e) {}
+  }
+  try {
+    var cached = JSON.parse(localStorage.getItem('jiangwan_art_liked') || '{}');
+    if (cached && typeof cached === 'object') likedSet = cached;
+  } catch (e) {}
+
+  sb.auth.signInAnonymously().then(function (res) {
+    if (res && res.error) console.warn('匿名登录失败（封面上传会不可用）', res.error);
+    else if (res && res.data && res.data.user) uid = res.data.user.id || '';
+  }).catch(function (e) { console.warn('匿名登录异常', e); })
+    .then(function () {
+      if (uid) return null;
+      return sb.auth.getSession().then(function (r) {
+        var u = r && r.data && r.data.session && r.data.session.user;
+        if (u && u.id) uid = u.id;
+        return null;
+      }).catch(function () { return null; });
+    })
+    .then(loadAll)
+    .then(function () {
+      connected = true;
+      renderBoards(); renderPanel(); status('');
+    })
+    .catch(function (e) {
+      console.error(e);
+      connected = false;
+      renderPanel();
+      status(friendly(e, '加载文章') + '（页面其它内容照常可用）', 'err');
+    });
+})();
+</script>
+</body>
+</html>
