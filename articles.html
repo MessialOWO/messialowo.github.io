@@ -26,7 +26,28 @@
   nav a:hover { color: var(--accent); }
   nav a.on { color: var(--accent); font-weight: 700; }
 
-  .section-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 30px 0 18px; }
+  /* 期刊期号选择条 */
+  .issue-bar {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+    margin: 26px 0 4px; padding: 12px 14px; border-radius: 10px;
+    background: var(--accent-light); border: 1px solid var(--border);
+  }
+  .issue-bar .label { font-size: .85rem; color: var(--muted); letter-spacing: 1px; margin-right: 4px; }
+  .issue-pick {
+    font-family: inherit; font-size: .95rem; cursor: pointer; padding: 8px 16px;
+    border-radius: 20px; border: 1px solid var(--border); background: var(--card);
+    color: var(--text); transition: all .16s;
+  }
+  .issue-pick:hover { border-color: var(--accent); }
+  .issue-pick.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+  .issue-pick small { font-size: .72rem; opacity: .75; margin-left: 6px; }
+  .issue-add {
+    font-family: inherit; font-size: .88rem; cursor: pointer; padding: 7px 14px;
+    border-radius: 20px; border: 1px dashed var(--accent); background: none; color: var(--accent);
+  }
+  .issue-add:hover { background: var(--card); }
+
+  .section-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
   .section-tab {
     flex: 1 1 130px; padding: 12px 8px; border: 1px solid var(--border); border-radius: 10px;
     background: var(--card); cursor: pointer; font-family: inherit; font-size: .95rem;
@@ -150,6 +171,7 @@
     <a href="./articles.html" class="on">期刊文章</a>
   </nav>
 
+  <div class="issue-bar" id="issue-bar"></div>
   <div class="section-tabs" id="section-tabs"></div>
 
   <div class="toolbar">
@@ -195,8 +217,8 @@ var SECTIONS = [
 
 var $ = function (id) { return document.getElementById(id); };
 var sb = null, uid = '', deviceId = '', connected = false;
-var boards = [], articles = [], commentCache = {}, likedSet = {};
-var currentSection = 'essay', currentBoardId = '';
+var boards = [], articles = [], issues = [], commentCache = {}, likedSet = {};
+var currentIssueId = '', currentSection = 'essay', currentBoardId = '';
 var busy = false;
 var pendingCover = { path: '' };
 
@@ -282,15 +304,81 @@ function renderSectionTabs() {
   });
 }
 
+/* ---------------- 期刊期号条 ---------------- */
+function renderIssueBar() {
+  var box = $('issue-bar');
+  box.textContent = '';
+  var lab = document.createElement('span');
+  lab.className = 'label';
+  lab.textContent = '期刊：';
+  box.appendChild(lab);
+
+  issues.forEach(function (it) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'issue-pick' + (it.id === currentIssueId ? ' on' : '');
+    var n = boards.filter(function (x) { return x.issue_id === it.id; }).length;
+    var done = boards.filter(function (x) { return x.issue_id === it.id && articleOfBoard(x.id); }).length;
+    b.innerHTML = esc(it.name) + '<small>' + done + '/' + n + ' 篇</small>';
+    b.onclick = function () {
+      if (currentIssueId === it.id) return;
+      currentIssueId = it.id;
+      currentBoardId = '';
+      currentSection = 'essay';
+      hideForm();
+      renderIssueBar();
+      renderSectionTabs();
+      renderBoards();
+      renderPanel();
+    };
+    box.appendChild(b);
+  });
+
+  var add = document.createElement('button');
+  add.type = 'button';
+  add.className = 'issue-add';
+  add.textContent = '＋ 新建期刊';
+  add.onclick = newIssue;
+  box.appendChild(add);
+}
+
+function newIssue() {
+  var name = prompt('新建一期期刊\n请输入期号名（例如：期刊2）：');
+  if (name === null || !name.trim()) return;
+  var pw = prompt('请输入管理密码：');
+  if (pw === null || !pw.trim()) return;
+  status('正在新建期刊……');
+  sha256Hex(PW_SALT + '|' + pw.trim())
+    .then(function (hash) { return sb.rpc('create_issue', { p_name: name.trim(), p_pw_hash: hash }); })
+    .then(function (res) {
+      if (res.error) throw res.error;
+      var out = res.data;
+      if (typeof out === 'string') { try { out = JSON.parse(out); } catch (e) {} }
+      status('期刊已新建 ✅ 现在可以在它的五个区里加板块、写文章了。', 'ok');
+      return loadAll().then(function () {
+        if (out && out.id) currentIssueId = out.id;
+        currentBoardId = '';
+        renderIssueBar(); renderSectionTabs(); renderBoards(); renderPanel();
+      });
+    })
+    .catch(function (e) {
+      console.error(e);
+      status(isBadPw(e) ? '密码不对，期刊没有新建。' : friendly(e, '新建期刊'), 'err');
+    });
+}
+
 /* ---------------- 板块条 ---------------- */
 function renderBoards() {
   var box = $('boards');
   box.textContent = '';
-  var list = boards.filter(function (b) { return b.section === currentSection; });
+  var list = boards.filter(function (b) {
+    return b.issue_id === currentIssueId && b.section === currentSection;
+  });
   if (!list.length) {
     var tip = document.createElement('div');
     tip.style.cssText = 'color:var(--muted);font-size:.9rem;padding:6px 0';
-    tip.textContent = '这个区还没有板块，点上面「＋ 新建板块」加一个。';
+    tip.textContent = (issueName(currentIssueId) || '本期') + '的「' + sectionById(currentSection).name
+      + '」区还没有板块，点上面「＋ 新建板块」加一个。';
     box.appendChild(tip);
     return;
   }
@@ -417,6 +505,7 @@ function renderArticle(panel, board, article) {
   var meta = document.createElement('div');
   meta.className = 'article-meta';
   [ '作者：' + article.author, '发布：' + fmt(article.created_at),
+    '期刊：' + (issueName(board.issue_id) || '—'),
     '专区：' + section.name, '板块：' + board.name ].forEach(function (t) {
     var s = document.createElement('span'); s.textContent = t; meta.appendChild(s);
   });
@@ -646,13 +735,19 @@ function hideForm() {
 /* ---------------- 新建 / 删除板块 ---------------- */
 $('btn-new-board').onclick = function () {
   var section = sectionById(currentSection);
-  var name = prompt('在「' + section.name + '」区里新建一个板块\n请输入板块名（1-20 字）：');
+  if (!currentIssueId) { status('请先新建一期期刊，再往里面加板块。', 'err'); return; }
+  var name = prompt('在「' + issueName(currentIssueId) + ' · ' + section.name + '」里新建一个板块\n请输入板块名（1-40 字）：');
   if (name === null || !name.trim()) return;
   var pw = prompt('请输入管理密码：');
   if (pw === null || !pw.trim()) return;
   status('正在新建板块……');
   sha256Hex(PW_SALT + '|' + pw.trim())
-    .then(function (hash) { return sb.rpc('create_board', { p_section: currentSection, p_name: name.trim(), p_pw_hash: hash }); })
+    .then(function (hash) {
+      return sb.rpc('create_board', {
+        p_issue_id: currentIssueId, p_section: currentSection,
+        p_name: name.trim(), p_pw_hash: hash
+      });
+    })
     .then(function (res) {
       if (res.error) throw res.error;
       var out = res.data;
@@ -705,14 +800,15 @@ function pickRandom() {
   renderSectionTabs();
   renderBoards();
   renderPanel();
-  status('🎲 随机抽到：' + sectionById(board.section).name + ' · ' + board.name, 'ok');
+  status('🎲 随机抽到：' + (issueName(board.issue_id) || '') + ' · '
+    + sectionById(board.section).name + ' · ' + board.name, 'ok');
   window.scrollTo({ top: $('boards').offsetTop - 20, behavior: 'smooth' });
 }
 $('btn-random').onclick = pickRandom;
 $('btn-refresh').onclick = function () {
   if (!connected) return;
   status('正在刷新……');
-  loadAll().then(function () { renderBoards(); renderPanel(); status('已刷新', 'ok'); setTimeout(function () { status(''); }, 1500); })
+  loadAll().then(function () { renderIssueBar(); renderSectionTabs(); renderBoards(); renderPanel(); status('已刷新', 'ok'); setTimeout(function () { status(''); }, 1500); })
     .catch(function (e) { status(friendly(e, '刷新'), 'err'); });
 };
 
@@ -727,11 +823,21 @@ function renderPanel() {
     panel.appendChild(d);
     return;
   }
-  var list = boards.filter(function (b) { return b.section === currentSection; });
+  if (!issues.length) {
+    var e0 = document.createElement('div');
+    e0.className = 'empty-article';
+    e0.innerHTML = '<b>还没有任何期刊</b>点上方「＋ 新建期刊」建一期，例如「期刊1」。';
+    panel.appendChild(e0);
+    return;
+  }
+  var list = boards.filter(function (b) {
+    return b.issue_id === currentIssueId && b.section === currentSection;
+  });
   if (!list.length) {
     var e1 = document.createElement('div');
     e1.className = 'empty-article';
-    e1.innerHTML = '<b>这个区还没有板块</b>点上方「＋ 新建板块」加一个，然后写文章。';
+    e1.innerHTML = '<b>' + esc(issueName(currentIssueId)) + ' · ' + esc(sectionById(currentSection).name)
+      + ' 还没有板块</b>点上方「＋ 新建板块」加一个，然后写文章。';
     panel.appendChild(e1);
     return;
   }
@@ -743,8 +849,27 @@ function renderPanel() {
 }
 
 /* ---------------- 数据加载 ---------------- */
+function loadIssues() {
+  return sb.from('issues').select('id,name,slug,sort_order,created_at')
+    .order('sort_order', { ascending: true }).order('created_at', { ascending: true })
+    .then(function (res) {
+      if (res.error) throw res.error;
+      issues = res.data || [];
+      if (!issues.length) {
+        currentIssueId = '';
+      } else if (!currentIssueId || !issues.some(function (i) { return i.id === currentIssueId; })) {
+        currentIssueId = issues[0].id;                 // 默认打开最新一期？按 sort_order 取第一个
+      }
+    });
+}
+
+function issueName(id) {
+  for (var i = 0; i < issues.length; i++) if (issues[i].id === id) return issues[i].name;
+  return '';
+}
+
 function loadBoards() {
-  return sb.from('boards').select('id,section,name,sort_order,created_at')
+  return sb.from('boards').select('id,issue_id,section,name,sort_order,created_at')
     .order('section', { ascending: true }).order('sort_order', { ascending: true }).order('created_at', { ascending: true })
     .then(function (res) {
       if (res.error) throw res.error;
@@ -790,7 +915,7 @@ function loadLikes() {
   });
 }
 function loadAll() {
-  return loadBoards().then(loadArticles).then(function () {
+  return loadIssues().then(loadBoards).then(loadArticles).then(function () {
     return loadComments(articles.map(function (a) { return a.id; }));
   }).then(loadLikes);
 }
@@ -828,6 +953,7 @@ function compressCover(file) {
 }
 
 /* ---------------- 启动 ---------------- */
+renderIssueBar();
 renderSectionTabs();
 renderBoards();
 renderPanel();
@@ -862,7 +988,7 @@ status('正在连接云端……');
 
     JW.retry(loadAllWithTimeout, 2).then(function () {
       connected = true;
-      renderBoards(); renderPanel(); status('');
+      renderIssueBar(); renderSectionTabs(); renderBoards(); renderPanel(); status('');
     }).catch(function (e) {
       console.error(e);
       connected = false;
