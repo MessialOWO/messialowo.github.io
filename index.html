@@ -242,6 +242,8 @@
   .gb-reply-form-inline { margin-top: 8px; }
 
   .gb-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .gb-actions .gb-action-btn, .gb-reply-actions .gb-action-btn { font-size: 1.15rem; padding: 6px 12px; }
+  .gb-action-btn.pinned-on { background: var(--accent-light); border-color: var(--accent); }
   .gb-action-btn {
     background: none; border: none; padding: 4px 10px; cursor: pointer;
     color: var(--muted); font-size: .9rem; font-family: inherit;
@@ -412,12 +414,15 @@
     <h3>留言板 <small>Guestbook</small></h3>
 
     <div class="note">
-      头像会自动记住，下次打开不用重填；留言不显示姓名，全部匿名。留言已接入云端数据库，<strong>所有人打开都能看到</strong>，换手机、清缓存也不会丢。
+      名字和头像会自动记住，下次打开不用重填。留言已接入云端数据库，<strong>所有人打开都能看到</strong>，换手机、清缓存也不会丢。
     </div>
 
     <div class="gb-status" id="gb-status" hidden></div>
 
     <div class="gb-form">
+      <label for="gb-name">你的名字（必填）</label>
+      <input type="text" id="gb-name" maxlength="20" placeholder="输入名字或昵称">
+
       <label>头像（二选一：传自己的图片，或者用 emoji + 底色）</label>
       <div class="avatar-upload">
         <div class="avatar-preview" id="avatar-preview"></div>
@@ -978,7 +983,7 @@ function compressImage(file, maxEdge, quality) {
 
   var $ = function (id) { return document.getElementById(id); };
   var statusEl = $('gb-status'), listEl = $('gb-list');
-  var contentInput = $('gb-content');
+  var nameInput = $('gb-name'), contentInput = $('gb-content');
   var previewEl = $('avatar-preview'), emojiRow = $('emoji-row'), colorRow = $('color-row');
   var submitBtn = $('gb-submit');
   var modeBtnEmoji = $('mode-emoji'), modeBtnImage = $('mode-image');
@@ -1005,6 +1010,7 @@ function compressImage(file, maxEdge, quality) {
     selectedColor = COLORS[Math.floor(Math.random() * COLORS.length)];
   }
   if (avatarMode === 'image' && !selectedImage) avatarMode = 'emoji';
+  nameInput.value = localStorage.getItem(NAME_KEY) || '';
 
   function saveLook() {
     try {
@@ -1227,9 +1233,8 @@ function compressImage(file, maxEdge, quality) {
     }).then(function () { e.target.value = ''; });
   };
 
-  /* 留言不再显示姓名：数据库 name 字段是必填，这里统一存一个中性值占位 */
   function currentUserName() {
-    return '匿名同学';
+    return (nameInput.value || localStorage.getItem(NAME_KEY) || '').trim();
   }
 
   /* ---------------- 数据读写 ---------------- */
@@ -1312,7 +1317,7 @@ function compressImage(file, maxEdge, quality) {
     var input = document.createElement('input');
     input.type = 'text';
     input.maxLength = 300;
-    input.placeholder = '回复这条留言……';
+    input.placeholder = replyTo ? ('回复 ' + replyTo.name + '……') : ('回复 ' + msg.name + '……');
     var send = document.createElement('button');
     send.type = 'button'; send.className = 'btn-main'; send.textContent = '发送';
     var cancel = document.createElement('button');
@@ -1321,10 +1326,11 @@ function compressImage(file, maxEdge, quality) {
     function doSend() {
       if (busy) return;
       var name = currentUserName();
+      if (!name) { alert('请先在上方填写你的名字'); nameInput.focus(); return; }
       var text = input.value.trim();
       if (!text) { alert('回复内容不能为空'); input.focus(); return; }
       if (!connected) { status('还没连上服务器，暂时发不了。', 'err'); return; }
-      busy = true; send.disabled = true; send.textContent = '发送中…';
+      busy = true; send.disabled = true; send.textContent = '…';
       var av = avatarPayload();
       sb.from('replies').insert({
         message_id: msg.id, device_id: deviceId,
@@ -1371,7 +1377,7 @@ function compressImage(file, maxEdge, quality) {
     }).catch(function (e) {
       console.error(e);
       status(isBadPw(e) ? '密码不对，置顶没有生效。' : friendlyError(e, '置顶'), 'err');
-      if (btn) { btn.disabled = false; btn.textContent = msg.is_pinned ? '📌 取消置顶' : '📌 置顶'; }
+      if (btn) { btn.disabled = false; btn.textContent = '📌'; }
     }).then(function () { busy = false; });
   }
   function clearAllPins() {
@@ -1433,8 +1439,14 @@ function compressImage(file, maxEdge, quality) {
     var head = document.createElement('div');
     var nm = document.createElement('span');
     nm.className = 'gb-reply-name';
-    nm.textContent = '匿名同学';
+    nm.textContent = reply.name;
     head.appendChild(nm);
+    if (reply.reply_to_name) {
+      var to = document.createElement('span');
+      to.className = 'gb-reply-to';
+      to.textContent = '回复 ' + reply.reply_to_name;
+      head.appendChild(to);
+    }
     var tm = document.createElement('span');
     tm.className = 'gb-reply-time';
     tm.textContent = fmt(reply.created_at);
@@ -1450,12 +1462,14 @@ function compressImage(file, maxEdge, quality) {
     var reBtn = document.createElement('button');
     reBtn.type = 'button';
     reBtn.className = 'gb-action-btn';
-    reBtn.textContent = '↩ 回复';
-    reBtn.onclick = function () { openReplyBox(msg, null, host); };
+    reBtn.textContent = '↩';
+    reBtn.title = '回复';
+    reBtn.onclick = function () { openReplyBox(msg, reply, host); };
     var delR = document.createElement('button');
     delR.type = 'button';
     delR.className = 'gb-action-btn';
-    delR.textContent = '🗑 删除';
+    delR.textContent = '🗑';
+    delR.title = '删除';
     delR.onclick = function () { deleteReply(reply); };
     acts.appendChild(reBtn);
     acts.appendChild(delR);
@@ -1481,13 +1495,13 @@ function compressImage(file, maxEdge, quality) {
       pin.textContent = '📌 置顶';
       header.appendChild(pin);
     }
-    var anon = document.createElement('span');
-    anon.className = 'gb-anon';
-    anon.textContent = '匿名同学';
+    var nameEl = document.createElement('span');
+    nameEl.className = 'gb-name';
+    nameEl.textContent = msg.name;
     var timeEl = document.createElement('span');
     timeEl.className = 'gb-time';
     timeEl.textContent = fmt(msg.created_at);
-    header.appendChild(anon); header.appendChild(timeEl);
+    header.appendChild(nameEl); header.appendChild(timeEl);
 
     var content = document.createElement('div');
     content.className = 'gb-content';
@@ -1507,6 +1521,7 @@ function compressImage(file, maxEdge, quality) {
     likeBtn.type = 'button';
     likeBtn.className = 'gb-action-btn' + (liked ? ' liked' : '');
     likeBtn.textContent = '👍 ' + (msg.like_count || 0);
+    likeBtn.title = '点赞';
     likeBtn.onclick = function () {
       if (busy || !connected) return;
       busy = true;
@@ -1528,25 +1543,30 @@ function compressImage(file, maxEdge, quality) {
     var replyBtn = document.createElement('button');
     replyBtn.type = 'button';
     replyBtn.className = 'gb-action-btn';
-    replyBtn.textContent = '💬 回复' + (replies.length ? ' ' + replies.length : '');
+    replyBtn.textContent = '💬' + (replies.length ? ' ' + replies.length : '');
+    replyBtn.title = '回复';
     replyBtn.onclick = function () { openReplyBox(msg, null, body); };
 
     var copyBtn = document.createElement('button');
     copyBtn.type = 'button';
     copyBtn.className = 'gb-action-btn';
-    copyBtn.textContent = '📋 复制';
+    copyBtn.textContent = '📋';
+    copyBtn.title = '复制内容';
     copyBtn.onclick = function () { copyText(msg.content, '内容已复制'); };
 
     var pinBtn = document.createElement('button');
     pinBtn.type = 'button';
     pinBtn.className = 'gb-action-btn';
-    pinBtn.textContent = msg.is_pinned ? '📌 取消置顶' : '📌 置顶';
+    pinBtn.textContent = '📌';
+    pinBtn.title = msg.is_pinned ? '取消置顶' : '置顶';
+    pinBtn.className = 'gb-action-btn' + (msg.is_pinned ? ' pinned-on' : '');
     pinBtn.onclick = function () { togglePin(msg, pinBtn); };
 
     var delBtn = document.createElement('button');
     delBtn.type = 'button';
     delBtn.className = 'gb-action-btn danger';
-    delBtn.textContent = '🗑 删除';
+    delBtn.textContent = '🗑';
+    delBtn.title = '删除';
     delBtn.onclick = function () { deleteMessage(msg); };
 
     actions.appendChild(likeBtn);
@@ -1581,7 +1601,7 @@ function compressImage(file, maxEdge, quality) {
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'gb-action-btn';
-      b.textContent = '取消全部置顶（需密码）';
+      b.textContent = '📌 全部取消';
       b.onclick = clearAllPins;
       bar.appendChild(b);
       listEl.appendChild(bar);
@@ -1590,8 +1610,9 @@ function compressImage(file, maxEdge, quality) {
 
   /* ---------------- 发布留言 ---------------- */
   submitBtn.onclick = function () {
-    var name = currentUserName();
+    var name = nameInput.value.trim();
     var content = contentInput.value.trim();
+    if (!name) { alert('请填写你的名字'); nameInput.focus(); return; }
     if (!content) { alert('请写点内容再发布'); contentInput.focus(); return; }
     if (avatarMode === 'image' && !selectedImagePath) {
       alert('你选了「上传图片」头像，但还没上传成功。请先选一张图片，或者切回 emoji 头像。');
@@ -1608,6 +1629,7 @@ function compressImage(file, maxEdge, quality) {
     }).then(function (res) {
       if (res.error) throw res.error;
       contentInput.value = '';
+      try { localStorage.setItem(NAME_KEY, name); } catch (e) {}
       status('发布成功 ✅', 'ok');
       setTimeout(function () { if (statusEl.textContent === '发布成功 ✅') status(''); }, 2500);
       return loadAll().then(render);
@@ -1658,6 +1680,10 @@ function compressImage(file, maxEdge, quality) {
       status('留言组件没加载到，请下拉刷新页面。', 'err');
     }
   }
+
+  nameInput.addEventListener('input', function () {
+    try { localStorage.setItem(NAME_KEY, nameInput.value.trim()); } catch (e) {}
+  });
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', startWhenSharedReady);
