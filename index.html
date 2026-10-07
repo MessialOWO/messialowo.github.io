@@ -320,6 +320,7 @@
   }
   .lb-stage img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
   .card img { cursor: zoom-in; }
+  .card img.thumb-loading { background: #f0eeea url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'40\'><circle cx=\'20\' cy=\'20\' r=\'4\' fill=\'%23c0392b\'/></svg>") center no-repeat; }
 
   @media (max-width: 600px) {
     .journal-name { font-size: clamp(2rem, 9vw, 2.6rem); letter-spacing: clamp(2px, 1.5vw, 4px); }
@@ -401,8 +402,6 @@
       <input type="file" id="f-img" accept="image/*">
       <label>标题</label>
       <input type="text" id="f-title" placeholder="作品标题">
-      <label>作者</label>
-      <input type="text" id="f-author" placeholder="作者姓名">
       <button class="btn-main" id="btn-save">保存</button>
       <button class="btn-ghost" id="btn-cancel">取消</button>
     </div>
@@ -413,15 +412,12 @@
     <h3>留言板 <small>Guestbook</small></h3>
 
     <div class="note">
-      名字和头像会自动记住，下次打开不用重填。留言已接入云端数据库，<strong>所有人打开都能看到</strong>，换手机、清缓存也不会丢。
+      头像会自动记住，下次打开不用重填；留言不显示姓名，全部匿名。留言已接入云端数据库，<strong>所有人打开都能看到</strong>，换手机、清缓存也不会丢。
     </div>
 
     <div class="gb-status" id="gb-status" hidden></div>
 
     <div class="gb-form">
-      <label for="gb-name">你的名字（必填）</label>
-      <input type="text" id="gb-name" maxlength="20" placeholder="输入名字或昵称">
-
       <label>头像（二选一：传自己的图片，或者用 emoji + 底色）</label>
       <div class="avatar-upload">
         <div class="avatar-preview" id="avatar-preview"></div>
@@ -560,8 +556,8 @@ function compressImage(file, maxEdge, quality) {
 
   var works = [];          // 云端作品
   var connected = false;
-  var pendingImg = '';     // 本地预览用的 objectURL
-  var pendingBlob = null;  // 待上传的原图文件
+  var pendingImg = '';      // 本地预览用的 objectURL
+  var pendingBlob = null;   // 待上传的原图文件
   var pendingExt = 'jpg';
   var busy = false;
 
@@ -598,14 +594,92 @@ function compressImage(file, maxEdge, quality) {
     }
   }
 
+  /* ---- 缩略图：用原图现场压缩，缓存到本机（不额外上传文件）----
+     第一次打开会压一次（约 0.5-1 秒），之后从缓存直接读，秒开。 */
+  var THUMB_KEY = 'jiangwan_work_thumbs_v1';
+  var THUMB_MAX = 640;
+  var thumbCache = {};
+  try {
+    var c = JSON.parse(localStorage.getItem(THUMB_KEY) || '{}');
+    if (c && typeof c === 'object') thumbCache = c;
+  } catch (e) { thumbCache = {}; }
+
+  function saveThumbCache() {
+    try {
+      localStorage.setItem(THUMB_KEY, JSON.stringify(thumbCache));
+      return true;
+    } catch (err) {
+      // 缓存满了：清空重存，只保留当前这批
+      try {
+        var fresh = {};
+        Object.keys(thumbCache).slice(-15).forEach(function (k) { fresh[k] = thumbCache[k]; });
+        thumbCache = fresh;
+        localStorage.setItem(THUMB_KEY, JSON.stringify(thumbCache));
+      } catch (e2) {}
+      return false;
+    }
+  }
+
+  /* 用图片 URL 现场压成小图，返回 dataURL */
+  function makeThumbFromUrl(url, maxEdge, quality) {
+    return fetch(url).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.blob();
+    }).then(function (blob) {
+      return new Promise(function (resolve, reject) {
+        var objUrl = URL.createObjectURL(blob);
+        var img = new Image();
+        img.onload = function () {
+          URL.revokeObjectURL(objUrl);
+          var scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+          var w = Math.max(1, Math.round(img.width * scale));
+          var h = Math.max(1, Math.round(img.height * scale));
+          var cv = document.createElement('canvas');
+          cv.width = w; cv.height = h;
+          var ctx = cv.getContext('2d');
+          ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(cv.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = function () { URL.revokeObjectURL(objUrl); reject(new Error('解码失败')); };
+        img.src = objUrl;
+      });
+    });
+  }
+
+  /* 给一张卡片填上压缩图 */
+  function fillThumb(card) {
+    var img = card.querySelector('img[data-path]');
+    if (!img) return;
+    var path = img.getAttribute('data-path');
+    var full = img.getAttribute('data-full');
+    if (thumbCache[path]) { img.src = thumbCache[path]; return; }
+    if (card.dataset.thumbLoading) return;
+    card.dataset.thumbLoading = '1';
+    img.classList.add('thumb-loading');
+    makeThumbFromUrl(full, THUMB_MAX, 0.82).then(function (dataUrl) {
+      thumbCache[path] = dataUrl;
+      saveThumbCache();
+      img.src = dataUrl;
+      img.classList.remove('thumb-loading');
+    }).catch(function (e) {
+      console.warn('缩略图压缩失败，改用原图显示', path, e);
+      img.src = full;                       // 压缩失败就退回原图，不影响看
+      img.classList.remove('thumb-loading');
+    }).then(function () { delete card.dataset.thumbLoading; });
+  }
+
   function bindView() {
     grid.querySelectorAll('.card').forEach(function (card) {
       var img = card.querySelector('img');
-      if (!img || !img.getAttribute('src')) return;
+      if (!img) return;
+      // 点开看的是原图（列表里显示的是压缩图）
       img.onclick = function () {
         var h3 = card.querySelector('.info h3');
-        openLightbox(img.src, h3 ? h3.textContent : '作品', img.getAttribute('src'));
+        var full = img.getAttribute('data-full') || img.src;
+        if (full) openLightbox(full, h3 ? h3.textContent : '作品', full);
       };
+      if (img.getAttribute('data-path')) fillThumb(card);   // 压缩列表图
     });
   }
 
@@ -636,11 +710,13 @@ function compressImage(file, maxEdge, quality) {
 
   function render() {
     var cloud = works.map(function (w, i) {
-      var url = avatarUrlOf(w.image_path);
+      var full = avatarUrlOf(w.image_path);        // 原图：只有点开大图时才加载
+      var cached = thumbCache[w.image_path] || '';
+      // 列表先用本地缓存的压缩图；没有缓存就先留空（下面会现场压缩）
       return '' +
-        '<div class="card">\n' +
-        '        <img src="' + esc(url) + '" alt="' + esc(w.title) + '" loading="lazy" decoding="async">\n' +
-        '        <div class="info"><h3>' + esc(w.title) + '</h3><p>' + esc(w.author) + '</p></div>\n' +
+        '<div class="card" data-id="' + esc(w.id) + '">\n' +
+        '        <img src="' + esc(cached) + '" data-full="' + esc(full) + '" data-path="' + esc(w.image_path) + '" alt="' + esc(w.title) + '" loading="lazy" decoding="async">\n' +
+        '        <div class="info"><h3>' + esc(w.title) + '</h3></div>\n' +
         '        <button class="del" type="button" data-id="' + esc(w.id) + '" data-path="' + esc(w.image_path) + '" aria-label="删除">×</button>\n' +
         '      </div>';
     }).join('');
@@ -764,7 +840,7 @@ function compressImage(file, maxEdge, quality) {
       var mb = (out.size / 1024 / 1024);
       setNote('已选择原图：' + (out.name || '图片') + '（'
         + (mb >= 1 ? mb.toFixed(1) + ' MB' : Math.round(out.size / 1024) + ' KB')
-        + '），原图不会被压缩，填好标题和作者后点保存。', 'ok');
+        + '）\n上传的是原图；列表里会自动压成小图显示，点开看的是原图。填好标题后点保存。', 'ok');
     }).catch(function (err) {
       alert(err.message);
       pendingImg = ''; pendingBlob = null;
@@ -775,10 +851,8 @@ function compressImage(file, maxEdge, quality) {
 
   $('btn-save').onclick = function () {
     var title = $('f-title').value.trim();
-    var author = $('f-author').value.trim();
     if (!pendingImg || !pendingBlob) return alert('请先选择作品图片');
     if (!title) return alert('请填标题');
-    if (!author) return alert('请填作者');
     if (busy) return;
     if (!connected || !window.JW || !JW.sb) { setNote('还没连上云端，暂时传不了作品。请检查网络后重试。', 'err'); return; }
 
@@ -789,14 +863,16 @@ function compressImage(file, maxEdge, quality) {
     setNote('正在上传作品图片……');
 
     var uid = JW.uid || ('anon-' + Date.now().toString(36));
-    var path = uid + '/work-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8) + '.' + (pendingExt || 'jpg');
+    var stamp = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+    var path = uid + '/work-' + stamp + '.' + (pendingExt || 'jpg');
 
+    setNote('正在上传原图……');
     JW.sb.storage.from(JW.bucket).upload(path, pendingBlob, { contentType: (pendingBlob && pendingBlob.type) || 'image/jpeg', upsert: false })
       .then(function (res) {
         if (res.error) throw res.error;
         return JW.sb.from('works').insert({
           title: title.slice(0, 40),
-          author: author.slice(0, 20),
+          author: '',
           image_path: path,
           device_id: JW.deviceId
         });
@@ -808,7 +884,7 @@ function compressImage(file, maxEdge, quality) {
         if (draft) { try { localStorage.removeItem('class_works_draft'); } catch (e) {} }
         reset();
         form.classList.remove('show');
-        setNote('作品已上传到云端 ✅ 所有人现在都能看到了。', 'ok');
+        setNote('作品已上传到云端 ✅ 列表显示缩略图，点开才是原图。', 'ok');
         setTimeout(function () { setNote(''); }, 3500);
         return loadWorks();
       })
@@ -829,7 +905,8 @@ function compressImage(file, maxEdge, quality) {
   };
 
   function reset() {
-    $('f-img').value = ''; $('f-title').value = ''; $('f-author').value = '';
+    $('f-img').value = ''; $('f-title').value = '';
+    if (pendingImg) { try { URL.revokeObjectURL(pendingImg); } catch (e) {} }
     pendingImg = ''; pendingBlob = null;
   }
 
@@ -901,7 +978,7 @@ function compressImage(file, maxEdge, quality) {
 
   var $ = function (id) { return document.getElementById(id); };
   var statusEl = $('gb-status'), listEl = $('gb-list');
-  var nameInput = $('gb-name'), contentInput = $('gb-content');
+  var contentInput = $('gb-content');
   var previewEl = $('avatar-preview'), emojiRow = $('emoji-row'), colorRow = $('color-row');
   var submitBtn = $('gb-submit');
   var modeBtnEmoji = $('mode-emoji'), modeBtnImage = $('mode-image');
@@ -928,7 +1005,6 @@ function compressImage(file, maxEdge, quality) {
     selectedColor = COLORS[Math.floor(Math.random() * COLORS.length)];
   }
   if (avatarMode === 'image' && !selectedImage) avatarMode = 'emoji';
-  nameInput.value = localStorage.getItem(NAME_KEY) || '';
 
   function saveLook() {
     try {
@@ -1151,8 +1227,9 @@ function compressImage(file, maxEdge, quality) {
     }).then(function () { e.target.value = ''; });
   };
 
+  /* 留言不再显示姓名：数据库 name 字段是必填，这里统一存一个中性值占位 */
   function currentUserName() {
-    return (nameInput.value || localStorage.getItem(NAME_KEY) || '').trim();
+    return '匿名同学';
   }
 
   /* ---------------- 数据读写 ---------------- */
@@ -1235,7 +1312,7 @@ function compressImage(file, maxEdge, quality) {
     var input = document.createElement('input');
     input.type = 'text';
     input.maxLength = 300;
-    input.placeholder = replyTo ? ('回复 ' + replyTo.name + '……') : ('回复 ' + msg.name + '……');
+    input.placeholder = '回复这条留言……';
     var send = document.createElement('button');
     send.type = 'button'; send.className = 'btn-main'; send.textContent = '发送';
     var cancel = document.createElement('button');
@@ -1244,7 +1321,6 @@ function compressImage(file, maxEdge, quality) {
     function doSend() {
       if (busy) return;
       var name = currentUserName();
-      if (!name) { alert('请先在上方填写你的名字'); nameInput.focus(); return; }
       var text = input.value.trim();
       if (!text) { alert('回复内容不能为空'); input.focus(); return; }
       if (!connected) { status('还没连上服务器，暂时发不了。', 'err'); return; }
@@ -1357,14 +1433,8 @@ function compressImage(file, maxEdge, quality) {
     var head = document.createElement('div');
     var nm = document.createElement('span');
     nm.className = 'gb-reply-name';
-    nm.textContent = reply.name;
+    nm.textContent = '匿名同学';
     head.appendChild(nm);
-    if (reply.reply_to_name) {
-      var to = document.createElement('span');
-      to.className = 'gb-reply-to';
-      to.textContent = '回复 ' + reply.reply_to_name;
-      head.appendChild(to);
-    }
     var tm = document.createElement('span');
     tm.className = 'gb-reply-time';
     tm.textContent = fmt(reply.created_at);
@@ -1381,7 +1451,7 @@ function compressImage(file, maxEdge, quality) {
     reBtn.type = 'button';
     reBtn.className = 'gb-action-btn';
     reBtn.textContent = '↩ 回复';
-    reBtn.onclick = function () { openReplyBox(msg, reply, host); };
+    reBtn.onclick = function () { openReplyBox(msg, null, host); };
     var delR = document.createElement('button');
     delR.type = 'button';
     delR.className = 'gb-action-btn';
@@ -1411,13 +1481,13 @@ function compressImage(file, maxEdge, quality) {
       pin.textContent = '📌 置顶';
       header.appendChild(pin);
     }
-    var nameEl = document.createElement('span');
-    nameEl.className = 'gb-name';
-    nameEl.textContent = msg.name;
+    var anon = document.createElement('span');
+    anon.className = 'gb-anon';
+    anon.textContent = '匿名同学';
     var timeEl = document.createElement('span');
     timeEl.className = 'gb-time';
     timeEl.textContent = fmt(msg.created_at);
-    header.appendChild(nameEl); header.appendChild(timeEl);
+    header.appendChild(anon); header.appendChild(timeEl);
 
     var content = document.createElement('div');
     content.className = 'gb-content';
@@ -1520,9 +1590,8 @@ function compressImage(file, maxEdge, quality) {
 
   /* ---------------- 发布留言 ---------------- */
   submitBtn.onclick = function () {
-    var name = nameInput.value.trim();
+    var name = currentUserName();
     var content = contentInput.value.trim();
-    if (!name) { alert('请填写你的名字'); nameInput.focus(); return; }
     if (!content) { alert('请写点内容再发布'); contentInput.focus(); return; }
     if (avatarMode === 'image' && !selectedImagePath) {
       alert('你选了「上传图片」头像，但还没上传成功。请先选一张图片，或者切回 emoji 头像。');
@@ -1539,7 +1608,6 @@ function compressImage(file, maxEdge, quality) {
     }).then(function (res) {
       if (res.error) throw res.error;
       contentInput.value = '';
-      try { localStorage.setItem(NAME_KEY, name); } catch (e) {}
       status('发布成功 ✅', 'ok');
       setTimeout(function () { if (statusEl.textContent === '发布成功 ✅') status(''); }, 2500);
       return loadAll().then(render);
@@ -1548,9 +1616,6 @@ function compressImage(file, maxEdge, quality) {
     }).then(function () { busy = false; submitBtn.disabled = false; submitBtn.textContent = '发布留言'; });
   };
 
-  nameInput.addEventListener('input', function () {
-    try { localStorage.setItem(NAME_KEY, nameInput.value.trim()); } catch (e) {}
-  });
 
   /* ---------------- 启动 ---------------- */
   buildPickers();
@@ -1573,9 +1638,8 @@ function compressImage(file, maxEdge, quality) {
     loadAll().then(loadLiked).then(function () {
       connected = true;
       render();
-      var who = currentUserName() || '未填名字';
       var icon = (avatarMode === 'image' && selectedImage) ? '（图片头像）' : selectedEmoji;
-      status('已连接云端 · 共 ' + messages.length + ' 条留言（本机身份：' + who + ' ' + icon + '）', 'ok');
+      status('已连接云端 · 共 ' + messages.length + ' 条留言（你的头像：' + icon + '，留言全部匿名）', 'ok');
     }).catch(reloadError);
   }
 
