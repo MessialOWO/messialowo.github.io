@@ -1,0 +1,43 @@
+name: 心跳（防止定时任务被 GitHub 停用）
+
+# GitHub 的规则：仓库连续 60 天没有任何提交，会停用该仓库所有定时任务
+# （schedule），并只发一封邮件提醒。光靠 cron 挡不住这条规则。
+# 这个任务每 45 天自动往仓库提交一次，把 60 天计时器清零，
+# 这样上面那个"保活数据库"的定时任务就能一直跑下去。
+on:
+  schedule:
+    # 每月 1 号 03:17 UTC 跑一次（间隔 28-31 天，远小于 45 天上限）
+    - cron: '17 3 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write          # 需要写权限才能提交
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 取仓库
+        uses: actions/checkout@v4
+
+      - name: 更新心跳文件并提交
+        run: |
+          set -e
+          NOW=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+          echo "本次心跳时间：${NOW}" > heartbeat.txt
+          echo "（此文件由 GitHub Actions 每月自动更新，用于保持仓库活跃、避免定时任务被停用）" >> heartbeat.txt
+          cat heartbeat.txt
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet -- heartbeat.txt; then
+            echo "文件没有变化，跳过提交"
+            exit 0
+          fi
+
+          git add heartbeat.txt
+          git commit -m "心跳：保持定时任务活跃（${NOW}）"
+          git push
+          echo "✅ 已提交，60 天计时器已清零"
