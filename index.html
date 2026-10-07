@@ -226,6 +226,21 @@
   .avatar-circle.small{ width: 28px; height: 28px; font-size: .95rem; }
   .avatar-preview .avatar-circle { width: 100%; height: 100%; font-size: 1.6rem; border-radius: 50%; }
 
+  /* 置顶 */
+  .gb-item.pinned { border-left: 5px solid var(--accent); background: #fffdfb; }
+  .gb-pin-badge {
+    background: var(--accent); color: #fff; font-size: .72rem; letter-spacing: 1px;
+    padding: 2px 8px; border-radius: 10px; font-weight: 700;
+  }
+  .gb-clear-pins { text-align: center; padding: 8px 0 4px; }
+  .gb-reply-actions { margin-top: 4px; }
+  .gb-reply-actions .gb-action-btn { padding: 2px 8px; font-size: .8rem; }
+  .gb-reply-to {
+    font-size: .78rem; color: var(--accent); background: var(--accent-light);
+    padding: 1px 7px; border-radius: 8px; margin: 0 4px 0 8px;
+  }
+  .gb-reply-form-inline { margin-top: 8px; }
+
   .gb-actions { display: flex; gap: 8px; margin-top: 10px; }
   .gb-action-btn {
     background: none; border: none; padding: 4px 10px; cursor: pointer;
@@ -767,54 +782,34 @@ function compressImage(file, maxEdge, quality) {
    它负责超时、重试和错误提示，作品集与留言板都用同一个 JW 对象。
    注意：JS 注释里绝不能出现 script 结束标签的原文，否则会把整段脚本截断。 */
 
-/* ========== 留言板：Supabase 云端持久化（帖子 + 点赞 + 回复） ========== */
+/* ========== 留言板：云端持久化 + 回复评论 + 置顶 ========== */
 (function () {
-  /* ---- 后端配置：这两个值公开在前端是设计如此，安全性由数据库 RLS 保证 ---- */
-  var SB_URL = 'https://wvqrnkgjwnlhjhfuonts.supabase.co';
-  var SB_KEY = 'sb_publishable_cGy9MFHh3-t2i0kEnbHeeg_A1-rUMaF';
-  // SDK 优先用页面里同源加载的 ./vendor/supabase.js；万一没加载成功，再试公共 CDN
-  var SB_JS_FALLBACK = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';
-
+  var PW_SALT = 'jw-salt-2026';        // 只用来算哈希，密码明文不在代码里
   var NAME_KEY   = 'jiangwan_gb_name';
-  var LOOK_KEY   = 'jiangwan_gb_look';       // { mode, emoji, color, image }
+  var LOOK_KEY   = 'jiangwan_gb_look';
   var DEVICE_KEY = 'jiangwan_gb_device';
-  var LIKED_KEY  = 'jiangwan_gb_liked';      // 本地缓存的「我赞过的」
-  var PAGE_SIZE  = 50;
+  var LIKED_KEY  = 'jiangwan_gb_liked';
+  var PAGE_SIZE  = 80;
   var AVATAR_BUCKET = 'avatars';
   var EMOJIS = ['🙂','🐹','🐰','🦊','🐼','🐨','🐯','🦁','🐸','🐧','🐳','🦄','🌻','🌙','⚡','🍀'];
   var COLORS = ['#c0392b','#e67e22','#d4a017','#27ae60','#16a085','#2980b9','#8e44ad','#d95f8f','#5d6d7e','#2c3e50'];
 
   var $ = function (id) { return document.getElementById(id); };
-  var statusEl   = $('gb-status');
-  var listEl     = $('gb-list');
-  var nameInput  = $('gb-name');
-  var contentInput = $('gb-content');
-  var previewEl  = $('avatar-preview');
-  var emojiRow   = $('emoji-row');
-  var colorRow   = $('color-row');
-  var submitBtn  = $('gb-submit');
-  var modeBtnEmoji = $('mode-emoji');
-  var modeBtnImage = $('mode-image');
-  var panelEmoji = $('panel-emoji');
-  var panelImage = $('panel-image');
-  var avatarFile = $('gb-avatar-file');
-  var avatarClearBtn = $('btn-avatar-clear');
+  var statusEl = $('gb-status'), listEl = $('gb-list');
+  var nameInput = $('gb-name'), contentInput = $('gb-content');
+  var previewEl = $('avatar-preview'), emojiRow = $('emoji-row'), colorRow = $('color-row');
+  var submitBtn = $('gb-submit');
+  var modeBtnEmoji = $('mode-emoji'), modeBtnImage = $('mode-image');
+  var panelEmoji = $('panel-emoji'), panelImage = $('panel-image');
+  var avatarFile = $('gb-avatar-file'), avatarClearBtn = $('btn-avatar-clear');
 
-  /* ---- 本机身份 ---- */
-  var selectedEmoji = '🙂';
-  var selectedColor = COLORS[0];
-  var avatarMode = 'emoji';        // 'emoji' | 'image'
-  var selectedImage = '';          // 上传头像的公开 URL（供本地预览）
-  var selectedImagePath = '';      // 上传头像在桶里的路径（存进数据库的就是它）
-  var currentUserId = '';          // 匿名登录后的 uid，上传路径的第一段
-  var deviceId = '';
-  var sb = null;
-  var messages = [];
-  var repliesByMsg = {};
-  var likedSet = {};
-  var connected = false;
-  var busy = false;
+  var selectedEmoji = '🙂', selectedColor = COLORS[0];
+  var avatarMode = 'emoji', selectedImage = '', selectedImagePath = '';
+  var currentUserId = '', deviceId = '';
+  var sb = null, messages = [], repliesByMsg = {}, likedSet = {};
+  var connected = false, busy = false, retryTimer = null;
 
+  /* ---------------- 本机身份与偏好 ---------------- */
   var savedLook = null;
   try { savedLook = JSON.parse(localStorage.getItem(LOOK_KEY) || 'null'); } catch (e) { savedLook = null; }
   if (savedLook && typeof savedLook === 'object') {
@@ -822,13 +817,12 @@ function compressImage(file, maxEdge, quality) {
     if (COLORS.indexOf(savedLook.color) >= 0) selectedColor = savedLook.color;
     if (savedLook.mode === 'image' || savedLook.mode === 'emoji') avatarMode = savedLook.mode;
     if (typeof savedLook.image === 'string' && /^https:\/\//.test(savedLook.image)) selectedImage = savedLook.image;
-    if (typeof savedLook.imagePath === 'string' && /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(savedLook.imagePath)) {
-      selectedImagePath = savedLook.imagePath;
-    }
+    if (typeof savedLook.imagePath === 'string' && /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(savedLook.imagePath)) selectedImagePath = savedLook.imagePath;
   } else {
     selectedEmoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
     selectedColor = COLORS[Math.floor(Math.random() * COLORS.length)];
   }
+  if (avatarMode === 'image' && !selectedImage) avatarMode = 'emoji';
   nameInput.value = localStorage.getItem(NAME_KEY) || '';
 
   function saveLook() {
@@ -840,28 +834,20 @@ function compressImage(file, maxEdge, quality) {
     } catch (e) {}
   }
 
-  function newDeviceId() {
-    var rnd = '';
-    if (window.crypto && window.crypto.randomUUID) return 'gb-' + window.crypto.randomUUID();
-    rnd = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-    return 'gb-' + Date.now().toString(36) + rnd;
-  }
-  deviceId = (window.JW && JW.deviceId) || localStorage.getItem(DEVICE_KEY) || '';
-  if (!deviceId || deviceId.length < 8 || deviceId.length > 64) {
-    deviceId = newDeviceId();
-    try { localStorage.setItem(DEVICE_KEY, deviceId); } catch (e) {}
+  function avatarUrl(path) {
+    var base = (window.JW && JW.storagePublic) || '';
+    if (!base) return '';
+    if (typeof path !== 'string' || !/^[A-Za-z0-9-]{1,64}\/[A-Za-z0-9._-]{1,80}$/.test(path)) return '';
+    return base + path;
   }
 
-  try {
-    likedSet = JSON.parse(localStorage.getItem(LIKED_KEY) || '{}') || {};
-    if (typeof likedSet !== 'object' || likedSet === null) likedSet = {};
-  } catch (e) { likedSet = {}; }
-
-  function persistLiked() {
-    try { localStorage.setItem(LIKED_KEY, JSON.stringify(likedSet)); } catch (e) {}
+  /* ---------------- 小工具 ---------------- */
+  function fmt(ts) {
+    var d = new Date(ts);
+    if (isNaN(d.getTime())) return '';
+    var p = function (n) { return n < 10 ? '0' + n : '' + n; };
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
   }
-
-  /* ---- 状态提示 ---- */
   function status(text, kind) {
     if (!statusEl) return;
     if (!text) { statusEl.hidden = true; statusEl.textContent = ''; return; }
@@ -869,31 +855,58 @@ function compressImage(file, maxEdge, quality) {
     statusEl.className = 'gb-status' + (kind ? ' ' + kind : '');
     statusEl.textContent = text;
   }
-
-  /* ---- 头像：两种模式 ----------------------------------------------------
-     ① emoji：底色 + emoji，纯文字，零存储、零风险
-     ② 图片：上传到 Supabase Storage，页面里用 <img> 显示
-     下面是统一的渲染函数，两种模式共用。                              */
-  var SB_STORAGE_PUBLIC = SB_URL + '/storage/v1/object/public/' + AVATAR_BUCKET + '/';
-
-  function avatarUrl(path) {
-    // 只允许「uid/文件名」这种相对路径，避免被塞进外链或 javascript: 之类
-    if (typeof path !== 'string' || !/^[A-Za-z0-9-]{1,64}\/[A-Za-z0-9._-]{1,80}$/.test(path)) return '';
-    return SB_STORAGE_PUBLIC + path;
+  function withTimeout(p, ms, what) {
+    if (window.JW && JW.withTimeout) return JW.withTimeout(p, ms, what);
+    return p;
+  }
+  function sha256Hex(text) {
+    if (window.crypto && window.crypto.subtle && window.TextEncoder) {
+      return window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then(function (buf) {
+        return Array.prototype.map.call(new Uint8Array(buf), function (b) {
+          return ('0' + b.toString(16)).slice(-2);
+        }).join('');
+      });
+    }
+    return Promise.reject(new Error('这个浏览器不支持加密接口，请换 Chrome 或系统浏览器'));
+  }
+  function isBadPw(e) {
+    var m = (e && e.message) ? e.message : String(e || '');
+    return /bad password/i.test(m);
+  }
+  function friendlyError(err, doingWhat) {
+    if (!err) return '操作失败，请稍后再试';
+    var m = err.message || String(err);
+    if (/bad password/i.test(m)) return '密码不对。';
+    if (/message not found/i.test(m)) return '这条留言可能已被删除。';
+    if (err.code === '42501' || /row-level security/i.test(m)) {
+      return doingWhat === '点赞' ? '点赞失败了，刷新页面后再试。'
+        : '发得太快了：同一台设备 1 分钟最多发 3 条留言 / 6 条回复，歇一会儿再发～';
+    }
+    if (/Failed to fetch|NetworkError|Load failed|timeout|超时|Connection reset|ETIMEDOUT/i.test(m)) {
+      return '连不上服务器（网络问题），稍等会自动重试，也可以下拉刷新。';
+    }
+    return (doingWhat || '操作') + '失败：' + m;
+  }
+  function copyText(text, tip) {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(
+        function () { alert('已复制到剪贴板。\n' + tip); },
+        function () { prompt('自动复制失败，请长按全选手动复制：', text); }
+      );
+    } else {
+      prompt('请长按全选手动复制下面的内容：', text);
+    }
   }
 
+  /* ---------------- 头像 ---------------- */
   function avatarNode(color, emoji, path, size) {
     var el = document.createElement('div');
     el.className = 'avatar-circle ' + (size === 'small' ? 'small' : 'big');
     var url = avatarUrl(path);
     if (url) {
       var img = document.createElement('img');
-      img.src = url;
-      img.alt = '';
-      img.loading = 'lazy';
-      img.decoding = 'async';
+      img.src = url; img.alt = ''; img.loading = 'lazy'; img.decoding = 'async';
       img.onerror = function () {
-        // 图片挂了（被删/网络问题）就退回 emoji，不显示破图
         el.textContent = emoji || '🙂';
         el.style.background = /^#[0-9a-fA-F]{6}$/.test(color || '') ? color : COLORS[0];
       };
@@ -905,53 +918,64 @@ function compressImage(file, maxEdge, quality) {
     }
     return el;
   }
-
-  function currentAvatarColor() {
-    return avatarMode === 'image' ? (selectedColor || COLORS[0]) : selectedColor;
-  }
-
-  /* 组装要写进数据库的头像字段 */
   function avatarPayload() {
     if (avatarMode === 'image' && selectedImagePath) {
       return { avatar_mode: 'image', avatar_path: selectedImagePath, avatar_color: selectedColor, avatar_emoji: selectedEmoji };
     }
     return { avatar_mode: 'emoji', avatar_path: null, avatar_color: selectedColor, avatar_emoji: selectedEmoji };
   }
-
   function refreshPreview() {
     previewEl.textContent = '';
     if (avatarMode === 'image') {
       if (selectedImage) {
         var img = document.createElement('img');
-        img.src = selectedImage;
-        img.alt = '头像预览';
+        img.src = selectedImage; img.alt = '头像预览';
         previewEl.appendChild(img);
-      } else {
-        previewEl.textContent = '未选择';
-      }
+      } else previewEl.textContent = '未选择';
     } else {
       previewEl.appendChild(avatarNode(selectedColor, selectedEmoji, '', 'big'));
     }
     if (avatarClearBtn) avatarClearBtn.hidden = !(avatarMode === 'image' && selectedImage);
   }
-
   function setMode(mode) {
     avatarMode = (mode === 'image') ? 'image' : 'emoji';
     panelEmoji.hidden = avatarMode !== 'emoji';
     panelImage.hidden = avatarMode !== 'image';
     modeBtnEmoji.className = 'mode-btn' + (avatarMode === 'emoji' ? ' on' : '');
     modeBtnImage.className = 'mode-btn' + (avatarMode === 'image' ? ' on' : '');
-    saveLook();
-    refreshPreview();
+    saveLook(); refreshPreview();
   }
-
-  /* 上传头像：压缩到 256px 的 JPEG，再传进 avatars 桶 */
+  function buildPickers() {
+    emojiRow.textContent = '';
+    EMOJIS.forEach(function (em) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'emoji-pick' + (em === selectedEmoji ? ' on' : '');
+      b.textContent = em;
+      b.setAttribute('aria-label', '选择头像 ' + em);
+      b.onclick = function () { selectedEmoji = em; saveLook(); buildPickers(); refreshPreview(); };
+      emojiRow.appendChild(b);
+    });
+    colorRow.textContent = '';
+    COLORS.forEach(function (c) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'color-pick' + (c === selectedColor ? ' on' : '');
+      b.style.background = c;
+      b.setAttribute('aria-label', '选择底色 ' + c);
+      b.onclick = function () { selectedColor = c; saveLook(); buildPickers(); refreshPreview(); };
+      colorRow.appendChild(b);
+    });
+  }
+  modeBtnEmoji.onclick = function () { setMode('emoji'); };
+  modeBtnImage.onclick = function () { setMode('image'); };
+  if (avatarClearBtn) {
+    avatarClearBtn.onclick = function () { selectedImage = ''; selectedImagePath = ''; saveLook(); setMode('emoji'); };
+  }
   function toBlob(canvas, quality) {
     return new Promise(function (resolve, reject) {
       if (canvas.toBlob) {
-        canvas.toBlob(function (b) {
-          if (b) resolve(b); else reject(new Error('图片编码失败'));
-        }, 'image/jpeg', quality);
+        canvas.toBlob(function (b) { b ? resolve(b) : reject(new Error('图片编码失败')); }, 'image/jpeg', quality);
       } else {
         try {
           var dataUrl = canvas.toDataURL('image/jpeg', quality);
@@ -963,86 +987,54 @@ function compressImage(file, maxEdge, quality) {
       }
     });
   }
-
-  function uploadAvatar(file) {
-    if (!currentUserId) {
-      return Promise.reject(new Error('还在连接服务器，请等状态条显示“已连接云端”后再试'));
-    }
-    return compressImage(file, 256, 0.85).then(function (dataUrl) {
+  function compressImage(file, maxEdge, quality) {
+    return new Promise(function (resolve, reject) {
+      if (!file.type || file.type.indexOf('image/') !== 0) return reject(new Error('这不是图片文件'));
+      var url = URL.createObjectURL(file);
       var img = new Image();
-      return new Promise(function (resolve, reject) {
-        img.onload = function () { resolve(img); };
-        img.onerror = function () { reject(new Error('图片读取失败')); };
-        img.src = dataUrl;
+      img.onload = function () {
+        URL.revokeObjectURL(url);
+        var scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+        var w = Math.max(1, Math.round(img.width * scale)), h = Math.max(1, Math.round(img.height * scale));
+        var cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        var ctx = cv.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(cv.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('图片解码失败（HEIC 请先转成 JPG）')); };
+      img.src = url;
+    });
+  }
+  avatarFile.onchange = function (e) {
+    var file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) { alert('图片太大了（超过 8MB），请换一张小一点的。'); e.target.value = ''; return; }
+    if (!currentUserId) { status('还在连接服务器，请等状态条显示「已连接」后再传头像。', 'err'); e.target.value = ''; return; }
+    status('正在压缩并上传头像……');
+    compressImage(file, 256, 0.85).then(function (dataUrl) {
+      return new Promise(function (res, rej) {
+        var im = new Image();
+        im.onload = function () { res(im); };
+        im.onerror = function () { rej(new Error('图片读取失败')); };
+        im.src = dataUrl;
       });
     }).then(function (img) {
       var cv = document.createElement('canvas');
       cv.width = 256; cv.height = 256;
       var ctx = cv.getContext('2d');
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, 256, 256);
-      // 居中裁剪成正方形，头像才不会变形
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 256, 256);
       var side = Math.min(img.width, img.height);
       ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, 256, 256);
       return toBlob(cv, 0.85);
     }).then(function (blob) {
-      var name = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8) + '.jpg';
-      var path = currentUserId + '/' + name;
-      return sb.storage.from(AVATAR_BUCKET).upload(path, blob, {
-        contentType: 'image/jpeg', cacheControl: '31536000', upsert: false
-      }).then(function (res) {
-        if (res.error) throw res.error;
-        return path;
-      });
-    });
-  }
-
-  function buildPickers() {
-    emojiRow.textContent = '';
-    EMOJIS.forEach(function (em) {
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'emoji-pick' + (em === selectedEmoji ? ' on' : '');
-      b.textContent = em;
-      b.setAttribute('aria-label', '选择头像 ' + em);
-      b.onclick = function () {
-        selectedEmoji = em;
-        saveLook(); buildPickers(); refreshPreview();
-      };
-      emojiRow.appendChild(b);
-    });
-    colorRow.textContent = '';
-    COLORS.forEach(function (c) {
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'color-pick' + (c === selectedColor ? ' on' : '');
-      b.style.background = c;
-      b.setAttribute('aria-label', '选择底色 ' + c);
-      b.onclick = function () {
-        selectedColor = c;
-        saveLook(); buildPickers(); refreshPreview();
-      };
-      colorRow.appendChild(b);
-    });
-  }
-
-  modeBtnEmoji.onclick = function () { setMode('emoji'); };
-  modeBtnImage.onclick = function () { setMode('image'); };
-
-  avatarFile.onchange = function (e) {
-    var file = e.target.files && e.target.files[0];
-    if (!file) return;
-    if (file.size > 8 * 1024 * 1024) {
-      alert('图片太大了（超过 8MB），请换一张小一点的。');
-      e.target.value = '';
-      return;
-    }
-    status('正在压缩并上传头像……');
-    uploadAvatar(file).then(function (path) {
-      selectedImagePath = path;
-      selectedImage = avatarUrl(path);
-      saveLook();
-      setMode('image');
+      var path = currentUserId + '/' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8) + '.jpg';
+      return sb.storage.from(AVATAR_BUCKET).upload(path, blob, { contentType: 'image/jpeg', cacheControl: '31536000', upsert: false })
+        .then(function (r) { if (r.error) throw r.error; return path; });
+    }).then(function (path) {
+      selectedImagePath = path; selectedImage = avatarUrl(path);
+      saveLook(); setMode('image');
       status('头像已上传 ✅', 'ok');
       setTimeout(function () { if (statusEl.textContent === '头像已上传 ✅') status(''); }, 2500);
     }).catch(function (err) {
@@ -1051,67 +1043,55 @@ function compressImage(file, maxEdge, quality) {
       if (/Bucket not found/i.test(m)) m = '存储桶还没建好（请先执行第三步 SQL）';
       else if (/row-level security|AccessDenied|403/i.test(m)) m = '没有上传权限（请确认匿名登录已开启）';
       status('头像上传失败：' + m, 'err');
-    }).then(function () {
-      e.target.value = '';
-    });
+    }).then(function () { e.target.value = ''; });
   };
-
-  if (avatarClearBtn) {
-    avatarClearBtn.onclick = function () {
-      selectedImage = '';
-      selectedImagePath = '';
-      saveLook();
-      setMode('emoji');
-    };
-  }
-
-  /* ---- 时间格式 ---- */
-  function fmt(ts) {
-    var d = new Date(ts);
-    if (isNaN(d.getTime())) return '';
-    var p = function (n) { return n < 10 ? '0' + n : '' + n; };
-    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
-  }
 
   function currentUserName() {
     return (nameInput.value || localStorage.getItem(NAME_KEY) || '').trim();
   }
 
-  /* ---- 错误翻译：把 Supabase 的英文错误变成人话 ---- */
-  function friendlyError(err, doingWhat) {
-    if (!err) return '操作失败，请稍后再试';
-    var m = err.message || String(err);
-    if (err.code === '42501' || /row-level security/i.test(m)) {
-      return doingWhat === '点赞'
-        ? '点赞失败了，刷新页面后再试。'
-        : '发得太快了：同一台设备 1 分钟最多发 3 条留言 / 6 条回复，歇一会儿再发～';
-    }
-    if (/Failed to fetch|NetworkError|Load failed|timeout/i.test(m)) {
-      return '连不上服务器（可能是网络问题），请检查网络后刷新页面。';
-    }
-    if (/invalid device id/i.test(m)) return '本机标识异常，请刷新页面后重试。';
-    if (/message not found/i.test(m)) return '这条留言可能已被删除。';
-    if (/duplicate key/i.test(m)) return '重复操作，已忽略。';
-    return (doingWhat || '操作') + '失败：' + m;
+  /* ---------------- 数据读写 ---------------- */
+  function scheduleRetry() {
+    if (retryTimer) return;
+    retryTimer = setTimeout(function () {
+      retryTimer = null;
+      if (!sb) { scheduleRetry(); return; }
+      loadAll().then(function () {
+        connected = true; render();
+        status('已重新连上云端 ✅', 'ok');
+        setTimeout(function () { if (/已重新连上/.test(statusEl.textContent)) status(''); }, 2500);
+      }).catch(function () { scheduleRetry(); });
+    }, 15000);
+  }
+  function reloadError(e) {
+    console.error(e);
+    connected = false;
+    render();
+    status(friendlyError(e, '加载留言'), 'err');
+    scheduleRetry();
   }
 
-  /* ---- 数据读写 ---- */
-  function loadMessages() {
-    return sb.from('messages')
-      .select('id,created_at,name,content,avatar_color,avatar_emoji,avatar_path,avatar_mode,like_count,reply_count')
+  function loadAll() {
+    if (!sb) return Promise.reject(new Error('云端未就绪'));
+    return withTimeout(sb.from('messages')
+      .select('id,created_at,name,content,avatar_color,avatar_emoji,avatar_path,avatar_mode,like_count,reply_count,is_pinned,pinned_at')
       .eq('hidden', false)
       .order('created_at', { ascending: false })
-      .limit(PAGE_SIZE)
+      .limit(PAGE_SIZE), 15000, '读取留言')
       .then(function (res) {
         if (res.error) throw res.error;
-        messages = (res.data || []).slice().reverse();
+        messages = (res.data || []).slice().reverse();      // 时间正序
+        messages.sort(function (a, b) {                     // 置顶排最前
+          if (!!a.is_pinned !== !!b.is_pinned) return a.is_pinned ? -1 : 1;
+          return 0;
+        });
         var ids = messages.map(function (m) { return m.id; });
         if (!ids.length) { repliesByMsg = {}; return null; }
-        return sb.from('replies')
-          .select('id,message_id,created_at,name,content,avatar_color,avatar_emoji,avatar_path,avatar_mode')
+        return withTimeout(sb.from('replies')
+          .select('id,message_id,created_at,name,content,avatar_color,avatar_emoji,avatar_path,avatar_mode,reply_to_id,reply_to_name')
           .in('message_id', ids)
           .order('created_at', { ascending: true })
-          .limit(400)
+          .limit(600), 15000, '读取回复')
           .then(function (r2) {
             if (r2.error) throw r2.error;
             repliesByMsg = {};
@@ -1122,71 +1102,159 @@ function compressImage(file, maxEdge, quality) {
           });
       });
   }
-
   function loadLiked() {
-    return sb.rpc('liked_message_ids', { p_device_id: deviceId }).then(function (res) {
-      if (res.error) return null;          // 拿不到就用本地缓存，不影响使用
-      var raw = res.data;
-      if (typeof raw === 'string') { try { raw = JSON.parse(raw); } catch (e) { raw = []; } }
-      if (!Array.isArray(raw)) {
-        raw = (raw && typeof raw === 'object') ? [raw] : [];
-      }
-      var next = {};
-      raw.forEach(function (row) {
-        var id = (row && typeof row === 'object')
-          ? (row.liked_message_ids || row.message_id || row.id)
-          : row;
-        if (id) next[id] = true;
-      });
-      likedSet = next;
-      persistLiked();
-      return null;
-    });
+    if (!sb) return Promise.resolve();
+    return withTimeout(sb.rpc('liked_message_ids', { p_device_id: deviceId }), 12000, '读取点赞')
+      .then(function (res) {
+        if (res.error) return null;
+        var raw = res.data;
+        if (typeof raw === 'string') { try { raw = JSON.parse(raw); } catch (e) { raw = []; } }
+        if (!Array.isArray(raw)) raw = raw ? [raw] : [];
+        var next = {};
+        raw.forEach(function (row) {
+          var id = (row && typeof row === 'object') ? (row.liked_message_ids || row.message_id || row.id) : row;
+          if (id) next[id] = true;
+        });
+        likedSet = next;
+        try { localStorage.setItem(LIKED_KEY, JSON.stringify(likedSet)); } catch (e) {}
+        return null;
+      }).catch(function () { return null; });
   }
 
-  function withBusy(btn, fn) {
-    if (busy) return;
+  /* ---------------- 回复输入框 ---------------- */
+  function openReplyBox(msg, replyTo, host) {
+    var old = host.querySelector('.gb-reply-form-inline');
+    if (old) old.remove();
+    var box = document.createElement('div');
+    box.className = 'reply-form gb-reply-form-inline';
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.maxLength = 300;
+    input.placeholder = replyTo ? ('回复 ' + replyTo.name + '……') : ('回复 ' + msg.name + '……');
+    var send = document.createElement('button');
+    send.type = 'button'; send.className = 'btn-main'; send.textContent = '发送';
+    var cancel = document.createElement('button');
+    cancel.type = 'button'; cancel.className = 'btn-ghost'; cancel.textContent = '取消';
+    cancel.onclick = function () { box.remove(); };
+    function doSend() {
+      if (busy) return;
+      var name = currentUserName();
+      if (!name) { alert('请先在上方填写你的名字'); nameInput.focus(); return; }
+      var text = input.value.trim();
+      if (!text) { alert('回复内容不能为空'); input.focus(); return; }
+      if (!connected) { status('还没连上服务器，暂时发不了。', 'err'); return; }
+      busy = true; send.disabled = true; send.textContent = '发送中…';
+      var av = avatarPayload();
+      sb.from('replies').insert({
+        message_id: msg.id, device_id: deviceId,
+        name: name.slice(0, 20), content: text.slice(0, 300),
+        reply_to_id: replyTo ? replyTo.id : null,
+        reply_to_name: replyTo ? replyTo.name : null,
+        avatar_mode: av.avatar_mode, avatar_path: av.avatar_path,
+        avatar_color: av.avatar_color, avatar_emoji: av.avatar_emoji
+      }).then(function (res) {
+        if (res.error) throw res.error;
+        box.remove();
+        status('回复成功 ✅', 'ok');
+        setTimeout(function () { if (statusEl.textContent === '回复成功 ✅') status(''); }, 2000);
+        return loadAll().then(render);
+      }).catch(function (e) {
+        console.error(e); status(friendlyError(e, '回复'), 'err');
+      }).then(function () { busy = false; send.disabled = false; send.textContent = '发送'; });
+    }
+    send.onclick = doSend;
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); doSend(); } });
+    box.appendChild(input); box.appendChild(send); box.appendChild(cancel);
+    host.appendChild(box);
+    input.focus();
+  }
+
+  /* ---------------- 置顶 ---------------- */
+  function togglePin(msg, btn) {
+    if (busy || !connected) return;
+    var pw = prompt((msg.is_pinned ? '取消置顶' : '把这条留言置顶') + '\n请输入管理密码：');
+    if (pw === null || !pw.trim()) return;
     busy = true;
-    var old = btn ? btn.textContent : '';
-    if (btn) { btn.disabled = true; btn.textContent = '发送中…'; }
-    Promise.resolve().then(fn).catch(function (e) {
+    if (btn) { btn.disabled = true; btn.textContent = '处理中…'; }
+    sha256Hex(PW_SALT + '|' + pw.trim()).then(function (hash) {
+      return sb.rpc('set_message_pinned', {
+        p_message_id: msg.id, p_pinned: !msg.is_pinned, p_pw_hash: hash
+      });
+    }).then(function (res) {
+      if (res.error) throw res.error;
+      var out = res.data;
+      if (typeof out === 'string') { try { out = JSON.parse(out); } catch (e) {} }
+      status(out && out.is_pinned ? '已置顶 📌 它会显示在留言板最上面' : '已取消置顶', 'ok');
+      setTimeout(function () { if (/置顶/.test(statusEl.textContent)) status(''); }, 3000);
+      return loadAll().then(render);
+    }).catch(function (e) {
       console.error(e);
-      status(friendlyError(e, '操作'), 'err');
-    }).then(function () {
-      busy = false;
-      if (btn) { btn.disabled = false; btn.textContent = old; }
+      status(isBadPw(e) ? '密码不对，置顶没有生效。' : friendlyError(e, '置顶'), 'err');
+      if (btn) { btn.disabled = false; btn.textContent = msg.is_pinned ? '📌 取消置顶' : '📌 置顶'; }
+    }).then(function () { busy = false; });
+  }
+  function clearAllPins() {
+    var pw = prompt('取消所有置顶\n请输入管理密码：');
+    if (pw === null || !pw.trim()) return;
+    sha256Hex(PW_SALT + '|' + pw.trim()).then(function (hash) {
+      return sb.rpc('clear_all_pins', { p_pw_hash: hash });
+    }).then(function (res) {
+      if (res.error) throw res.error;
+      status('已取消全部置顶', 'ok');
+      setTimeout(function () { if (/全部置顶/.test(statusEl.textContent)) status(''); }, 2500);
+      return loadAll().then(render);
+    }).catch(function (e) {
+      console.error(e);
+      status(isBadPw(e) ? '密码不对。' : friendlyError(e, '取消置顶'), 'err');
     });
   }
 
-  /* ---- 渲染 ---- */
-  function createReplyEl(reply) {
+  /* ---------------- 渲染 ---------------- */
+  function createReplyEl(reply, msg, host) {
     var rEl = document.createElement('div');
     rEl.className = 'gb-reply';
     rEl.appendChild(avatarNode(reply.avatar_color, reply.avatar_emoji, reply.avatar_path, 'small'));
 
-    var rBody = document.createElement('div');
-    rBody.className = 'gb-reply-body';
-    var rHead = document.createElement('div');
-    var rName = document.createElement('span');
-    rName.className = 'gb-reply-name';
-    rName.textContent = reply.name;                      // textContent：天然转义
-    var rTime = document.createElement('span');
-    rTime.className = 'gb-reply-time';
-    rTime.textContent = fmt(reply.created_at);
-    rHead.appendChild(rName);
-    rHead.appendChild(rTime);
-    var rContent = document.createElement('div');
-    rContent.className = 'gb-reply-content';
-    rContent.textContent = reply.content;
-    rBody.appendChild(rHead);
-    rBody.appendChild(rContent);
-    rEl.appendChild(rBody);
+    var body = document.createElement('div');
+    body.className = 'gb-reply-body';
+    var head = document.createElement('div');
+    var nm = document.createElement('span');
+    nm.className = 'gb-reply-name';
+    nm.textContent = reply.name;
+    head.appendChild(nm);
+    if (reply.reply_to_name) {
+      var to = document.createElement('span');
+      to.className = 'gb-reply-to';
+      to.textContent = '回复 ' + reply.reply_to_name;
+      head.appendChild(to);
+    }
+    var tm = document.createElement('span');
+    tm.className = 'gb-reply-time';
+    tm.textContent = fmt(reply.created_at);
+    head.appendChild(tm);
+
+    var ct = document.createElement('div');
+    ct.className = 'gb-reply-content';
+    ct.textContent = reply.content;
+    body.appendChild(head); body.appendChild(ct);
+
+    var acts = document.createElement('div');
+    acts.className = 'gb-reply-actions';
+    var reBtn = document.createElement('button');
+    reBtn.type = 'button';
+    reBtn.className = 'gb-action-btn';
+    reBtn.textContent = '↩ 回复';
+    reBtn.onclick = function () { openReplyBox(msg, reply, host); };
+    acts.appendChild(reBtn);
+    body.appendChild(acts);
+
+    rEl.appendChild(body);
     return rEl;
   }
 
   function createPostEl(msg) {
     var item = document.createElement('div');
-    item.className = 'gb-item';
+    item.className = 'gb-item' + (msg.is_pinned ? ' pinned' : '');
     item.appendChild(avatarNode(msg.avatar_color, msg.avatar_emoji, msg.avatar_path, 'big'));
 
     var body = document.createElement('div');
@@ -1194,14 +1262,19 @@ function compressImage(file, maxEdge, quality) {
 
     var header = document.createElement('div');
     header.className = 'gb-header';
+    if (msg.is_pinned) {
+      var pin = document.createElement('span');
+      pin.className = 'gb-pin-badge';
+      pin.textContent = '📌 置顶';
+      header.appendChild(pin);
+    }
     var nameEl = document.createElement('span');
     nameEl.className = 'gb-name';
     nameEl.textContent = msg.name;
     var timeEl = document.createElement('span');
     timeEl.className = 'gb-time';
     timeEl.textContent = fmt(msg.created_at);
-    header.appendChild(nameEl);
-    header.appendChild(timeEl);
+    header.appendChild(nameEl); header.appendChild(timeEl);
 
     var content = document.createElement('div');
     content.className = 'gb-content';
@@ -1211,46 +1284,7 @@ function compressImage(file, maxEdge, quality) {
     var repliesEl = document.createElement('div');
     repliesEl.className = 'gb-replies';
     if (!replies.length) repliesEl.hidden = true;
-    replies.forEach(function (r) { repliesEl.appendChild(createReplyEl(r)); });
-
-    var replyForm = document.createElement('div');
-    replyForm.className = 'reply-form';
-    replyForm.hidden = true;
-    var replyInput = document.createElement('input');
-    replyInput.type = 'text';
-    replyInput.maxLength = 300;
-    replyInput.placeholder = '回复 ' + msg.name + '……';
-    var replySend = document.createElement('button');
-    replySend.type = 'button';
-    replySend.className = 'btn-main';
-    replySend.textContent = '发送';
-    replySend.onclick = function () {
-      var name = currentUserName();
-      if (!name) { alert('请先在上方填写你的名字'); nameInput.focus(); return; }
-      var text = replyInput.value.trim();
-      if (!text) { alert('回复内容不能为空'); replyInput.focus(); return; }
-      withBusy(replySend, function () {
-        var row = {
-          message_id: msg.id, device_id: deviceId,
-          name: name.slice(0, 20), content: text.slice(0, 300)
-        };
-        var av = avatarPayload();
-        row.avatar_mode  = av.avatar_mode;
-        row.avatar_path  = av.avatar_path;
-        row.avatar_color = av.avatar_color;
-        row.avatar_emoji = av.avatar_emoji;
-        return sb.from('replies').insert(row).then(function (res) {
-          if (res.error) throw res.error;
-          replyInput.value = '';
-          return reload();
-        });
-      });
-    };
-    replyInput.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') { e.preventDefault(); replySend.click(); }
-    });
-    replyForm.appendChild(replyInput);
-    replyForm.appendChild(replySend);
+    replies.forEach(function (r) { repliesEl.appendChild(createReplyEl(r, msg, body)); });
 
     var actions = document.createElement('div');
     actions.className = 'gb-actions';
@@ -1261,7 +1295,7 @@ function compressImage(file, maxEdge, quality) {
     likeBtn.className = 'gb-action-btn' + (liked ? ' liked' : '');
     likeBtn.textContent = '👍 ' + (msg.like_count || 0);
     likeBtn.onclick = function () {
-      if (busy) return;
+      if (busy || !connected) return;
       busy = true;
       sb.rpc('like_message', { p_message_id: msg.id, p_device_id: deviceId }).then(function (res) {
         if (res.error) throw res.error;
@@ -1270,24 +1304,19 @@ function compressImage(file, maxEdge, quality) {
         if (out && typeof out === 'object') {
           msg.like_count = out.like_count;
           if (out.liked) likedSet[msg.id] = true; else delete likedSet[msg.id];
-          persistLiked();
+          try { localStorage.setItem(LIKED_KEY, JSON.stringify(likedSet)); } catch (e) {}
           likeBtn.className = 'gb-action-btn' + (out.liked ? ' liked' : '');
           likeBtn.textContent = '👍 ' + out.like_count;
         }
-      }).catch(function (e) {
-        console.error(e);
-        status(friendlyError(e, '点赞'), 'err');
-      }).then(function () { busy = false; });
+      }).catch(function (e) { console.error(e); status(friendlyError(e, '点赞'), 'err'); })
+        .then(function () { busy = false; });
     };
 
     var replyBtn = document.createElement('button');
     replyBtn.type = 'button';
     replyBtn.className = 'gb-action-btn';
     replyBtn.textContent = '💬 回复' + (replies.length ? ' ' + replies.length : '');
-    replyBtn.onclick = function () {
-      replyForm.hidden = !replyForm.hidden;
-      if (!replyForm.hidden) replyInput.focus();
-    };
+    replyBtn.onclick = function () { openReplyBox(msg, null, body); };
 
     var copyBtn = document.createElement('button');
     copyBtn.type = 'button';
@@ -1295,15 +1324,21 @@ function compressImage(file, maxEdge, quality) {
     copyBtn.textContent = '📋 复制';
     copyBtn.onclick = function () { copyText(msg.content, '内容已复制'); };
 
+    var pinBtn = document.createElement('button');
+    pinBtn.type = 'button';
+    pinBtn.className = 'gb-action-btn';
+    pinBtn.textContent = msg.is_pinned ? '📌 取消置顶' : '📌 置顶';
+    pinBtn.onclick = function () { togglePin(msg, pinBtn); };
+
     actions.appendChild(likeBtn);
     actions.appendChild(replyBtn);
     actions.appendChild(copyBtn);
+    actions.appendChild(pinBtn);
 
     body.appendChild(header);
     body.appendChild(content);
     body.appendChild(actions);
     body.appendChild(repliesEl);
-    body.appendChild(replyForm);
 
     item.appendChild(body);
     return item;
@@ -1319,14 +1354,21 @@ function compressImage(file, maxEdge, quality) {
       return;
     }
     messages.forEach(function (msg) { listEl.appendChild(createPostEl(msg)); });
+
+    if (messages.some(function (m) { return m.is_pinned; })) {
+      var bar = document.createElement('div');
+      bar.className = 'gb-clear-pins';
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'gb-action-btn';
+      b.textContent = '取消全部置顶（需密码）';
+      b.onclick = clearAllPins;
+      bar.appendChild(b);
+      listEl.appendChild(bar);
+    }
   }
 
-  function reload() {
-    if (!sb) return Promise.resolve();
-    return loadMessages().then(function () { render(); });
-  }
-
-  /* ---- 发布留言 ---- */
+  /* ---------------- 发布留言 ---------------- */
   submitBtn.onclick = function () {
     var name = nameInput.value.trim();
     var content = contentInput.value.trim();
@@ -1337,82 +1379,69 @@ function compressImage(file, maxEdge, quality) {
       return;
     }
     if (!connected) { status('还没连上服务器，暂时发不了。请检查网络后刷新页面。', 'err'); return; }
-    withBusy(submitBtn, function () {
-      var av = avatarPayload();
-      return sb.from('messages').insert({
-        device_id: deviceId,
-        name: name.slice(0, 20),
-        content: content.slice(0, 500),
-        avatar_mode: av.avatar_mode,
-        avatar_path: av.avatar_path,
-        avatar_color: av.avatar_color,
-        avatar_emoji: av.avatar_emoji
-      }).then(function (res) {
-        if (res.error) throw res.error;
-        contentInput.value = '';
-        try { localStorage.setItem(NAME_KEY, name); } catch (e) {}
-        status('发布成功 ✅', 'ok');
-        setTimeout(function () { status(''); }, 2500);
-        return reload();
-      });
-    });
+    if (busy) return;
+    busy = true; submitBtn.disabled = true; submitBtn.textContent = '发送中…';
+    var av = avatarPayload();
+    sb.from('messages').insert({
+      device_id: deviceId, name: name.slice(0, 20), content: content.slice(0, 500),
+      avatar_mode: av.avatar_mode, avatar_path: av.avatar_path,
+      avatar_color: av.avatar_color, avatar_emoji: av.avatar_emoji
+    }).then(function (res) {
+      if (res.error) throw res.error;
+      contentInput.value = '';
+      try { localStorage.setItem(NAME_KEY, name); } catch (e) {}
+      status('发布成功 ✅', 'ok');
+      setTimeout(function () { if (statusEl.textContent === '发布成功 ✅') status(''); }, 2500);
+      return loadAll().then(render);
+    }).catch(function (e) {
+      console.error(e); status(friendlyError(e, '发布'), 'err');
+    }).then(function () { busy = false; submitBtn.disabled = false; submitBtn.textContent = '发布留言'; });
   };
 
   nameInput.addEventListener('input', function () {
     try { localStorage.setItem(NAME_KEY, nameInput.value.trim()); } catch (e) {}
   });
 
-  /* ---- 启动 ---- */
+  /* ---------------- 启动 ---------------- */
   buildPickers();
-  setMode(avatarMode);     // 恢复上次使用的头像模式，并渲染预览
+  setMode(avatarMode);
   render();
   status('正在连接留言服务器……');
-
-  /* SDK 的加载与降级由 vendor/jw-client.js 统一负责，
-     这里只负责等待它连接完成后开始拉数据。 */
-  function boot() { boot2(); }
 
   function boot2() {
     if (!window.JW || !JW.sb) {
       status('留言组件加载失败。页面其它内容正常可用，请换网络或稍后刷新重试。', 'err');
       return;
     }
-    // 复用共用连接：同一次匿名登录，作品集和留言板用同一个身份
     sb = JW.sb;
     currentUserId = JW.uid || '';
-    Promise.resolve()
-    .then(function () {
-      return loadMessages().then(function () { return loadLiked(); });
-    })
-    .then(function () {
+    deviceId = JW.deviceId || localStorage.getItem(DEVICE_KEY) || '';
+    try {
+      var cached = JSON.parse(localStorage.getItem(LIKED_KEY) || '{}');
+      if (cached && typeof cached === 'object') likedSet = cached;
+    } catch (e) { likedSet = {}; }
+    loadAll().then(loadLiked).then(function () {
       connected = true;
       render();
       var who = currentUserName() || '未填名字';
       var icon = (avatarMode === 'image' && selectedImage) ? '（图片头像）' : selectedEmoji;
       status('已连接云端 · 共 ' + messages.length + ' 条留言（本机身份：' + who + ' ' + icon + '）', 'ok');
-    })
-    .catch(function (e) {
-      console.error(e);
-      connected = false;
-      render();
-      status(friendlyError(e, '加载留言') + '（页面其它内容照常可用）', 'err');
-    });
+    }).catch(reloadError);
   }
 
   function startWhenSharedReady() {
     if (window.JW) {
-      JW.whenReady(function () {
-        if (JW.error) {
-          connected = false;
-          render();
-          status('连不上云端：' + (JW.error.message || JW.error) + '（页面其它内容照常可用）', 'err');
+      JW.whenReady(function (err) {
+        if (err) {
+          connected = false; render();
+          status('连不上云端：' + (err.message || err) + '。会自动重试，也可以下拉刷新。', 'err');
+          scheduleRetry();
           return;
         }
         boot2();
       });
     } else {
-      // 共用模块还没就位（脚本顺序异常），退回自己启动
-      boot();
+      status('留言组件没加载到，请下拉刷新页面。', 'err');
     }
   }
 
