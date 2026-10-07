@@ -1,0 +1,81 @@
+name: 保活数据库（防 Supabase 休眠）
+
+# Supabase 免费项目连续 7 天没有请求会被自动暂停。
+# 这个任务每周二、周五各跑一次，专门给数据库发个真实请求，让它一直是活的。
+on:
+  schedule:
+    # UTC 时间；周二 22:37 / 周五 22:37（北京时间 周三、周六 早上 6:37）
+    - cron: '37 22 * * 2,5'
+  workflow_dispatch:        # 也可以在 Actions 页面手动点一下跑
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 给 Supabase 发请求保活
+        env:
+          SB_URL: https://wvqrnkgjwnlhjhfuonts.supabase.co
+          # publishable key 本来就公开在网页源码里，放这里没有额外风险
+          SB_KEY: sb_publishable_cGy9MFHh3-t2i0kEnbHeeg_A1-rUMaF
+        run: |
+          set -u
+          echo "开始保活：$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "目标：$SB_URL"
+          echo
+
+          ok=0
+          attempt=0
+          max_attempts=5
+
+          while [ "$attempt" -lt "$max_attempts" ]; do
+            attempt=$((attempt + 1))
+            echo "──────── 第 $attempt / $max_attempts 次尝试 ────────"
+
+            # 1) 查一下期刊文章（真实业务表，顺带确认数据还在）
+            echo -n "[1/3] REST 查询 issues 表："
+            code=$(curl -s -o /tmp/r1.json -w '%{http_code}' --max-time 30 \
+                     -H "apikey: $SB_KEY" -H "Authorization: Bearer $SB_KEY" \
+                     "$SB_URL/rest/v1/issues?select=id,name&limit=3" || echo 000)
+            echo "HTTP $code"
+            if [ "$code" = "200" ]; then
+              echo "      返回：$(head -c 200 /tmp/r1.json)"
+              ok=$((ok + 1))
+            fi
+
+            # 2) 查一下 Auth 服务（防止只有数据库活着、登录服务被暂停）
+            echo -n "[2/3] Auth 服务健康检查："
+            code2=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 \
+                      -H "apikey: $SB_KEY" "$SB_URL/auth/v1/settings" || echo 000)
+            echo "HTTP $code2"
+            if [ "$code2" = "200" ]; then ok=$((ok + 1)); fi
+
+            # 3) 查一下存储服务（文章封面、头像都存在这里）
+            echo -n "[3/3] Storage 服务检查："
+            code3=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 \
+                      -H "apikey: $SB_KEY" -H "Authorization: Bearer $SB_KEY" \
+                      "$SB_URL/storage/v1/object/public/avatars/" || echo 000)
+            echo "HTTP $code3"
+            # 公开桶根路径返回 400/404 都算服务是活的；只有 000 才算不通
+            if [ "$code3" != "000" ]; then ok=$((ok + 1)); fi
+
+            if [ "$ok" -ge 2 ]; then
+              echo
+              echo "✅ 保活成功：数据库、Auth、Storage 至少两项正常响应，项目不会被暂停。"
+              exit 0
+            fi
+
+            echo "⚠️ 这一轮响应异常，等 20 秒重试……"
+            echo
+            ok=0
+            sleep 20
+          done
+
+          echo
+          echo "❌ 连续 $max_attempts 次都没拿到正常响应。"
+          echo "   可能原因：Supabase 项目已经被暂停（需去控制台点 Restore），或 GitHub 网络临时故障。"
+          echo "   请打开 https://supabase.com/dashboard/project/wvqrnkgjwnlhjhfuonts 看一眼。"
+          exit 1
