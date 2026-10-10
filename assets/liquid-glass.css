@@ -1,178 +1,137 @@
 /* ==========================================================================
-   班级期刊 · 视觉样式（性能优先版）
-   卡顿原因说明：SVG 滤镜（backdrop-filter: url(#...)）在手机上极其昂贵，
-   每个元素都要单独做一次位移采样。本站改成只用 blur + saturate 的
-   普通毛玻璃，视觉上接近，但 GPU 开销小一个数量级。
+   班级期刊 · 外观样式（稳定版）
+   —— 没有 SVG 滤镜、没有 z-index 负值层、没有重复定义。
+   —— 用最朴素的半透明 + 模糊 + 高光，观感接近玻璃，但绝不挡内容。
    ========================================================================== */
 
-:root {
-  --glass-bg: rgba(255, 255, 255, .58);
-  --glass-bg-strong: rgba(255, 255, 255, .74);
-  --glass-brd: rgba(255, 255, 255, .7);
-  --glass-shadow: 0 8px 28px rgba(31, 27, 22, .09), 0 1px 0 rgba(255,255,255,.7) inset;
-  --glass-hi: rgba(255,255,255,.85);
+/* ---------- 字体 ---------- */
+@font-face {
+  font-family: 'Google Sans';
+  src: url('./fonts/GoogleSans-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
 }
 
-/* 页面底色：用固定渐变层代替 background-attachment: fixed（后者在手机滚动时会重绘） */
-html { background: #f6f4ef; }
-body { background: transparent; }
-body::before {
-  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  background:
-    radial-gradient(900px 520px at 10% -6%,  rgba(192, 57, 43, .10), transparent 62%),
-    radial-gradient(760px 480px at 106% 4%,  rgba(41, 128, 185, .09), transparent 60%),
-    radial-gradient(700px 460px at 50% 106%, rgba(39, 174, 96, .08),  transparent 62%),
-    #f6f4ef;
-  will-change: transform;
-  transform: translateZ(0);
-}
-
-
-/* ==========================================================================
-   液玻璃 · 折射由 assets/liquid-glass.js 注入
-   （算法取自 shuding/liquid-glass：边缘位移、中间不变形）
-   这里只负责：
-     ① 给玻璃一点"可折射的东西"（背景渐变）
-     ② 边缘高光 + 浮动阴影（立体感）
-     ③ 只对少数大容器开玻璃，列表项用小卡片样式
-   ========================================================================== */
-
 :root {
+  --bg: #faf9f6;
+  --text: #2c2c2c;
+  --muted: #6b6b6b;
+  --card: #fff;
+  --accent: #c0392b;
+  --accent-light: #f9eae8;
+  --border: #e8e4dd;
   --glass-brd: rgba(255, 255, 255, .72);
-  --glass-shadow: 0 10px 30px rgba(31, 27, 22, .10), 0 1px 0 rgba(255,255,255,.85) inset;
-  --glass-hi: rgba(255,255,255,.9);
+  --glass-shadow: 0 8px 26px rgba(31, 27, 22, .09), 0 1px 0 rgba(255,255,255,.85) inset;
 }
 
-/* 背景：给玻璃可折射的内容（独立固定层，避免滚动重绘） */
-html { background: #f6f4ef; }
-body { background: transparent; }
-body::before {
-  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  background:
-    radial-gradient(900px 520px at 8% -6%,   rgba(192, 57, 43, .13), transparent 62%),
-    radial-gradient(740px 470px at 108% 2%,  rgba(41, 128, 185, .12), transparent 60%),
-    radial-gradient(700px 460px at 50% 108%, rgba(39, 174, 96, .10),  transparent 62%),
-    #f6f4ef;
-  transform: translateZ(0);
+/* 页面底色：直接给 body 一个固定渐变（不额外加层，避免遮挡） */
+html { background: var(--bg); }
+body {
+  background-color: #f6f4ef;
+  background-image:
+    radial-gradient(900px 520px at 8% -6%,   rgba(192, 57, 43, .10), transparent 62%),
+    radial-gradient(740px 470px at 108% 2%,  rgba(41, 128, 185, .10), transparent 60%),
+    radial-gradient(700px 460px at 50% 108%, rgba(39, 174, 96, .08),  transparent 62%);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
-/* ---- 玻璃容器（JS 会给它们注入折射滤镜）---- */
-.glass, .card-box, .issue-bar, #work-form, .form-card, .sidebar, .topbar {
-  position: relative;
+/* ---------- 玻璃容器 ---------- */
+.card-box, .issue-bar, #work-form, .form-card {
+  background: rgba(255, 255, 255, .62);
   border: 1px solid var(--glass-brd);
   border-radius: 16px;
-  box-shadow: var(--glass-shadow);      /* 浮动阴影：看起来是浮在页面上 */
-}
-.sidebar { border-radius: 0; border-right: 1px solid var(--glass-brd); border-left: 0; border-top: 0; border-bottom: 0;
-           box-shadow: 6px 0 26px rgba(31,27,22,.07); }
-.topbar  { border-radius: 0; border-left: 0; border-right: 0; border-top: 0; border-bottom: 1px solid var(--glass-brd); }
-
-/* 没被 JS 处理到时（不支持滤镜的浏览器）也有一层毛玻璃兜底 */
-.card-box, .issue-bar, #work-form, .form-card {
-  -webkit-backdrop-filter: blur(12px) saturate(175%);
-  backdrop-filter: blur(12px) saturate(175%);
-  background: rgba(255,255,255,.42);
-}
-.sidebar, .topbar {
-  -webkit-backdrop-filter: blur(12px) saturate(175%);
-  backdrop-filter: blur(12px) saturate(175%);
-  background: rgba(255,255,255,.55);
-}
-
-/* 边缘高光：上亮下暗，做出玻璃厚度 */
-.card-box::before, .issue-bar::before, #work-form::before, .form-card::before {
-  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 1;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.6), rgba(255,255,255,0) 20%),
-    linear-gradient(0deg,   rgba(255,255,255,.3), rgba(255,255,255,0) 16%),
-    linear-gradient(90deg,  rgba(255,255,255,.32), rgba(255,255,255,0) 10%),
-    linear-gradient(270deg, rgba(255,255,255,.32), rgba(255,255,255,0) 10%);
-}
-.card-box > *, .issue-bar > *, #work-form > *, .form-card > * { position: relative; z-index: 2; }
-
-/* ---- 列表里的小卡片：数量多，只做半透明 + 高光，不挂滤镜 ---- */
-.gb-item, .quote-item, .comment, .empty-article, .school-photo.missing {
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(10px) saturate(160%);
+  backdrop-filter: blur(10px) saturate(160%);
   position: relative;
-  background: rgba(255,255,255,.5);
+}
+.sidebar {
+  background: rgba(255, 255, 255, .78);
+  border-right: 1px solid var(--glass-brd);
+  box-shadow: 6px 0 24px rgba(31, 27, 22, .06);
+  -webkit-backdrop-filter: blur(10px) saturate(160%);
+  backdrop-filter: blur(10px) saturate(160%);
+}
+.topbar {
+  background: rgba(255, 255, 255, .8);
+  border-bottom: 1px solid var(--glass-brd);
+  -webkit-backdrop-filter: blur(10px) saturate(160%);
+  backdrop-filter: blur(10px) saturate(160%);
+}
+
+/* 边缘高光（纯背景渐变，不影响内容层级） */
+.card-box, .issue-bar, #work-form, .form-card {
+  background-image: linear-gradient(160deg, rgba(255,255,255,.5), rgba(255,255,255,0) 40%);
+}
+
+/* ---------- 列表里的小卡片 ---------- */
+.gb-item, .quote-item, .comment, .empty-article, .school-photo.missing {
+  background: rgba(255, 255, 255, .6);
   border: 1px solid var(--glass-brd);
   border-radius: 14px;
-  box-shadow: 0 6px 18px rgba(31,27,22,.06), 0 1px 0 var(--glass-hi) inset;
-}
-.gb-item::before, .quote-item::before {
-  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-  background: linear-gradient(150deg, rgba(255,255,255,.55), transparent 46%);
+  box-shadow: 0 5px 16px rgba(31, 27, 22, .06), 0 1px 0 rgba(255,255,255,.8) inset;
 }
 
-/* ---- 按钮 ---- */
+/* ---------- 按钮 ---------- */
 button, .btn, .action-btn, .board-chip, .issue-pick, .section-tab, .tab {
-  background: rgba(255,255,255,.55);
+  background: rgba(255, 255, 255, .62);
   border: 1px solid var(--glass-brd);
   border-radius: 12px;
-  box-shadow: 0 4px 14px rgba(31,27,22,.08), 0 1px 0 var(--glass-hi) inset;
+  box-shadow: 0 3px 12px rgba(31, 27, 22, .07), 0 1px 0 rgba(255,255,255,.85) inset;
   transition: transform .14s ease, box-shadow .14s ease, background .14s ease;
 }
 button:hover:not([disabled]), .action-btn:hover, .board-chip:hover {
-  transform: translateY(-1.5px);
-  background: rgba(255,255,255,.8);
-  box-shadow: 0 9px 20px rgba(31,27,22,.12), 0 1px 0 var(--glass-hi) inset;
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, .85);
+  box-shadow: 0 7px 18px rgba(31, 27, 22, .11), 0 1px 0 rgba(255,255,255,.9) inset;
 }
 button:active:not([disabled]) { transform: translateY(0) scale(.985); }
 
 .btn-main, .issue-pick.on, .section-tab.on, .tab.on, .mode-btn.on {
-  background: linear-gradient(165deg, rgba(198,62,47,.9), rgba(146,38,28,.86)) !important;
+  background: linear-gradient(160deg, #c0392b, #962820) !important;
   color: #fff !important;
-  border-color: rgba(255,255,255,.42) !important;
-  box-shadow: 0 8px 22px rgba(192,57,43,.28), 0 1px 0 rgba(255,255,255,.5) inset !important;
+  border-color: rgba(255, 255, 255, .35) !important;
+  box-shadow: 0 6px 18px rgba(192, 57, 43, .26), 0 1px 0 rgba(255,255,255,.4) inset !important;
 }
-.btn-ghost { background: rgba(255,255,255,.5); color: var(--text); }
+.btn-ghost { background: rgba(255, 255, 255, .6); color: var(--text); }
 
-/* ---- 输入框 ---- */
+/* ---------- 输入框 ---------- */
 input[type="text"], input[type="password"], textarea {
-  background: rgba(255,255,255,.68) !important;
-  border: 1px solid rgba(255,255,255,.8) !important;
+  background: rgba(255, 255, 255, .78) !important;
+  border: 1px solid var(--glass-brd) !important;
   border-radius: 10px !important;
-  box-shadow: 0 1px 0 var(--glass-hi) inset, 0 2px 8px rgba(31,27,22,.05);
+  box-shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 2px 8px rgba(31,27,22,.05);
 }
 input:focus, textarea:focus {
-  border-color: rgba(192,57,43,.55) !important;
-  box-shadow: 0 0 0 3px rgba(192,57,43,.14), 0 1px 0 var(--glass-hi) inset;
+  border-color: rgba(192, 57, 43, .55) !important;
+  box-shadow: 0 0 0 3px rgba(192, 57, 43, .14), 0 1px 0 rgba(255,255,255,.9) inset;
   outline: none;
 }
 
-/* ---- 看大图遮罩 / 侧边栏遮罩 ---- */
-.lb { background: rgba(24,20,18,.84); }
-.lb-bar { background: rgba(255,255,255,.10); border-bottom: 1px solid rgba(255,255,255,.14); }
+/* ---------- 看大图遮罩 / 侧边栏遮罩 ---------- */
+.lb { background: rgba(24, 20, 18, .84); }
+.lb-bar { background: rgba(255, 255, 255, .1); border-bottom: 1px solid rgba(255, 255, 255, .14); }
 .lb-btns button { background: rgba(255,255,255,.16) !important; color: #fff !important; border-color: rgba(255,255,255,.22) !important; }
 .lb-btns button:hover { background: rgba(255,255,255,.28) !important; }
-.mask { background: rgba(24,20,18,.42); }
-.sidebar .brand img { filter: drop-shadow(0 3px 8px rgba(31,27,22,.18)); }
+.mask { background: rgba(24, 20, 18, .42); }
 
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+.sidebar .brand img { filter: drop-shadow(0 3px 8px rgba(31, 27, 22, .16)); }
 
-/* ==========================================================================
-   字体：全站统一 font-family（西文用 Google Sans Bold，中文回落系统黑体）
-   字重分级：标题/按钮 700，正文 400（整页粗体会难读、也慢）
-   ========================================================================== */
-html, body, button, input, textarea, select, label,
-h1, h2, h3, h4, h5, h6, a, span, div, p, li, td, th, small, b, strong,
-.btn, .action-btn, .board-chip, .issue-pick, .section-tab, .tab,
-.sidebar, .topbar, .en, .status, .note, .empty, .gb-name, .comment-name,
-.gb-reply-name, .gb-pin-badge, footer {
-  font-family: 'Google Sans', "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei",
-               -apple-system, "Helvetica Neue", Arial, sans-serif;
-}
-
-/* 标题、按钮、导航：粗体 */
+/* ---------- 字重分级：标题粗、正文常规 ---------- */
 h1, h2, h3, h4, h5, h6, b, strong,
 button, .btn, .action-btn, .board-chip, .issue-pick, .section-tab, .tab,
 .sidebar nav a, .sidebar .brand .name, .topbar .title,
-.gb-name, .comment-name, .gb-reply-name, .article-title, .school-h2, .school-h3 {
+.gb-name, .comment-name, .gb-reply-name, .article-title, .school-h2, .school-h3, .en {
+  font-family: 'Google Sans', "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, sans-serif;
   font-weight: 700;
 }
-
-/* 正文：常规粗细（浏览器会用系统字体的 Regular，因为 Google Sans 只有 Bold） */
 body, p, li, td, th, input, textarea, label, small,
 .article-body p, .content p, .comment-body, .gb-content, .gb-reply-content,
-.gb-time, .comment-time, .gb-reply-time, .note, .status, .empty {
+.gb-time, .comment-time, .gb-reply-time, .note, .status, .empty, .article-meta {
+  font-family: 'Google Sans', "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, sans-serif;
   font-weight: 400;
 }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
