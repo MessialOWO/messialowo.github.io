@@ -9,6 +9,11 @@ var JW = {
   key: 'sb_publishable_cGy9MFHh3-t2i0kEnbHeeg_A1-rUMaF',
   bucket: 'avatars',
   timeoutMs: 10000,
+  /* 中转域名：国内直连 supabase.co 会被干扰，所以走这个免费中转站
+     （Deno Deploy 部署，代码见仓库 relay.html）。
+     填了它 → 优先走中转，中转失败会自动回退直连，不会比原来更差。
+     想改回直连：把下面设成 '' 即可。 */
+  proxy: 'https://arid-bluejay-4932.messialowo.deno.net',
   sb: null,
   uid: '',
   deviceId: '',
@@ -22,6 +27,42 @@ var JW = {
     JW._waiters.splice(0).forEach(function (cb) { try { cb(JW.error); } catch (e) { console.error(e); } });
     try { document.dispatchEvent(new Event('jw:ready')); } catch (e) {}
   },
+  /* 构造一个 fetch：优先走中转域名，中转失败直接回落官方域名。
+     中转只需转发两类路径：/auth/v1/* 和 /rest/v1/*、/storage/v1/* */
+  makeFetch: function () {
+    var BASE = JW.url;
+    function targetFor(url) {
+      try {
+        var u = new URL(url, BASE);
+        if (u.origin !== BASE) return null;          // 不是打给 Supabase 的，不动
+        return u.pathname + u.search;
+      } catch (e) { return null; }
+    }
+    function doFetch(input, init, useProxy) {
+      var url = (typeof input === 'string') ? input : (input && input.url) || '';
+      var rel = targetFor(url);
+      if (!rel) return fetch(input, init);
+      var finalUrl = useProxy ? (JW.proxy.replace(/\/$/, '') + rel) : url;
+      var opts = init || {};
+      if (useProxy && init && init.headers) {
+        // 中转域名不是 supabase.co，去掉只会误导它的 Referer
+        opts = Object.assign({}, init);
+        try { opts.headers = new Headers(init.headers); } catch (e) { opts.headers = init.headers; }
+      }
+      return fetch(finalUrl, opts);
+    }
+    return function (input, init) {
+      if (!JW.proxy) return doFetch(input, init, false);
+      return doFetch(input, init, true).then(function (res) {
+        if (res && res.status >= 500) throw new Error('中转返回 ' + res.status);
+        return res;
+      }).catch(function () {
+        // 中转挂了就直连，保证不至于全废
+        return doFetch(input, init, false);
+      });
+    };
+  },
+
   /* 给任意 promise 加超时（supabase-js 自己没有超时参数） */
   withTimeout: function (p, ms, what) {
     return new Promise(function (resolve, reject) {
@@ -97,10 +138,10 @@ JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
         JW._settle(new Error('云端组件加载失败（vendor/supabase.js 没加载到，备用地址也不通）'));
       });
     }
+    var clientOpts = { auth: { persistSession: true, autoRefreshToken: true } };
+    if (JW.proxy) clientOpts.global = { fetch: JW.makeFetch() };
     try {
-      JW.sb = window.supabase.createClient(JW.url, JW.key, {
-        auth: { persistSession: true, autoRefreshToken: true }
-      });
+      JW.sb = window.supabase.createClient(JW.url, JW.key, clientOpts);
     } catch (e) { JW._settle(e); return; }
 
     return getSessionUid()
