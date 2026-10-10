@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>文章 | 班级期刊 · 达州市高级中学</title>
+<link rel="icon" href="./img/logo.png">
+<link rel="stylesheet" href="./assets/site.css">
+<link rel="stylesheet" href="./assets/liquid-glass.css">
+<style>
+  .article-title { font-size:clamp(1.4rem,5vw,1.9rem); line-height:1.4; margin-bottom:10px; letter-spacing:1px; }
+  .article-meta { font-size:.88rem; color:var(--muted); display:flex; flex-wrap:wrap; gap:6px 18px; padding-bottom:16px; border-bottom:1px solid var(--border); margin-bottom:22px; }
+  .article-cover { width:100%; border-radius:10px; margin-bottom:22px; display:block; }
+  .article-body { font-size:1.06rem; line-height:2.05; }
+  .article-body p { margin-bottom:1.1em; text-indent:2em; }
+  .article-body h2 { font-size:1.2rem; margin:1.6em 0 .8em; padding-left:12px; border-left:4px solid var(--accent); text-indent:0; }
+  .article-body blockquote { margin:1.2em 0; padding:10px 18px; border-left:3px solid var(--border); background:var(--bg); color:#444; font-style:italic; text-indent:0; }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:26px; padding-top:18px; border-top:1px dashed var(--border); }
+  .action-btn { background:none; border:1px solid var(--border); border-radius:20px; padding:7px 16px; color:var(--muted); font-size:.9rem; cursor:pointer; font-family:inherit; }
+  .action-btn.liked { border-color:var(--accent); color:var(--accent); background:var(--accent-light); font-weight:600; }
+  .comments { margin-top:26px; }
+  .comments h4 { font-size:1rem; margin-bottom:14px; color:var(--muted); }
+  .comment { background:var(--bg); border-radius:8px; padding:12px 14px; margin-bottom:10px; }
+  .comment-head { display:flex; gap:12px; align-items:baseline; flex-wrap:wrap; margin-bottom:4px; }
+  .comment-name { font-weight:700; font-size:.95rem; }
+  .comment-time { font-size:.75rem; color:var(--muted); }
+  .comment-body { white-space:pre-wrap; word-break:break-word; font-size:.95rem; }
+  .comment-form { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+  .comment-form input { flex:1 1 120px; min-width:0; padding:9px 12px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:16px; background:var(--bg); color:var(--text); }
+  .comment-form input.grow { flex:3 1 200px; }
+</style>
+</head>
+<body>
+<div class="main"><div class="container">
+  <div class="status" id="status">正在加载文章……</div>
+  <div id="article"></div>
+</div></div>
+<script src="./assets/liquid-glass.js"></script>
+<script src="./vendor/supabase.js"></script>
+<script>
+/* ===== 班级期刊 · 全站共享脚本（侧边栏 + 云端连接） ===== */
+var SITE = {
+  name: '班级期刊',
+  school: '达州市高级中学',
+  pages: [
+    { href: './',                  label: '首页',       en: 'Home',      key: 'home' },
+    { href: './gallery.html',      label: '画廊',       en: 'Gallery',   key: 'gallery' },
+    { href: './guestbook.html',    label: '留言板',     en: 'Guestbook', key: 'guestbook' },
+    { href: './journal/',          label: '期刊投稿',   en: 'Journal',   key: 'journal' },
+    { href: './about-school.html', label: '关于学校',   en: 'About School', key: 'school' },
+    { href: './about-site.html',   label: '关于本站',   en: 'About Site',   key: 'site' }
+  ]
+};
+
+/* 生成侧边栏 + 顶栏（每个页面只需调用 SITE.shell('key')） */
+SITE.shell = function (activeKey) {
+  var links = SITE.pages.map(function (p) {
+    return '<a href="' + p.href + '"' + (p.key === activeKey ? ' class="on"' : '') + '>'
+      + p.label + '<small>' + p.en + '</small></a>';
+  }).join('');
+
+  var bar = document.createElement('div');
+  bar.className = 'topbar';
+  bar.innerHTML = '<button id="nav-toggle" aria-label="菜单">☰</button>'
+    + '<span class="title">' + SITE.name + '</span>';
+
+  var mask = document.createElement('div');
+  mask.className = 'mask';
+  mask.id = 'nav-mask';
+  mask.hidden = true;
+
+  var aside = document.createElement('aside');
+  aside.className = 'sidebar';
+  aside.innerHTML =
+    '<div class="brand">'
+    + '<img src="./img/logo.png" alt="校徽">'
+    + '<div class="name">' + SITE.name + '</div>'
+    + '<div class="sub">' + SITE.school + ' · 学生自建</div>'
+    + '</div>'
+    + '<nav>' + links + '</nav>'
+    + '<footer>由学生自费维护<br>非学校官方网站</footer>';
+
+  document.body.insertBefore(aside, document.body.firstChild);
+  document.body.insertBefore(mask, document.body.firstChild);
+  document.body.insertBefore(bar, document.body.firstChild);
+
+  bar.querySelector('#nav-toggle').onclick = function () {
+    document.body.classList.toggle('nav-open');
+    mask.hidden = !document.body.classList.contains('nav-open');
+  };
+  mask.onclick = function () {
+    document.body.classList.remove('nav-open');
+    mask.hidden = true;
+  };
+};
+
+/* 页脚 */
+SITE.footer = function (host) {
+  var el = host || document.querySelector('.main') || document.body;
+  var f = document.createElement('footer');
+  f.className = 'site-footer';
+  f.innerHTML =
+    '<p>班级期刊 · ' + SITE.school + ' 学生自建</p>'
+    + '<p class="contact-line">联系方式</p>'
+    + '<p class="contact-list">'
+    + '<span>微信：<b>MessialOWO</b></span>'
+    + '<span>QQ：<a href="https://qm.qq.com/cgi-bin/qm/qr?k=&amp;uin=2961001891" target="_blank" rel="noopener">2961001891</a></span>'
+    + '<span>邮箱：<a href="mailto:equalacorn28027@outlook.com">equalacorn28027@outlook.com</a></span>'
+    + '</p>'
+    + '<p><a href="./about-site.html">关于本站</a> · <a href="./about-school.html">关于学校</a></p>';
+  el.appendChild(f);
+};
+
+</script>
+<script>
+/* ===== 班级期刊 · 云端连接（所有页面共用） ===== */
+var JW = {
+  url: 'https://wvqrnkgjwnlhjhfuonts.supabase.co',
+  key: 'sb_publishable_cGy9MFHh3-t2i0kEnbHeeg_A1-rUMaF',
+  bucket: 'avatars',
+  timeoutMs: 10000,
+  proxy: ['https://arid-bluejay-4932.messialowo.deno.net'],
+  sb: null, uid: '', deviceId: '', ready: false, error: null, _waiters: [],
+  whenReady: function (cb) { if (JW.ready) cb(JW.error); else JW._waiters.push(cb); },
+  _settle: function (err) {
+    JW.error = err || null; JW.ready = true;
+    JW._waiters.splice(0).forEach(function (cb) { try { cb(JW.error); } catch (e) { console.error(e); } });
+    try { document.dispatchEvent(new Event('jw:ready')); } catch (e) {}
+  },
+  withTimeout: function (p, ms, what) {
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      var t = setTimeout(function () {
+        if (done) return; done = true;
+        reject(new Error('连接超时：' + (what || '请求') + '（' + Math.round(ms / 1000) + ' 秒无响应）'));
+      }, ms);
+      Promise.resolve(p).then(function (v) { if (done) return; done = true; clearTimeout(t); resolve(v); },
+        function (e) { if (done) return; done = true; clearTimeout(t); reject(e); });
+    });
+  },
+  retry: function (fn, times) {
+    times = times === undefined ? 2 : times;
+    var n = 0;
+    var run = function () {
+      n++;
+      return Promise.resolve().then(fn).catch(function (e) {
+        if (n >= times) throw e;
+        return new Promise(function (r) { setTimeout(r, 1200); }).then(run);
+      });
+    };
+    return run();
+  },
+  makeFetch: function () {
+    var BASE = JW.url;
+    return function (input, init) {
+      var url = (typeof input === 'string') ? input : (input && input.url) || '';
+      var rel = null;
+      try {
+        var u = new URL(url, BASE);
+        if (u.origin === BASE) rel = u.pathname + u.search;
+      } catch (e) {}
+      if (!rel || !JW.proxy || !JW.proxy.length) return fetch(input, init);
+      var list = JW.proxy.slice();
+      function attempt(i) {
+        if (i >= list.length) return fetch(url, init);
+        var clean = String(list[i]).replace(/\/$/, '');
+        return fetch(clean + rel, init).then(function (res) {
+          if (!res || res.status >= 500) throw new Error('中转 ' + clean + ' 返回 ' + (res && res.status));
+          return res;
+        }).catch(function (e) {
+          console.warn('中转失败，换下一个：' + clean, e && e.message);
+          return attempt(i + 1);
+        });
+      }
+      return attempt(0);
+    };
+  }
+};
+JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
+
+(function () {
+  function newDeviceId() {
+    if (window.crypto && window.crypto.randomUUID) return 'gb-' + window.crypto.randomUUID();
+    return 'gb-' + Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  }
+  JW.deviceId = localStorage.getItem('jiangwan_gb_device') || '';
+  if (!JW.deviceId || JW.deviceId.length < 8 || JW.deviceId.length > 64) {
+    JW.deviceId = newDeviceId();
+    try { localStorage.setItem('jiangwan_gb_device', JW.deviceId); } catch (e) {}
+  }
+  function boot() {
+    if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
+      JW._settle(new Error('云端组件没加载到（vendor/supabase.js）'));
+      return;
+    }
+    try {
+      JW.sb = window.supabase.createClient(JW.url, JW.key, {
+        auth: { persistSession: true, autoRefreshToken: true },
+        global: JW.proxy && JW.proxy.length ? { fetch: JW.makeFetch() } : undefined
+      });
+    } catch (e) { JW._settle(e); return; }
+    JW.sb.auth.getSession().then(function (r) {
+      var u = r && r.data && r.data.session && r.data.session.user;
+      if (u && u.id) JW.uid = u.id;
+      return null;
+    }).catch(function () { return null; })
+      .then(function () {
+        if (JW.uid) return null;
+        return JW.retry(function () {
+          return JW.withTimeout(JW.sb.auth.signInAnonymously(), JW.timeoutMs, '登录匿名身份');
+        }, 2).then(function (res) {
+          if (res && res.error) throw new Error(res.error.message || '匿名登录被拒绝');
+          if (res && res.data && res.data.user) JW.uid = res.data.user.id || '';
+          return null;
+        });
+      })
+      .then(function () { JW._settle(null); })
+      .catch(function (e) { JW._settle(e); });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+</script>
+<script>
+(function () {
+  var PW_SALT = 'jw-salt-2026';
+  var $ = function (id) { return document.getElementById(id); };
+  var boardId = new URLSearchParams(location.search).get('board') || '';
+  var sb = null, article = null, board = null, issue = null, comments = [];
+  var deviceId = '', busy = false;
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  function fmt(ts) {
+    var d = new Date(ts); if (isNaN(d)) return '';
+    var p = function (n) { return n < 10 ? '0' + n : '' + n; };
+    return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  function status(t) { var el = $('status'); if (!t) { el.hidden = true; return; } el.hidden = false; el.textContent = t; }
+  function body(text) {
+    var wrap = document.createElement('div');
+    wrap.className = 'article-body';
+    String(text || '').split(/\r?\n/).forEach(function (raw) {
+      var line = raw.trim(); if (!line) return;
+      var el;
+      if (line.indexOf('## ') === 0) { el = document.createElement('h2'); el.textContent = line.slice(3); }
+      else if (line.indexOf('> ') === 0) { el = document.createElement('blockquote'); el.textContent = line.slice(2); }
+      else { el = document.createElement('p'); el.textContent = line; }
+      wrap.appendChild(el);
+    });
+    return wrap;
+  }
+  function coverUrl(p) {
+    if (typeof p !== 'string' || !/^[A-Za-z0-9-]{1,64}\/[A-Za-z0-9._-]{1,80}$/.test(p)) return '';
+    return JW.storagePublic + p;
+  }
+
+  function render() {
+    var host = $('article'); host.textContent = '';
+    if (!article) {
+      host.innerHTML = '<div class="empty">找不到这篇文章。可能链接不对，或者文章已被删除。<br><br><a href="./journal.html">← 回到期刊投稿</a></div>';
+      return;
+    }
+    document.title = article.title + ' | 班级期刊';
+
+    var h = document.createElement('h1');
+    h.className = 'article-title'; h.textContent = article.title;
+    var meta = document.createElement('div');
+    meta.className = 'article-meta';
+    [ '作者：' + article.author, '发布：' + fmt(article.created_at),
+      issue ? ('期刊：' + issue.name) : '', board ? ('板块：' + board.name) : '' ]
+      .filter(Boolean).forEach(function (t) { var s = document.createElement('span'); s.textContent = t; meta.appendChild(s); });
+
+    var card = document.createElement('div');
+    card.className = 'card-box';
+    card.appendChild(h); card.appendChild(meta);
+
+    var cov = coverUrl(article.cover_path);
+    if (cov) { var img = document.createElement('img'); img.className = 'article-cover'; img.src = cov; img.alt = article.title; card.appendChild(img); }
+    card.appendChild(body(article.body));
+
+    var acts = document.createElement('div');
+    acts.className = 'actions';
+    var like = document.createElement('button');
+    like.className = 'action-btn'; like.textContent = '👍 赞 ' + (article.like_count || 0);
+    like.onclick = function () {
+      if (busy) return; busy = true;
+      JW.sb.rpc('like_article', { p_article_id: article.id, p_device_id: deviceId }).then(function (r) {
+        if (r.error) throw r.error;
+        var o = r.data; if (typeof o === 'string') { try { o = JSON.parse(o); } catch (e) {} }
+        if (o) { like.textContent = '👍 赞 ' + o.like_count; like.className = 'action-btn' + (o.liked ? ' liked' : ''); }
+      }).catch(function (e) { alert('点赞失败：' + (e.message || e)); }).then(function () { busy = false; });
+    };
+    var back = document.createElement('a');
+    back.className = 'action-btn'; back.href = './journal.html'; back.textContent = '← 返回期刊';
+    back.style.textDecoration = 'none'; back.style.display = 'inline-block';
+    acts.appendChild(like); acts.appendChild(back);
+    card.appendChild(acts);
+
+    // 评论
+    var cm = document.createElement('div');
+    cm.className = 'comments';
+    var h4 = document.createElement('h4'); h4.textContent = '评论 ' + comments.length; cm.appendChild(h4);
+    comments.forEach(function (c) {
+      var item = document.createElement('div'); item.className = 'comment';
+      item.innerHTML = '<div class="comment-head"><span class="comment-name">' + esc(c.name) + '</span>'
+        + '<span class="comment-time">' + fmt(c.created_at) + '</span></div>'
+        + '<div class="comment-body">' + esc(c.content) + '</div>';
+      cm.appendChild(item);
+    });
+    var form = document.createElement('div'); form.className = 'comment-form';
+    form.innerHTML = '<input type="text" id="c-name" maxlength="20" placeholder="你的名字">'
+      + '<input type="text" id="c-text" class="grow" maxlength="500" placeholder="写点评论……">'
+      + '<button class="btn-main" id="c-send" type="button">发表</button>';
+    cm.appendChild(form);
+    card.appendChild(cm);
+    host.appendChild(card);
+
+    $('c-send').onclick = function () {
+      var n = $('c-name').value.trim(), t = $('c-text').value.trim();
+      if (!n) return alert('请填名字');
+      if (!t) return alert('评论不能为空');
+      if (busy) return; busy = true;
+      JW.sb.from('article_comments').insert({ article_id: article.id, device_id: deviceId, name: n.slice(0,20), content: t.slice(0,500) })
+        .then(function (r) { if (r.error) throw r.error; status('评论已发布 ✅'); setTimeout(function(){status('');},2000); return loadComments(); })
+        .then(function () { render(); })
+        .catch(function (e) { status('评论失败：' + (e.message || e)); })
+        .then(function () { busy = false; });
+    };
+    status('');
+  }
+
+  function loadComments() {
+    if (!article) { comments = []; return Promise.resolve(); }
+    return JW.sb.from('article_comments').select('id,created_at,name,content')
+      .eq('article_id', article.id).eq('hidden', false)
+      .order('created_at', { ascending: true }).limit(200)
+      .then(function (r) { if (!r.error) comments = r.data || []; });
+  }
+
+  function load() {
+    if (!boardId) { render(); return Promise.resolve(); }
+    return JW.sb.from('boards').select('id,issue_id,section,name').eq('id', boardId).limit(1)
+      .then(function (r) { if (r.error) throw r.error; board = (r.data || [])[0] || null; return null; })
+      .then(function () {
+        if (!board) throw new Error('板块不存在');
+        return JW.sb.from('articles').select('id,board_id,title,author,body,cover_path,like_count,created_at,hidden').eq('board_id', boardId).limit(1);
+      })
+      .then(function (r) {
+        if (r.error) throw r.error;
+        article = (r.data || [])[0] || null;
+        return JW.sb.from('issues').select('id,name').eq('id', board.issue_id).limit(1);
+      })
+      .then(function (r) { if (!r.error) issue = (r.data || [])[0] || null; return loadComments(); });
+  }
+
+  JW.whenReady(function (err) {
+    if (err) { status('连不上云端：' + (err.message || err)); return; }
+    sb = JW.sb; deviceId = JW.deviceId;
+    JW.retry(function () { return JW.withTimeout(load(), 20000, '加载文章'); }, 2)
+      .then(render)
+      .catch(function (e) { status('加载失败：' + (e.message || e)); render(); });
+  });
+})();
+</script>
+<script>
+SITE.shell('journal'); SITE.footer(document.querySelector('.container'));
+</script>
+</body>
+</html>

@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>画廊 | 班级期刊 · 达州市高级中学</title>
+
+<style>
+  #grid .card { position: relative; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--card); }
+  #grid .card img { width: 100%; height: 170px; object-fit: cover; display: block; cursor: zoom-in; background: #f0eeea; }
+  #grid .card .info { padding: 10px 12px; }
+  #grid .card .info h3 { font-size: .95rem; font-weight: 600; overflow-wrap: anywhere; }
+  #grid .card .del { position: absolute; top: 8px; right: 8px; width: 34px; height: 34px; border-radius: 50%; background: rgba(0,0,0,.5); color: #fff; font-size: 1.1rem; line-height: 1; padding: 0; opacity: 0; }
+  #grid .card:hover .del { opacity: 1; }
+  @media (hover: none) { #grid .card .del { opacity: 1; } }
+  .lb { position: fixed; inset: 0; z-index: 999; background: rgba(20,18,16,.94); display: flex; flex-direction: column; }
+  .lb[hidden] { display: none; }
+  .lb-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; color: #f2efe9; flex-wrap: wrap; }
+  .lb-title { font-size: .95rem; overflow-wrap: anywhere; }
+  .lb-btns { display: flex; gap: 8px; }
+  .lb-btns button { padding: 8px 14px; font-size: .9rem; }
+  .lb-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 0 12px 16px; overflow: auto; }
+  .lb-stage img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+  @media (max-width: 480px) { #grid { grid-template-columns: repeat(auto-fill,minmax(140px,1fr)) !important; } #grid .card img { height: 120px; } }
+</style>
+
+<link rel="icon" href="./img/logo.png">
+<link rel="stylesheet" href="./assets/site.css">
+<link rel="stylesheet" href="./assets/liquid-glass.css">
+</head>
+<body>
+<div class="main">
+<div class="container">
+<div class="page-head">
+  <h1>画廊</h1>
+  <div class="en">Gallery</div>
+  <p>同学们的作品。列表里是压缩过的小图，点开看原图，可以下载。</p>
+</div>
+
+<div class="status" id="work-note" hidden></div>
+
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:22px">
+  <button class="btn-main" id="btn-add" type="button">＋ 添加作品</button>
+  <button class="btn-ghost" id="btn-export" type="button">导出代码</button>
+</div>
+
+<div id="work-form" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px">
+  <label style="display:block;font-size:.85rem;color:var(--muted);margin-bottom:8px">作品图片（上传原图，不压缩）</label>
+  <input type="file" id="f-img" accept="image/*" style="margin-bottom:16px">
+  <label style="display:block;font-size:.85rem;color:var(--muted);margin-bottom:8px">标题</label>
+  <input type="text" id="f-title" placeholder="作品标题" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:1rem;margin-bottom:16px">
+  <div style="display:flex;gap:10px">
+    <button class="btn-main" id="btn-save" type="button">保存</button>
+    <button class="btn-ghost" id="btn-cancel" type="button">取消</button>
+  </div>
+</div>
+
+<div class="grid" id="grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:18px"></div>
+<div class="lb" id="lightbox" hidden><div class="lb-bar"><span class="lb-title" id="lb-title"></span><div class="lb-btns"><button class="btn-ghost" id="lb-download" type="button">⬇ 下载原图</button><button class="btn-ghost" id="lb-close" type="button">✕ 关闭</button></div></div><div class="lb-stage"><img id="lb-img" alt=""></div></div>
+</div>
+</div>
+<script src="./assets/liquid-glass.js"></script>
+<script src="./vendor/supabase.js"></script>
+<script>
+/* ===== 班级期刊 · 全站共享脚本（侧边栏 + 云端连接） ===== */
+var SITE = {
+  name: '班级期刊',
+  school: '达州市高级中学',
+  pages: [
+    { href: './',                  label: '首页',       en: 'Home',      key: 'home' },
+    { href: './gallery.html',      label: '画廊',       en: 'Gallery',   key: 'gallery' },
+    { href: './guestbook.html',    label: '留言板',     en: 'Guestbook', key: 'guestbook' },
+    { href: './journal/',          label: '期刊投稿',   en: 'Journal',   key: 'journal' },
+    { href: './about-school.html', label: '关于学校',   en: 'About School', key: 'school' },
+    { href: './about-site.html',   label: '关于本站',   en: 'About Site',   key: 'site' }
+  ]
+};
+
+/* 生成侧边栏 + 顶栏（每个页面只需调用 SITE.shell('key')） */
+SITE.shell = function (activeKey) {
+  var links = SITE.pages.map(function (p) {
+    return '<a href="' + p.href + '"' + (p.key === activeKey ? ' class="on"' : '') + '>'
+      + p.label + '<small>' + p.en + '</small></a>';
+  }).join('');
+
+  var bar = document.createElement('div');
+  bar.className = 'topbar';
+  bar.innerHTML = '<button id="nav-toggle" aria-label="菜单">☰</button>'
+    + '<span class="title">' + SITE.name + '</span>';
+
+  var mask = document.createElement('div');
+  mask.className = 'mask';
+  mask.id = 'nav-mask';
+  mask.hidden = true;
+
+  var aside = document.createElement('aside');
+  aside.className = 'sidebar';
+  aside.innerHTML =
+    '<div class="brand">'
+    + '<img src="./img/logo.png" alt="校徽">'
+    + '<div class="name">' + SITE.name + '</div>'
+    + '<div class="sub">' + SITE.school + ' · 学生自建</div>'
+    + '</div>'
+    + '<nav>' + links + '</nav>'
+    + '<footer>由学生自费维护<br>非学校官方网站</footer>';
+
+  document.body.insertBefore(aside, document.body.firstChild);
+  document.body.insertBefore(mask, document.body.firstChild);
+  document.body.insertBefore(bar, document.body.firstChild);
+
+  bar.querySelector('#nav-toggle').onclick = function () {
+    document.body.classList.toggle('nav-open');
+    mask.hidden = !document.body.classList.contains('nav-open');
+  };
+  mask.onclick = function () {
+    document.body.classList.remove('nav-open');
+    mask.hidden = true;
+  };
+};
+
+/* 页脚 */
+SITE.footer = function (host) {
+  var el = host || document.querySelector('.main') || document.body;
+  var f = document.createElement('footer');
+  f.className = 'site-footer';
+  f.innerHTML =
+    '<p>班级期刊 · ' + SITE.school + ' 学生自建</p>'
+    + '<p class="contact-line">联系方式</p>'
+    + '<p class="contact-list">'
+    + '<span>微信：<b>MessialOWO</b></span>'
+    + '<span>QQ：<a href="https://qm.qq.com/cgi-bin/qm/qr?k=&amp;uin=2961001891" target="_blank" rel="noopener">2961001891</a></span>'
+    + '<span>邮箱：<a href="mailto:equalacorn28027@outlook.com">equalacorn28027@outlook.com</a></span>'
+    + '</p>'
+    + '<p><a href="./about-site.html">关于本站</a> · <a href="./about-school.html">关于学校</a></p>';
+  el.appendChild(f);
+};
+
+</script>
+<script>
+/* ===== 班级期刊 · 云端连接（所有页面共用） ===== */
+var JW = {
+  url: 'https://wvqrnkgjwnlhjhfuonts.supabase.co',
+  key: 'sb_publishable_cGy9MFHh3-t2i0kEnbHeeg_A1-rUMaF',
+  bucket: 'avatars',
+  timeoutMs: 10000,
+  proxy: ['https://arid-bluejay-4932.messialowo.deno.net'],
+  sb: null, uid: '', deviceId: '', ready: false, error: null, _waiters: [],
+  whenReady: function (cb) { if (JW.ready) cb(JW.error); else JW._waiters.push(cb); },
+  _settle: function (err) {
+    JW.error = err || null; JW.ready = true;
+    JW._waiters.splice(0).forEach(function (cb) { try { cb(JW.error); } catch (e) { console.error(e); } });
+    try { document.dispatchEvent(new Event('jw:ready')); } catch (e) {}
+  },
+  withTimeout: function (p, ms, what) {
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      var t = setTimeout(function () {
+        if (done) return; done = true;
+        reject(new Error('连接超时：' + (what || '请求') + '（' + Math.round(ms / 1000) + ' 秒无响应）'));
+      }, ms);
+      Promise.resolve(p).then(function (v) { if (done) return; done = true; clearTimeout(t); resolve(v); },
+        function (e) { if (done) return; done = true; clearTimeout(t); reject(e); });
+    });
+  },
+  retry: function (fn, times) {
+    times = times === undefined ? 2 : times;
+    var n = 0;
+    var run = function () {
+      n++;
+      return Promise.resolve().then(fn).catch(function (e) {
+        if (n >= times) throw e;
+        return new Promise(function (r) { setTimeout(r, 1200); }).then(run);
+      });
+    };
+    return run();
+  },
+  makeFetch: function () {
+    var BASE = JW.url;
+    return function (input, init) {
+      var url = (typeof input === 'string') ? input : (input && input.url) || '';
+      var rel = null;
+      try {
+        var u = new URL(url, BASE);
+        if (u.origin === BASE) rel = u.pathname + u.search;
+      } catch (e) {}
+      if (!rel || !JW.proxy || !JW.proxy.length) return fetch(input, init);
+      var list = JW.proxy.slice();
+      function attempt(i) {
+        if (i >= list.length) return fetch(url, init);
+        var clean = String(list[i]).replace(/\/$/, '');
+        return fetch(clean + rel, init).then(function (res) {
+          if (!res || res.status >= 500) throw new Error('中转 ' + clean + ' 返回 ' + (res && res.status));
+          return res;
+        }).catch(function (e) {
+          console.warn('中转失败，换下一个：' + clean, e && e.message);
+          return attempt(i + 1);
+        });
+      }
+      return attempt(0);
+    };
+  }
+};
+JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
+
+(function () {
+  function newDeviceId() {
+    if (window.crypto && window.crypto.randomUUID) return 'gb-' + window.crypto.randomUUID();
+    return 'gb-' + Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  }
+  JW.deviceId = localStorage.getItem('jiangwan_gb_device') || '';
+  if (!JW.deviceId || JW.deviceId.length < 8 || JW.deviceId.length > 64) {
+    JW.deviceId = newDeviceId();
+    try { localStorage.setItem('jiangwan_gb_device', JW.deviceId); } catch (e) {}
+  }
+  function boot() {
+    if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
+      JW._settle(new Error('云端组件没加载到（vendor/supabase.js）'));
+      return;
+    }
+    try {
+      JW.sb = window.supabase.createClient(JW.url, JW.key, {
+        auth: { persistSession: true, autoRefreshToken: true },
+        global: JW.proxy && JW.proxy.length ? { fetch: JW.makeFetch() } : undefined
+      });
+    } catch (e) { JW._settle(e); return; }
+    JW.sb.auth.getSession().then(function (r) {
+      var u = r && r.data && r.data.session && r.data.session.user;
+      if (u && u.id) JW.uid = u.id;
+      return null;
+    }).catch(function () { return null; })
+      .then(function () {
+        if (JW.uid) return null;
+        return JW.retry(function () {
+          return JW.withTimeout(JW.sb.auth.signInAnonymously(), JW.timeoutMs, '登录匿名身份');
+        }, 2).then(function (res) {
+          if (res && res.error) throw new Error(res.error.message || '匿名登录被拒绝');
+          if (res && res.data && res.data.user) JW.uid = res.data.user.id || '';
+          return null;
+        });
+      })
+      .then(function () { JW._settle(null); })
+      .catch(function (e) { JW._settle(e); });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+</script>
+<script>
+/* ========== 通用小工具 ========== */
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function safeSrc(s) {
+  return /^(data:image\/(png|jpeg|jpg|webp|gif);base64,|https?:\/\/)/i.test(s || '') ? s : '';
+}
+function copyText(text, tip) {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(
+      () => alert('已复制到剪贴板。\n' + tip),
+      () => prompt('自动复制失败，请长按全选手动复制：', text)
+    );
+  } else {
+    prompt('请长按全选手动复制下面的代码：', text);
+  }
+}
+/* 图片压缩工具：留言板头像压缩用（作品集已改成传原图，不压缩） */
+function compressImage(file, maxEdge, quality) {
+  return new Promise((resolve, reject) => {
+    if (!file.type || file.type.indexOf('image/') !== 0) return reject(new Error('这不是图片文件'));
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(cv.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('图片解码失败（HEIC 请先在相册里转成 JPG 再上传）'));
+    };
+    img.src = url;
+  });
+}
+
+</script>
+<script>
+/* ========== 作品集（云端存储） ========== */
+(function () {
+  const $ = id => document.getElementById(id);
+  const grid = $('grid'), form = $('work-form');
+  const staticHTML = grid ? grid.innerHTML : '';
+  const NAME_KEY = 'jiangwan_work_author';
+
+  var works = [];          // 云端作品
+  var connected = false;
+  var pendingImg = '';      // 本地预览用的 objectURL
+  var pendingBlob = null;   // 待上传的原图文件
+  var pendingExt = 'jpg';
+  var busy = false;
+
+  function setNote(text, kind) {
+    var el = $('work-note');
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = 'gb-status' + (kind ? ' ' + kind : '');
+    el.hidden = !text;
+  }
+
+  function avatarUrlOf(path) {
+    var base = (window.JW && JW.storagePublic) ? JW.storagePublic : '';
+    if (!base || typeof path !== 'string') return '';
+    if (!/^[A-Za-z0-9-]{1,64}\/[A-Za-z0-9._-]{1,80}$/.test(path)) return '';
+    return base + path;
+  }
+
+  function usedKB() {
+    let n = 0;
+    try { for (const k of Object.keys(localStorage)) n += (localStorage.getItem(k) || '').length; } catch (_) {}
+    return Math.round(n * 2 / 1024);
+  }
+
+  /* localStorage 里只留一份待续传的草稿（图太大就存不进去，此时退化为只读提示） */
+  function saveDraft() {
+    try {
+      localStorage.setItem('class_works_draft', JSON.stringify({ img: pendingImg, title: $('f-title').value, author: $('f-author').value }));
+      return true;
+    } catch (err) {
+      const quota = err && (err.name === 'QuotaExceededError' || err.code === 22 || err.code === 1014);
+      if (quota) setNote('本地存储放不下这张图的草稿（已用约 ' + usedKB() + ' KB），不过不影响上传。', 'err');
+      return false;
+    }
+  }
+
+  /* ---- 缩略图：用原图现场压缩，缓存到本机（不额外上传文件）----
+     第一次打开会压一次（约 0.5-1 秒），之后从缓存直接读，秒开。 */
+  var THUMB_KEY = 'jiangwan_work_thumbs_v1';
+  var THUMB_MAX = 640;
+  var thumbCache = {};
+  try {
+    var c = JSON.parse(localStorage.getItem(THUMB_KEY) || '{}');
+    if (c && typeof c === 'object') thumbCache = c;
+  } catch (e) { thumbCache = {}; }
+
+  function saveThumbCache() {
+    try {
+      localStorage.setItem(THUMB_KEY, JSON.stringify(thumbCache));
+      return true;
+    } catch (err) {
+      // 缓存满了：清空重存，只保留当前这批
+      try {
+        var fresh = {};
+        Object.keys(thumbCache).slice(-15).forEach(function (k) { fresh[k] = thumbCache[k]; });
+        thumbCache = fresh;
+        localStorage.setItem(THUMB_KEY, JSON.stringify(thumbCache));
+      } catch (e2) {}
+      return false;
+    }
+  }
+
+  /* 用图片 URL 现场压成小图，返回 dataURL */
+  function makeThumbFromUrl(url, maxEdge, quality) {
+    return fetch(url).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.blob();
+    }).then(function (blob) {
+      return new Promise(function (resolve, reject) {
+        var objUrl = URL.createObjectURL(blob);
+        var img = new Image();
+        img.onload = function () {
+          URL.revokeObjectURL(objUrl);
+          var scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+          var w = Math.max(1, Math.round(img.width * scale));
+          var h = Math.max(1, Math.round(img.height * scale));
+          var cv = document.createElement('canvas');
+          cv.width = w; cv.height = h;
+          var ctx = cv.getContext('2d');
+          ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(cv.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = function () { URL.revokeObjectURL(objUrl); reject(new Error('解码失败')); };
+        img.src = objUrl;
+      });
+    });
+  }
+
+  /* 给一张卡片填上压缩图 */
+  function fillThumb(card) {
+    var img = card.querySelector('img[data-path]');
+    if (!img) return;
+    var path = img.getAttribute('data-path');
+    var full = img.getAttribute('data-full');
+    if (thumbCache[path]) { img.src = thumbCache[path]; return; }
+    if (card.dataset.thumbLoading) return;
+    card.dataset.thumbLoading = '1';
+    img.classList.add('thumb-loading');
+    makeThumbFromUrl(full, THUMB_MAX, 0.82).then(function (dataUrl) {
+      thumbCache[path] = dataUrl;
+      saveThumbCache();
+      img.src = dataUrl;
+      img.classList.remove('thumb-loading');
+    }).catch(function (e) {
+      console.warn('缩略图压缩失败，改用原图显示', path, e);
+      img.src = full;                       // 压缩失败就退回原图，不影响看
+      img.classList.remove('thumb-loading');
+    }).then(function () { delete card.dataset.thumbLoading; });
+  }
+
+  function bindView() {
+    grid.querySelectorAll('.card').forEach(function (card) {
+      var img = card.querySelector('img');
+      if (!img) return;
+      // 点开看的是原图（列表里显示的是压缩图）
+      img.onclick = function () {
+        var h3 = card.querySelector('.info h3');
+        var full = img.getAttribute('data-full') || img.src;
+        if (full) openLightbox(full, h3 ? h3.textContent : '作品', full);
+      };
+      if (img.getAttribute('data-path')) fillThumb(card);   // 压缩列表图
+    });
+  }
+
+  function bindDel() {
+    grid.querySelectorAll('.del[data-id]').forEach(b => {
+      b.onclick = () => {
+        if (!confirm('删除这件作品？（同时会删掉云端图片，不可恢复）')) return;
+        var id = b.dataset.id;
+        var path = b.dataset.path || '';
+        if (!connected || !window.JW || !JW.sb) { setNote('还没连上云端，删不了。请检查网络后重试。', 'err'); return; }
+        busy = true;
+        JW.sb.from('works').delete().eq('id', id).then(function (res) {
+          if (res.error) throw res.error;
+          if (path) return JW.sb.storage.from(JW.bucket).remove([path]).then(function () { return null; });
+          return null;
+        }).then(function () {
+          works = works.filter(w => w.id !== id);
+          render();
+          setNote('已删除。', 'ok');
+          setTimeout(function () { setNote(''); }, 2000);
+        }).catch(function (e) {
+          console.error(e);
+          setNote('删除失败：' + (e.message || e), 'err');
+        }).then(function () { busy = false; });
+      };
+    });
+  }
+
+  function render() {
+    var cloud = works.map(function (w, i) {
+      var full = avatarUrlOf(w.image_path);        // 原图：只有点开大图时才加载
+      var cached = thumbCache[w.image_path] || '';
+      // 列表先用本地缓存的压缩图；没有缓存就先留空（下面会现场压缩）
+      return '' +
+        '<div class="card" data-id="' + esc(w.id) + '">\n' +
+        '        <img src="' + esc(cached) + '" data-full="' + esc(full) + '" data-path="' + esc(w.image_path) + '" alt="' + esc(w.title) + '" loading="lazy" decoding="async">\n' +
+        '        <div class="info"><h3>' + esc(w.title) + '</h3></div>\n' +
+        '        <button class="del" type="button" data-id="' + esc(w.id) + '" data-path="' + esc(w.image_path) + '" aria-label="删除">×</button>\n' +
+        '      </div>';
+    }).join('');
+    grid.innerHTML = staticHTML + cloud;
+    bindView();
+    if (cloud) {
+      bindDel();
+    } else if (!staticHTML.trim()) {
+      grid.innerHTML = '<div class="empty">' + (connected ? '还没有作品，点上方按钮添加' : '作品加载中……') + '</div>';
+    }
+  }
+
+  /* 原图上传：不再压缩，直接把用户选的文件传上去 */
+  var EXT_BY_MIME = {
+    'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp',
+    'image/gif': 'gif', 'image/heic': 'heic', 'image/heif': 'heif', 'image/bmp': 'bmp'
+  };
+  function extOf(file) {
+    var byMime = EXT_BY_MIME[(file.type || '').toLowerCase()];
+    if (byMime) return byMime;
+    var m = /(\.[a-z0-9]+)$/i.exec(file.name || '');
+    if (m) return m[1].slice(1).toLowerCase().replace('jpeg', 'jpg');
+    return 'jpg';
+  }
+  function pickWorkFile(file) {
+    if (!file.type || file.type.indexOf('image/') !== 0) {
+      return Promise.reject(new Error('这不是图片文件'));
+    }
+    var maxMB = 45;
+    if (file.size > maxMB * 1024 * 1024) {
+      return Promise.reject(new Error('图片超过 ' + maxMB + 'MB，服务器放不下，请换一张小一点的'));
+    }
+    // 预览用 objectURL 即可，不读进内存，原图多大都没关系
+    return Promise.resolve({
+      blob: file,
+      previewUrl: URL.createObjectURL(file),
+      ext: extOf(file),
+      name: file.name || '',
+      size: file.size
+    });
+  }
+
+  /* ---- 大图查看 + 下载 ---- */
+  function openLightbox(url, title, path) {
+    var box = document.getElementById('lightbox');
+    var img = document.getElementById('lb-img');
+    if (!box || !img) return;
+    img.src = url;
+    img.alt = title || '作品';
+    var t = document.getElementById('lb-title');
+    if (t) t.textContent = (title || '作品') + '　（长按图片可直接保存）';
+    box.hidden = false;
+    box.dataset.path = path || '';
+    box.dataset.name = (title || '作品').replace(/[\\/:*?"<>|]/g, '_');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeLightbox() {
+    var box = document.getElementById('lightbox');
+    if (!box) return;
+    box.hidden = true;
+    document.getElementById('lb-img').removeAttribute('src');
+    document.body.style.overflow = '';
+  }
+  function downloadCurrent() {
+    var box = document.getElementById('lightbox');
+    var img = document.getElementById('lb-img');
+    if (!box || !img || !img.src) return;
+    var name = (box.dataset.name || '作品') + (/\.(png|webp|gif|heic)$/i.exec(img.src) ? '' : '') + '.' + (function () {
+      var m = /\.([a-z0-9]{2,4})(?:\?|$)/i.exec(box.dataset.path || img.src);
+      return m ? m[1].toLowerCase() : 'jpg';
+    })();
+    var btn = document.getElementById('lb-download');
+    if (btn) { btn.disabled = true; btn.textContent = '下载中…'; }
+    // 先抓成 blob 再触发下载，避免跨域时 download 属性失效
+    fetch(img.src).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.blob();
+    }).then(function (blob) {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      if (btn) { btn.textContent = '✅ 已开始下载'; setTimeout(function () { btn.disabled = false; btn.textContent = '⬇ 下载原图'; }, 2000); }
+    }).catch(function (err) {
+      console.error(err);
+      // 抓不到就新开一个窗口，让浏览器自己处理（长按保存也能用）
+      window.open(img.src, '_blank');
+      if (btn) { btn.disabled = false; btn.textContent = '⬇ 下载原图'; }
+    });
+  }
+  (function bindLightbox() {
+    var box = document.getElementById('lightbox');
+    if (!box) return;
+    document.getElementById('lb-close').onclick = closeLightbox;
+    document.getElementById('lb-download').onclick = downloadCurrent;
+    // 只点「图片外的空白区域」才关闭，避免点按钮时把事件又冒泡回来
+    var stage = box.querySelector('.lb-stage');
+    if (stage) stage.onclick = function (e) { if (e.target === stage) closeLightbox(); };
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeLightbox(); });
+  })();
+
+  $('btn-add').onclick = function () { form.classList.add('show'); };
+  $('btn-cancel').onclick = function () { form.classList.remove('show'); reset(); };
+
+  $('f-img').onchange = function (e) {
+    var file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (file.size > 20 * 1024 * 1024) {
+      alert('图片太大了（超过 20MB），请换一张。');
+      e.target.value = '';
+      return;
+    }
+    pickWorkFile(file).then(function (out) {
+      if (pendingImg) { try { URL.revokeObjectURL(pendingImg); } catch (err) {} }
+      pendingImg = out.previewUrl;      // 本地预览地址
+      pendingBlob = out.blob;           // 原图本身
+      pendingExt = out.ext;
+      var mb = (out.size / 1024 / 1024);
+      setNote('已选择原图：' + (out.name || '图片') + '（'
+        + (mb >= 1 ? mb.toFixed(1) + ' MB' : Math.round(out.size / 1024) + ' KB')
+        + '）\n上传的是原图；列表里会自动压成小图显示，点开看的是原图。填好标题后点保存。', 'ok');
+    }).catch(function (err) {
+      alert(err.message);
+      pendingImg = ''; pendingBlob = null;
+      e.target.value = '';
+      setNote('');
+    });
+  };
+
+  $('btn-save').onclick = function () {
+    var title = $('f-title').value.trim();
+    if (!pendingImg || !pendingBlob) return alert('请先选择作品图片');
+    if (!title) return alert('请填标题');
+    if (busy) return;
+    if (!connected || !window.JW || !JW.sb) { setNote('还没连上云端，暂时传不了作品。请检查网络后重试。', 'err'); return; }
+
+    busy = true;
+    var saveBtn = $('btn-save');
+    saveBtn.disabled = true;
+    saveBtn.textContent = '上传中…';
+    setNote('正在上传作品图片……');
+
+    var uid = JW.uid || ('anon-' + Date.now().toString(36));
+    var stamp = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+    var path = uid + '/work-' + stamp + '.' + (pendingExt || 'jpg');
+
+    setNote('正在上传原图……');
+    JW.sb.storage.from(JW.bucket).upload(path, pendingBlob, { contentType: (pendingBlob && pendingBlob.type) || 'image/jpeg', upsert: false })
+      .then(function (res) {
+        if (res.error) throw res.error;
+        return JW.sb.from('works').insert({
+          title: title.slice(0, 40),
+          author: '',
+          image_path: path,
+          device_id: JW.deviceId
+        });
+      })
+      .then(function (res) {
+        if (res && res.error) throw res.error;
+        try { localStorage.setItem(NAME_KEY, author); } catch (e) {}
+        var draft = localStorage.getItem('class_works_draft');
+        if (draft) { try { localStorage.removeItem('class_works_draft'); } catch (e) {} }
+        reset();
+        form.classList.remove('show');
+        setNote('作品已上传到云端 ✅ 列表显示缩略图，点开才是原图。', 'ok');
+        setTimeout(function () { setNote(''); }, 3500);
+        return loadWorks();
+      })
+      .catch(function (err) {
+        console.error(err);
+        var m = err && err.message ? err.message : String(err);
+        if (err && err.code === '42501') m = '传得太快了：1 分钟最多 6 件，歇一会儿再传。';
+        else if (/Bucket not found/i.test(m)) m = '存储桶还没建好（请先执行第四步 SQL）';
+        else if (/row-level security|AccessDenied/i.test(m)) m = '没有上传权限（请确认匿名登录已开启）';
+        else if (/Failed to fetch|NetworkError|Load failed/i.test(m)) m = '网络断了，图片没传上去。请重试。';
+        setNote('上传失败：' + m, 'err');
+      })
+      .then(function () {
+        busy = false;
+        saveBtn.disabled = false;
+        saveBtn.textContent = '保存';
+      });
+  };
+
+  function reset() {
+    $('f-img').value = ''; $('f-title').value = '';
+    if (pendingImg) { try { URL.revokeObjectURL(pendingImg); } catch (e) {} }
+    pendingImg = ''; pendingBlob = null;
+  }
+
+  $('btn-export').onclick = function () {
+    if (!works.length) return alert('云端还没有作品');
+    var cards = works.map(function (w) {
+      var url = avatarUrlOf(w.image_path);
+      return '      <div class="card">\n' +
+             '        <img src="' + esc(url) + '" alt="' + esc(w.title) + '">\n' +
+             '        <div class="info">\n' +
+             '          <h3>' + esc(w.title) + '</h3>\n' +
+             '          <p>' + esc(w.author) + '</p>\n' +
+             '        </div>\n' +
+             '      </div>';
+    }).join('\n');
+    copyText(cards, '把它粘贴到 index.html 里 <div class="grid" id="grid"> 与 </div> 之间（这样即使以后不用数据库，作品也留在页面里）');
+  };
+
+  var WORKS_CACHE = 'jiangwan_works_cache_v1';
+  function readCache() {
+    try {
+      var c = JSON.parse(localStorage.getItem(WORKS_CACHE) || 'null');
+      return (c && c.items && c.items.length) ? c : null;
+    } catch (e) { return null; }
+  }
+  function writeCache(items) {
+    try {
+      localStorage.setItem(WORKS_CACHE, JSON.stringify({ at: Date.now(), items: (items || []).slice(0, 60) }));
+    } catch (e) {}
+  }
+
+  function loadWorks() {
+    if (!window.JW || !JW.sb) return Promise.resolve();
+    var cached = readCache();
+    if (cached) {                       // 先用上次的缓存把画面填上，别让同学看到空白
+      works = cached.items;
+      render();
+      setNote('正在更新……', '');
+    }
+    return JW.sb.from('works')
+      .select('id,created_at,title,author,image_path')
+      .eq('hidden', false)
+      .order('created_at', { ascending: false })
+      .limit(200)
+      .then(function (res) {
+        if (res.error) throw res.error;
+        works = res.data || [];
+        writeCache(works);
+        connected = true;
+        render();
+        setNote('');
+      })
+      .catch(function (e) {
+        if (cached) {                   // 有缓存：内容照常看，只是不能发新的
+          connected = false;
+          setNote('当前网络连不上服务器，显示的是上次加载的内容。可以正常浏览，暂时不能上传新作品。', 'err');
+          return null;
+        }
+        throw e;
+      });
+  }
+
+  /* 首次渲染：先显示页面里手写的静态作品 */
+  render();
+
+  /* 等留言板把 Supabase 客户端初始化好，再拉云端作品 */
+  document.addEventListener('jw:ready', function () {
+    loadWorks().catch(function (e) {
+      console.error(e);
+      connected = false;
+      render();
+      setNote('作品加载失败：' + (e.message || e) + '（页面其它内容照常可用）', 'err');
+    });
+  });
+
+  /* 恢复上次填的作者名，省得每次重填 */
+  try {
+    var savedAuthor = localStorage.getItem(NAME_KEY);
+    if (savedAuthor) $('f-author').value = savedAuthor;
+  } catch (e) {}
+})();
+
+</script>
+
+<script>
+SITE.shell('gallery');
+SITE.footer(document.querySelector('.container'));
+document.addEventListener('jw:ready', function () {});
+</script>
+</body>
+</html>

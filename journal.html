@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>期刊投稿 | 班级期刊 · 达州市高级中学</title>
+<style>
+  .issue-bar { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:22px 0 4px; padding:12px 14px; border-radius:10px; background:var(--accent-light); border:1px solid var(--border); }
+  .issue-bar .label { font-size:.85rem; color:var(--muted); margin-right:4px; }
+  .issue-pick { font-family:inherit; font-size:.95rem; cursor:pointer; padding:8px 16px; border-radius:20px; border:1px solid var(--border); background:var(--card); color:var(--text); }
+  .issue-pick.on { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700; }
+  .issue-pick small { font-size:.72rem; opacity:.75; margin-left:6px; }
+  .issue-add { font-family:inherit; font-size:.88rem; cursor:pointer; padding:7px 14px; border-radius:20px; border:1px dashed var(--accent); background:none; color:var(--accent); }
+  .section-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:18px 0; }
+  .section-tab { flex:1 1 130px; padding:12px 8px; border:1px solid var(--border); border-radius:10px; background:var(--card); cursor:pointer; font-family:inherit; font-size:.95rem; color:var(--muted); text-align:center; }
+  .section-tab b { display:block; font-size:1.05rem; color:var(--text); margin-bottom:2px; }
+  .section-tab small { display:block; font-size:.72rem; opacity:.7; }
+  .section-tab.on { background:var(--accent); border-color:var(--accent); }
+  .section-tab.on b, .section-tab.on small { color:#fff; opacity:1; }
+  .boards { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:22px; }
+  .board-chip { font-family:inherit; font-size:.92rem; cursor:pointer; padding:8px 14px; border:1px solid var(--border); border-radius:20px; background:var(--card); color:var(--text); display:inline-flex; align-items:center; gap:6px; text-decoration:none; }
+  .board-chip.on { background:var(--accent-light); border-color:var(--accent); color:var(--accent); font-weight:700; }
+  .board-chip .dot { width:7px; height:7px; border-radius:50%; background:#bbb; }
+  .board-chip.has .dot { background:#4a8f4a; }
+</style>
+<link rel="icon" href="./img/logo.png">
+<link rel="stylesheet" href="./assets/site.css">
+<link rel="stylesheet" href="./assets/liquid-glass.css">
+</head>
+<body>
+<div class="main">
+<div class="container">
+<div class="page-head">
+  <h1>期刊投稿</h1>
+  <div class="en">Journal</div>
+  <p>按期刊期号与专区查看同学们的文章。点板块进入文章页面，每篇文章都有独立网址，可以直接分享。</p>
+</div>
+
+<div class="status" id="status" hidden></div>
+<div class="issue-bar" id="issue-bar"></div>
+<div class="section-tabs" id="section-tabs"></div>
+<div class="boards" id="boards"></div>
+<div id="panel"></div>
+
+</div>
+</div>
+<script src="./assets/liquid-glass.js"></script>
+<script src="./vendor/supabase.js"></script>
+<script>
+/* ===== 班级期刊 · 全站共享脚本（侧边栏 + 云端连接） ===== */
+var SITE = {
+  name: '班级期刊',
+  school: '达州市高级中学',
+  pages: [
+    { href: './',                  label: '首页',       en: 'Home',      key: 'home' },
+    { href: './gallery.html',      label: '画廊',       en: 'Gallery',   key: 'gallery' },
+    { href: './guestbook.html',    label: '留言板',     en: 'Guestbook', key: 'guestbook' },
+    { href: './journal/',          label: '期刊投稿',   en: 'Journal',   key: 'journal' },
+    { href: './about-school.html', label: '关于学校',   en: 'About School', key: 'school' },
+    { href: './about-site.html',   label: '关于本站',   en: 'About Site',   key: 'site' }
+  ]
+};
+
+/* 生成侧边栏 + 顶栏（每个页面只需调用 SITE.shell('key')） */
+SITE.shell = function (activeKey) {
+  var links = SITE.pages.map(function (p) {
+    return '<a href="' + p.href + '"' + (p.key === activeKey ? ' class="on"' : '') + '>'
+      + p.label + '<small>' + p.en + '</small></a>';
+  }).join('');
+
+  var bar = document.createElement('div');
+  bar.className = 'topbar';
+  bar.innerHTML = '<button id="nav-toggle" aria-label="菜单">☰</button>'
+    + '<span class="title">' + SITE.name + '</span>';
+
+  var mask = document.createElement('div');
+  mask.className = 'mask';
+  mask.id = 'nav-mask';
+  mask.hidden = true;
+
+  var aside = document.createElement('aside');
+  aside.className = 'sidebar';
+  aside.innerHTML =
+    '<div class="brand">'
+    + '<img src="./img/logo.png" alt="校徽">'
+    + '<div class="name">' + SITE.name + '</div>'
+    + '<div class="sub">' + SITE.school + ' · 学生自建</div>'
+    + '</div>'
+    + '<nav>' + links + '</nav>'
+    + '<footer>由学生自费维护<br>非学校官方网站</footer>';
+
+  document.body.insertBefore(aside, document.body.firstChild);
+  document.body.insertBefore(mask, document.body.firstChild);
+  document.body.insertBefore(bar, document.body.firstChild);
+
+  bar.querySelector('#nav-toggle').onclick = function () {
+    document.body.classList.toggle('nav-open');
+    mask.hidden = !document.body.classList.contains('nav-open');
+  };
+  mask.onclick = function () {
+    document.body.classList.remove('nav-open');
+    mask.hidden = true;
+  };
+};
+
+/* 页脚 */
+SITE.footer = function (host) {
+  var el = host || document.querySelector('.main') || document.body;
+  var f = document.createElement('footer');
+  f.className = 'site-footer';
+  f.innerHTML =
+    '<p>班级期刊 · ' + SITE.school + ' 学生自建</p>'
+    + '<p class="contact-line">联系方式</p>'
+    + '<p class="contact-list">'
+    + '<span>微信：<b>MessialOWO</b></span>'
+    + '<span>QQ：<a href="https://qm.qq.com/cgi-bin/qm/qr?k=&amp;uin=2961001891" target="_blank" rel="noopener">2961001891</a></span>'
+    + '<span>邮箱：<a href="mailto:equalacorn28027@outlook.com">equalacorn28027@outlook.com</a></span>'
+    + '</p>'
+    + '<p><a href="./about-site.html">关于本站</a> · <a href="./about-school.html">关于学校</a></p>';
+  el.appendChild(f);
+};
+
+</script>
+<script>
+/* ===== 班级期刊 · 云端连接（所有页面共用） ===== */
+var JW = {
+  url: 'https://wvqrnkgjwnlhjhfuonts.supabase.co',
+  key: 'sb_publishable_cGy9MFHh3-t2i0kEnbHeeg_A1-rUMaF',
+  bucket: 'avatars',
+  timeoutMs: 10000,
+  proxy: ['https://arid-bluejay-4932.messialowo.deno.net'],
+  sb: null, uid: '', deviceId: '', ready: false, error: null, _waiters: [],
+  whenReady: function (cb) { if (JW.ready) cb(JW.error); else JW._waiters.push(cb); },
+  _settle: function (err) {
+    JW.error = err || null; JW.ready = true;
+    JW._waiters.splice(0).forEach(function (cb) { try { cb(JW.error); } catch (e) { console.error(e); } });
+    try { document.dispatchEvent(new Event('jw:ready')); } catch (e) {}
+  },
+  withTimeout: function (p, ms, what) {
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      var t = setTimeout(function () {
+        if (done) return; done = true;
+        reject(new Error('连接超时：' + (what || '请求') + '（' + Math.round(ms / 1000) + ' 秒无响应）'));
+      }, ms);
+      Promise.resolve(p).then(function (v) { if (done) return; done = true; clearTimeout(t); resolve(v); },
+        function (e) { if (done) return; done = true; clearTimeout(t); reject(e); });
+    });
+  },
+  retry: function (fn, times) {
+    times = times === undefined ? 2 : times;
+    var n = 0;
+    var run = function () {
+      n++;
+      return Promise.resolve().then(fn).catch(function (e) {
+        if (n >= times) throw e;
+        return new Promise(function (r) { setTimeout(r, 1200); }).then(run);
+      });
+    };
+    return run();
+  },
+  makeFetch: function () {
+    var BASE = JW.url;
+    return function (input, init) {
+      var url = (typeof input === 'string') ? input : (input && input.url) || '';
+      var rel = null;
+      try {
+        var u = new URL(url, BASE);
+        if (u.origin === BASE) rel = u.pathname + u.search;
+      } catch (e) {}
+      if (!rel || !JW.proxy || !JW.proxy.length) return fetch(input, init);
+      var list = JW.proxy.slice();
+      function attempt(i) {
+        if (i >= list.length) return fetch(url, init);
+        var clean = String(list[i]).replace(/\/$/, '');
+        return fetch(clean + rel, init).then(function (res) {
+          if (!res || res.status >= 500) throw new Error('中转 ' + clean + ' 返回 ' + (res && res.status));
+          return res;
+        }).catch(function (e) {
+          console.warn('中转失败，换下一个：' + clean, e && e.message);
+          return attempt(i + 1);
+        });
+      }
+      return attempt(0);
+    };
+  }
+};
+JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
+
+(function () {
+  function newDeviceId() {
+    if (window.crypto && window.crypto.randomUUID) return 'gb-' + window.crypto.randomUUID();
+    return 'gb-' + Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  }
+  JW.deviceId = localStorage.getItem('jiangwan_gb_device') || '';
+  if (!JW.deviceId || JW.deviceId.length < 8 || JW.deviceId.length > 64) {
+    JW.deviceId = newDeviceId();
+    try { localStorage.setItem('jiangwan_gb_device', JW.deviceId); } catch (e) {}
+  }
+  function boot() {
+    if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
+      JW._settle(new Error('云端组件没加载到（vendor/supabase.js）'));
+      return;
+    }
+    try {
+      JW.sb = window.supabase.createClient(JW.url, JW.key, {
+        auth: { persistSession: true, autoRefreshToken: true },
+        global: JW.proxy && JW.proxy.length ? { fetch: JW.makeFetch() } : undefined
+      });
+    } catch (e) { JW._settle(e); return; }
+    JW.sb.auth.getSession().then(function (r) {
+      var u = r && r.data && r.data.session && r.data.session.user;
+      if (u && u.id) JW.uid = u.id;
+      return null;
+    }).catch(function () { return null; })
+      .then(function () {
+        if (JW.uid) return null;
+        return JW.retry(function () {
+          return JW.withTimeout(JW.sb.auth.signInAnonymously(), JW.timeoutMs, '登录匿名身份');
+        }, 2).then(function (res) {
+          if (res && res.error) throw new Error(res.error.message || '匿名登录被拒绝');
+          if (res && res.data && res.data.user) JW.uid = res.data.user.id || '';
+          return null;
+        });
+      })
+      .then(function () { JW._settle(null); })
+      .catch(function (e) { JW._settle(e); });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+</script>
+<script>
+/* ===== 班级期刊 · 期刊投稿（期刊 → 专区 → 板块 → 文章） ===== */
+(function () {
+  var PW_SALT = 'jw-salt-2026';
+  var SECTIONS = [
+    { id: 'essay',   name: '散文',       en: 'Prose',  icon: '🖋' },
+    { id: 'poem',    name: '诗歌',       en: 'Poetry', icon: '🌾' },
+    { id: 'opinion', name: '议论',       en: 'Essay',  icon: '💬' },
+    { id: 'news',    name: '班级新闻',   en: 'News',   icon: '📰' },
+    { id: 'study',   name: '学习与知识', en: 'Study',  icon: '📚' }
+  ];
+  var $ = function (id) { return document.getElementById(id); };
+  var sb = null, uid = '', deviceId = '', connected = false;
+  var issues = [], boards = [], articles = [];
+  var curIssue = '', curSection = 'essay';
+  var busy = false;
+
+  function status(t, kind) {
+    var el = $('status');
+    if (!el) return;
+    if (!t) { el.hidden = true; el.textContent = ''; return; }
+    el.hidden = false; el.className = 'status' + (kind ? ' ' + kind : ''); el.textContent = t;
+  }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  function fmt(ts) {
+    var d = new Date(ts); if (isNaN(d)) return '';
+    var p = function (n) { return n < 10 ? '0' + n : '' + n; };
+    return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  function sha256(t) {
+    if (window.crypto && window.crypto.subtle && window.TextEncoder) {
+      return crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)).then(function (b) {
+        return Array.prototype.map.call(new Uint8Array(b), function (x) { return ('0' + x.toString(16)).slice(-2); }).join('');
+      });
+    }
+    return Promise.reject(new Error('浏览器不支持加密接口'));
+  }
+  function isBadPw(e) { return /bad password/i.test((e && e.message) || ''); }
+  function issueName(id) {
+    for (var i = 0; i < issues.length; i++) if (issues[i].id === id) return issues[i].name;
+    return '';
+  }
+  function sectionById(id) {
+    for (var i = 0; i < SECTIONS.length; i++) if (SECTIONS[i].id === id) return SECTIONS[i];
+    return SECTIONS[0];
+  }
+  function articleOf(boardId) {
+    for (var i = 0; i < articles.length; i++) if (articles[i].board_id === boardId) return articles[i];
+    return null;
+  }
+
+  /* ---- 渲染 ---- */
+  function renderIssues() {
+    var box = $('issue-bar'); box.textContent = '';
+    var lab = document.createElement('span'); lab.className = 'label'; lab.textContent = '期刊：';
+    box.appendChild(lab);
+    issues.forEach(function (it) {
+      var done = boards.filter(function (b) { return b.issue_id === it.id && articleOf(b.id); }).length;
+      var all = boards.filter(function (b) { return b.issue_id === it.id; }).length;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'issue-pick' + (it.id === curIssue ? ' on' : '');
+      b.innerHTML = esc(it.name) + '<small>' + done + '/' + all + ' 篇</small>';
+      b.onclick = function () {
+        if (curIssue === it.id) return;
+        curIssue = it.id; curSection = 'essay'; hideForm();
+        renderIssues(); renderSections(); renderBoards(); renderPanel();
+      };
+      box.appendChild(b);
+    });
+    if (window.__journalAdmin) {
+      var add = document.createElement('button');
+      add.type = 'button'; add.className = 'issue-add'; add.textContent = '＋ 新建期刊';
+      add.onclick = newIssue; box.appendChild(add);
+    }
+  }
+  function renderSections() {
+    var box = $('section-tabs'); box.textContent = '';
+    SECTIONS.forEach(function (s) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'section-tab' + (s.id === curSection ? ' on' : '');
+      b.innerHTML = '<b>' + s.icon + ' ' + esc(s.name) + '</b><small>' + esc(s.en) + '</small>';
+      b.onclick = function () {
+        if (curSection === s.id) return;
+        curSection = s.id; curBoard = ''; hideForm();
+        renderSections(); renderBoards(); renderPanel();
+      };
+      box.appendChild(b);
+    });
+  }
+  var curBoard = '';
+  function renderBoards() {
+    var box = $('boards'); box.textContent = '';
+    var list = boards.filter(function (b) { return b.issue_id === curIssue && b.section === curSection; });
+    if (!list.length) {
+      var t = document.createElement('div');
+      t.style.cssText = 'color:var(--muted);font-size:.9rem;padding:6px 0';
+      t.textContent = (issueName(curIssue) || '本期') + ' 的「' + sectionById(curSection).name + '」还没有板块。';
+      box.appendChild(t);
+      return;
+    }
+    list.forEach(function (b) {
+      var art = articleOf(b.id);
+      var chip = document.createElement('a');
+      chip.className = 'board-chip' + (b.id === curBoard ? ' on' : '') + (art ? ' has' : '');
+      chip.href = art ? ('article.html?board=' + b.id) : 'javascript:void(0)';
+      chip.innerHTML = '<span class="dot"></span>' + esc(b.name);
+      if (!art) chip.onclick = function () { curBoard = b.id; renderBoards(); renderPanel(); };
+      box.appendChild(chip);
+    });
+  }
+  function renderPanel() {
+    var panel = $('panel'); panel.textContent = '';
+    if (!issues.length) {
+      panel.innerHTML = '<div class="empty">还没有任何期刊。</div>';
+      return;
+    }
+    var list = boards.filter(function (b) { return b.issue_id === curIssue && b.section === curSection; });
+    if (!list.length) { panel.innerHTML = '<div class="empty">这个区还没有板块。</div>'; return; }
+    if (!curBoard || !list.some(function (b) { return b.id === curBoard; })) curBoard = list[0].id;
+    var board = list.filter(function (b) { return b.id === curBoard; })[0];
+    var art = articleOf(board.id);
+    var box = document.createElement('div');
+    if (art) {
+      box.className = 'card-box';
+      box.innerHTML = '<h3 style="font-size:1.4rem;margin-bottom:8px">' + esc(art.title) + '</h3>'
+        + '<div style="color:var(--muted);font-size:.86rem;margin-bottom:14px">'
+        + '作者：' + esc(art.author) + ' · 发布：' + fmt(art.created_at) + '</div>'
+        + '<div style="white-space:pre-wrap;max-height:340px;overflow:hidden">' + esc(art.body.slice(0, 400)) + '…</div>'
+        + '<div style="margin-top:16px"><a class="btn btn-main" style="display:inline-block;text-decoration:none" href="article.html?board=' + board.id + '">阅读全文 →</a></div>';
+    } else {
+      box.className = 'empty';
+      box.textContent = '「' + board.name + '」还没有文章。';
+    }
+    panel.appendChild(box);
+  }
+
+  /* ---- 数据 ---- */
+  function loadAll() {
+    return JW.sb.from('issues').select('id,name,slug,sort_order').order('sort_order')
+      .then(function (r) {
+        if (r.error) throw r.error;
+        issues = r.data || [];
+        if (!curIssue || !issues.some(function (i) { return i.id === curIssue; })) curIssue = issues.length ? issues[0].id : '';
+        return JW.sb.from('boards').select('id,issue_id,section,name,sort_order').order('sort_order');
+      })
+      .then(function (r) {
+        if (r.error) throw r.error;
+        boards = r.data || [];
+        return JW.sb.from('articles').select('id,board_id,title,author,body,cover_path,like_count,created_at').eq('hidden', false).limit(300);
+      })
+      .then(function (r) {
+        if (r.error) throw r.error;
+        articles = r.data || [];
+      });
+  }
+  function refresh() { renderIssues(); renderSections(); renderBoards(); renderPanel(); }
+
+  /* ---- 新建期刊（需要密码） ---- */
+  function newIssue() {
+    var name = prompt('新建一期期刊\n请输入期号名（例如：期刊3）：');
+    if (name === null || !name.trim()) return;
+    var pw = prompt('请输入管理密码：');
+    if (pw === null || !pw.trim()) return;
+    status('正在新建期刊……');
+    sha256(PW_SALT + '|' + pw.trim())
+      .then(function (h) { return JW.sb.rpc('create_issue', { p_name: name.trim(), p_pw_hash: h }); })
+      .then(function (r) {
+        if (r.error) throw r.error;
+        status('期刊已新建 ✅', 'ok');
+        return loadAll().then(refresh);
+      })
+      .catch(function (e) { status(isBadPw(e) ? '密码不对。' : (e.message || e), 'err'); });
+  }
+  function hideForm() {}
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+  function start() {
+    JW.whenReady(function (err) {
+      if (err) { status('连不上云端：' + (err.message || err), 'err'); return; }
+      sb = JW.sb;
+      JW.retry(function () { return JW.withTimeout(loadAll(), 20000, '加载期刊'); }, 2)
+        .then(function () { connected = true; refresh(); status(''); })
+        .catch(function (e) { status('加载失败：' + (e.message || e), 'err'); });
+    });
+  }
+})();
+
+</script>
+
+<script>
+SITE.shell('journal');
+SITE.footer(document.querySelector('.container'));
+
+</script>
+</body>
+</html>
