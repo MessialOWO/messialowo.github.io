@@ -114,22 +114,30 @@ input:focus, textarea:focus {
   * { transition: none !important; }
 }
 
-/* ---- 全站字体：Google Sans Bold 优先，中文回落到系统黑体 ----
-   注意：Google Sans Bold 不含汉字，中文只能用系统字体。
-   西文、数字、标点全部会用上 Google Sans Bold。 */
-html, body, .main, .container,
-h1, h2, h3, h4, h5, h6, p, span, div, a, li, td, th, strong, b, em, small,
-button, .btn, .action-btn, .board-chip, .issue-pick, .section-tab, .tab,
-input, textarea, select, label, .en, .status, .note, .empty, .gb-name,
-.comment-name, .gb-reply-name, .gb-pin-badge, .sidebar, .topbar, footer {
+/* ==========================================================================
+   字体：全站统一 font-family（西文用 Google Sans Bold，中文回落系统黑体）
+   字重分级：标题/按钮 700，正文 400（整页粗体会难读、也慢）
+   ========================================================================== */
+html, body, button, input, textarea, select, label,
+h1, h2, h3, h4, h5, h6, a, span, div, p, li, td, th, small, b, strong,
+.btn, .action-btn, .board-chip, .issue-pick, .section-tab, .tab,
+.sidebar, .topbar, .en, .status, .note, .empty, .gb-name, .comment-name,
+.gb-reply-name, .gb-pin-badge, footer {
   font-family: 'Google Sans', "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei",
-               -apple-system, "Helvetica Neue", Arial, sans-serif !important;
+               -apple-system, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* 标题、按钮、导航：粗体 */
+h1, h2, h3, h4, h5, h6, b, strong,
+button, .btn, .action-btn, .board-chip, .issue-pick, .section-tab, .tab,
+.sidebar nav a, .sidebar .brand .name, .topbar .title,
+.gb-name, .comment-name, .gb-reply-name, .article-title, .school-h2, .school-h3 {
   font-weight: 700;
 }
-/* 正文用常规粗细，别整页都粗体（会难读也费渲染） */
-p, .article-body p, .comment-body, .gb-content, .gb-reply-content, .content p, input, textarea {
+
+/* 正文：常规粗细（浏览器会用系统字体的 Regular，因为 Google Sans 只有 Bold） */
+body, p, li, td, th, input, textarea, label, small,
+.article-body p, .content p, .comment-body, .gb-content, .gb-reply-content,
+.gb-time, .comment-time, .gb-reply-time, .note, .status, .empty {
   font-weight: 400;
-  font-family: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, sans-serif !important;
 }
-/* 西文正文仍然用 Google Sans 常规（只有 bold 字重可用，就用它） */
-.article-body p, .content p, p { font-family: 'Google Sans', "PingFang SC", "Microsoft YaHei", sans-serif !important; }
