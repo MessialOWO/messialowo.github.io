@@ -9,11 +9,14 @@ var JW = {
   key: 'sb_publishable_cGy9MFHh3-t2i0kEnbHeeg_A1-rUMaF',
   bucket: 'avatars',
   timeoutMs: 10000,
-  /* 中转域名：国内直连 supabase.co 会被干扰，所以走这个免费中转站
-     （Deno Deploy 部署，代码见仓库 relay.html）。
-     填了它 → 优先走中转，中转失败会自动回退直连，不会比原来更差。
-     想改回直连：把下面设成 '' 即可。 */
-  proxy: 'https://arid-bluejay-4932.messialowo.deno.net',
+  /* 中转站（按顺序尝试，前一个失败自动换下一个；全挂则回退直连官方域名）
+     [0] Deno Deploy —— 现在在用，但官方已宣布 Deno Deploy 约 2027 年 4 月关闭
+     [1] Render      —— 备用，部署方法见仓库 relay-render.md，拿到网址填这里
+     想改回直连：把数组清空成 proxy: [] 即可。 */
+  proxy: [
+    'https://arid-bluejay-4932.messialowo.deno.net'
+    // , 'https://你的render服务.onrender.com'
+  ],
   sb: null,
   uid: '',
   deviceId: '',
@@ -31,35 +34,36 @@ var JW = {
      中转只需转发两类路径：/auth/v1/* 和 /rest/v1/*、/storage/v1/* */
   makeFetch: function () {
     var BASE = JW.url;
-    function targetFor(url) {
+    function relPath(url) {
       try {
         var u = new URL(url, BASE);
         if (u.origin !== BASE) return null;          // 不是打给 Supabase 的，不动
         return u.pathname + u.search;
       } catch (e) { return null; }
     }
-    function doFetch(input, init, useProxy) {
-      var url = (typeof input === 'string') ? input : (input && input.url) || '';
-      var rel = targetFor(url);
-      if (!rel) return fetch(input, init);
-      var finalUrl = useProxy ? (JW.proxy.replace(/\/$/, '') + rel) : url;
-      var opts = init || {};
-      if (useProxy && init && init.headers) {
-        // 中转域名不是 supabase.co，去掉只会误导它的 Referer
-        opts = Object.assign({}, init);
-        try { opts.headers = new Headers(init.headers); } catch (e) { opts.headers = init.headers; }
-      }
-      return fetch(finalUrl, opts);
+    function rawFetch(target, init, input) {
+      if (target === null) return fetch(input, init);
+      return fetch(target, init);
     }
     return function (input, init) {
-      if (!JW.proxy) return doFetch(input, init, false);
-      return doFetch(input, init, true).then(function (res) {
-        if (res && res.status >= 500) throw new Error('中转返回 ' + res.status);
-        return res;
-      }).catch(function () {
-        // 中转挂了就直连，保证不至于全废
-        return doFetch(input, init, false);
-      });
+      var url = (typeof input === 'string') ? input : (input && input.url) || '';
+      var rel = relPath(url);
+      if (!rel || !JW.proxy || !JW.proxy.length) return fetch(input, init);
+
+      var list = JW.proxy.slice();
+      // 依次尝试各个中转，最后兜底直连官方域名
+      function attempt(i) {
+        if (i >= list.length) return fetch(url, init);         // 全挂了 → 直连
+        var clean = String(list[i]).replace(/\/$/, '');
+        return fetch(clean + rel, init).then(function (res) {
+          if (!res || res.status >= 500) throw new Error('中转 ' + clean + ' 返回 ' + (res && res.status));
+          return res;
+        }).catch(function (e) {
+          console.warn('中转失败，换下一个：' + clean, e && e.message);
+          return attempt(i + 1);
+        });
+      }
+      return attempt(0);
     };
   },
 

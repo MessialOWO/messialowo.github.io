@@ -1,0 +1,13 @@
+{
+  "name": "jw-relay",
+  "version": "1.0.0",
+  "private": true,
+  "description": "江湾期刊 Supabase 中转站（Render 备用）",
+  "main": "relay-render.js",
+  "scripts": {
+    "start": "node relay-render.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
