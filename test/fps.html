@@ -1,0 +1,42 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="font-family:sans-serif;padding:12px;font-size:15px;line-height:2">
+<h3>帧率实测中……</h3>
+<div id="out">准备中</div>
+<script>
+var url = new URLSearchParams(location.search).get('u');
+var ifr = document.createElement('iframe');
+ifr.style.cssText='width:100%;height:75vh;border:1px solid #ccc;border-radius:10px';
+ifr.src = url;
+document.body.appendChild(ifr);
+var out = document.getElementById('out');
+setTimeout(function(){
+  var frames=0, last=performance.now(), times=[];
+  function tick(t){
+    frames++;
+    times.push(t-last); last=t;
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+  // 滚动 iframe 内容制造负载
+  var scrolled=0;
+  var iv = setInterval(function(){
+    try {
+      var w = ifr.contentWindow;
+      w.scrollBy(0, 220);
+      scrolled++;
+      if (scrolled > 14) w.scrollTo(0,0);
+    } catch(e) {}
+  }, 120);
+  setTimeout(function(){
+    clearInterval(iv);
+    var dur = (performance.now() - times[0]) / 1000;
+    var fps = frames / dur;
+    var slow = times.filter(function(x){return x>33;}).length;
+    out.innerHTML = '<b>实测结果</b><br>平均帧率：<b style="color:#c0392b;font-size:1.4em">' + fps.toFixed(1) + ' fps</b>'
+      + '<br>卡顿帧（>33ms）：' + slow + ' 次 / 共 ' + frames + ' 帧'
+      + '<br>期间滚动：' + scrolled + ' 次'
+      + '<br>' + (fps >= 50 ? '✅ 流畅' : fps >= 35 ? '⚠️ 一般' : '❌ 明显卡顿');
+  }, 6000);
+}, 2500);
+</script></body></html>
