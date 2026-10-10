@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>中转站代码 · 一键复制 | 江湾期刊</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+         background: #faf9f6; color: #2c2c2c; line-height: 1.7; padding: 20px; }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 1.35rem; color: #c0392b; margin-bottom: 8px; }
+  .sub { color: #6b6b6b; font-size: .9rem; margin-bottom: 18px; }
+  .bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; position: sticky; top: 0;
+         background: #faf9f6; padding: 10px 0; z-index: 5; }
+  button { font: inherit; font-size: 1rem; border: none; border-radius: 10px; padding: 13px 22px;
+           background: #c0392b; color: #fff; cursor: pointer; font-weight: 700; }
+  button.ghost { background: #eee; color: #333; font-weight: 500; }
+  button:active { opacity: .8; }
+  .tip { background: #eef7ee; border-left: 4px solid #4a8f4a; color: #35663a;
+         padding: 12px 14px; border-radius: 8px; font-size: .88rem; margin-bottom: 16px; }
+  pre { background: #2b2b2b; color: #e8e6e1; padding: 16px; border-radius: 10px;
+        font-size: .78rem; line-height: 1.6; overflow-x: auto; white-space: pre;
+        font-family: ui-monospace, Menlo, Consolas, monospace; }
+  ol { margin: 18px 0 0 22px; font-size: .92rem; }
+  ol li { margin-bottom: 8px; }
+  a { color: #c0392b; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>中转站代码 · 一键复制</h1>
+  <div class="sub">把这个页面在手机浏览器打开，点下面的按钮，代码就进剪贴板了。</div>
+
+  <div class="tip" id="tip">点「复制全部代码」，然后去 Deno 的编辑框长按 → 粘贴。</div>
+
+  <div class="bar">
+    <button id="copy">📋 复制全部代码</button>
+    <button class="ghost" id="copy2">复制不带注释的版本</button>
+  </div>
+
+<pre id="code">const UPSTREAM = 'https://wvqrnkgjwnlhjhfuonts.supabase.co'
+const ALLOW_ORIGIN = '*'
+
+const CORS = {
+  'Access-Control-Allow-Origin': ALLOW_ORIGIN,
+  'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS,HEAD',
+  'Access-Control-Allow-Headers': '*',
+  'Access-Control-Expose-Headers': 'content-range, content-length, x-total-count',
+  'Access-Control-Max-Age': '86400',
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS })
+
+  const url = new URL(req.url)
+  const ok = /^\/(auth|rest|storage|functions|realtime)\//.test(url.pathname)
+  if (!ok) {
+    return new Response(JSON.stringify({ error: 'only supabase paths allowed' }), {
+      status: 403, headers: { ...CORS, 'Content-Type': 'application/json' },
+    })
+  }
+
+  const headers = new Headers(req.headers)
+  headers.delete('host')
+  headers.delete('cf-connecting-ip')
+  headers.delete('cf-ipcountry')
+
+  let body
+  if (req.method !== 'GET' && req.method !== 'HEAD') body = await req.arrayBuffer()
+
+  try {
+    const up = await fetch(UPSTREAM + url.pathname + url.search, {
+      method: req.method, headers, body, redirect: 'manual',
+    })
+    const out = new Headers(up.headers)
+    for (const [k, v] of Object.entries(CORS)) out.set(k, v)
+    out.delete('content-encoding')
+    out.delete('content-length')
+    return new Response(up.body, { status: up.status, statusText: up.statusText, headers: out })
+  } catch (e) {
+    return new Response(JSON.stringify({ error: 'upstream failed', detail: String(e) }), {
+      status: 502, headers: { ...CORS, 'Content-Type': 'application/json' },
+    })
+  }
+})</pre>
+
+  <ol>
+    <li>回到 <b>dash.deno.com</b>，点 <b>New Playground</b>（或 New Project → Playground）</li>
+    <li>清空编辑框里的示例代码，长按 → <b>粘贴</b></li>
+    <li>点 <b>Save &amp; Deploy</b></li>
+    <li>把生成的 <b>https://xxxx.deno.dev</b> 发我</li>
+  </ol>
+</div>
+
+<script>
+var CODE = document.getElementById('code').textContent;
+document.getElementById('copy').onclick = function () { copy(CODE); };
+document.getElementById('copy2').onclick = function () {
+  var lines = CODE.split('\n').filter(function (l) { return l.trim().indexOf('//') !== 0; });
+  copy(lines.join('\n'));
+};
+function copy(text) {
+  var tip = document.getElementById('tip');
+  function ok() { tip.textContent = '✅ 已复制 ' + text.length + ' 个字符，去 Deno 编辑框长按粘贴吧'; }
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(ok, function () { fallback(text); });
+  } else { fallback(text); }
+}
+function fallback(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed'; ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); document.getElementById('tip').textContent = '✅ 已复制（兼容模式），去粘贴吧'; }
+  catch (e) { document.getElementById('tip').textContent = '⚠️ 自动复制失败，请长按代码框 → 全选 → 复制'; }
+  ta.remove();
+}
+</script>
+</body>
+</html>
