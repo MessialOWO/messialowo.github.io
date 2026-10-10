@@ -1,0 +1,87 @@
+/* ===== 班级期刊 · 全站共享样式 ===== */
+:root {
+  --bg: #faf9f6; --text: #2c2c2c; --muted: #6b6b6b;
+  --card: #fff; --accent: #c0392b; --accent-light: #f9eae8; --border: #e8e4dd;
+  --sidebar-w: 232px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: "Georgia", "Songti SC", "SimSun", serif;
+  background: var(--bg); color: var(--text); line-height: 1.8;
+}
+img { max-width: 100%; }
+
+/* ---- 顶栏（手机）---- */
+.topbar {
+  display: none; position: sticky; top: 0; z-index: 60;
+  background: var(--card); border-bottom: 1px solid var(--border);
+  padding: 12px 16px; align-items: center; gap: 12px;
+}
+.topbar button {
+  border: 1px solid var(--border); background: var(--bg); color: var(--text);
+  border-radius: 8px; padding: 7px 13px; font-size: 1.05rem; cursor: pointer; font-family: inherit;
+}
+.topbar .title { font-weight: 700; color: var(--accent); letter-spacing: 2px; font-size: 1.05rem; }
+
+/* ---- 侧边栏 ---- */
+.sidebar {
+  position: fixed; top: 0; left: 0; bottom: 0; width: var(--sidebar-w);
+  background: var(--card); border-right: 1px solid var(--border);
+  padding: 26px 18px; overflow-y: auto; z-index: 70;
+}
+.sidebar .brand { text-align: center; margin-bottom: 22px; }
+.sidebar .brand img { width: 62px; height: 62px; object-fit: contain; margin-bottom: 8px; }
+.sidebar .brand .name { font-size: 1.32rem; font-weight: 700; color: var(--accent); letter-spacing: 3px; }
+.sidebar .brand .sub { font-size: .72rem; color: var(--muted); margin-top: 4px; letter-spacing: 1px; }
+.sidebar nav a {
+  display: block; padding: 11px 14px; margin-bottom: 6px; border-radius: 9px;
+  color: var(--text); text-decoration: none; font-size: .97rem; transition: all .16s;
+}
+.sidebar nav a:hover { background: var(--accent-light); color: var(--accent); }
+.sidebar nav a.on { background: var(--accent); color: #fff; font-weight: 700; }
+.sidebar nav a small { display: block; font-size: .68rem; opacity: .65; letter-spacing: 1px; }
+.sidebar nav .group { font-size: .72rem; color: var(--muted); letter-spacing: 2px; margin: 16px 0 8px 14px; }
+.sidebar footer { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); font-size: .72rem; color: var(--muted); line-height: 1.9; }
+
+/* ---- 主内容 ---- */
+.main { margin-left: var(--sidebar-w); min-height: 100vh; }
+.container { max-width: 920px; margin: 0 auto; padding: 0 26px 60px; }
+.page-head { padding: 40px 0 22px; border-bottom: 3px double var(--border); margin-bottom: 32px; }
+.page-head h1 { font-size: clamp(1.6rem, 5vw, 2.1rem); color: var(--accent); letter-spacing: 3px; }
+.page-head .en { font-size: .78rem; color: var(--muted); letter-spacing: 2px; margin-top: 4px; text-transform: uppercase; }
+.page-head p { color: var(--muted); font-size: .9rem; margin-top: 12px; }
+
+/* ---- 通用卡片 / 按钮 ---- */
+.card-box { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 26px; margin-bottom: 22px; box-shadow: 0 2px 12px rgba(0,0,0,.03); }
+button, .btn { font-family: inherit; font-size: .95rem; cursor: pointer; border: none; border-radius: 8px; padding: 10px 20px; transition: opacity .2s; }
+button:hover { opacity: .85; }
+button:disabled { opacity: .5; cursor: default; }
+.btn-main { background: var(--accent); color: #fff; }
+.btn-ghost { background: #eee; color: #333; }
+.empty { text-align: center; color: var(--muted); padding: 40px 0; }
+
+.note { font-size: .86rem; color: var(--muted); margin-bottom: 20px; padding: 12px 16px; background: #fdf6e3; border-radius: 8px; border-left: 4px solid #e6b800; }
+.status { font-size: .88rem; padding: 10px 14px; border-radius: 8px; margin-bottom: 18px; background: var(--accent-light); border-left: 4px solid var(--accent); line-height: 1.7; }
+.status[hidden] { display: none; }
+.status.ok  { background: #eef7ee; border-left-color: #4a8f4a; color: #35663a; }
+.status.err { background: #fdecec; border-left-color: var(--accent); color: #8c2a20; }
+
+footer.site-footer { text-align: center; padding: 36px 0; border-top: 3px double var(--border); margin-top: 40px; color: var(--muted); font-size: .86rem; }
+footer.site-footer p { margin-bottom: 8px; }
+footer.site-footer a { color: var(--accent); text-decoration: none; border-bottom: 1px dashed var(--accent); }
+footer.site-footer .contact-line { margin-top: 14px; letter-spacing: 2px; color: var(--text); font-weight: 700; }
+footer.site-footer .contact-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 20px; margin-bottom: 14px; }
+
+/* ---- 备忘录遮罩 ---- */
+.mask { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 65; }
+.mask[hidden] { display: none; }
+
+@media (max-width: 860px) {
+  .topbar { display: flex; }
+  .sidebar { transform: translateX(-100%); transition: transform .25s; }
+  body.nav-open .sidebar { transform: translateX(0); }
+  body.nav-open .mask { display: block; }
+  .main { margin-left: 0; }
+  .container { padding: 0 16px 50px; }
+  .card-box { padding: 20px; }
+}
