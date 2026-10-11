@@ -42,7 +42,6 @@
 
 <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:22px">
   <button class="btn-main" id="btn-add" type="button">＋ 添加作品</button>
-  <button class="btn-ghost" id="btn-export" type="button">导出代码</button>
 </div>
 
 <div id="work-form" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px">
@@ -102,7 +101,7 @@ SITE.shell = function (activeKey) {
     + '<div class="sub">非官方网站</div>'
     + '</div>'
     + '<nav>' + links + '</nav>'
-    + '<footer><a href="./about-site.html">关于本站</a></footer>';
+    ;
 
   document.body.insertBefore(aside, document.body.firstChild);
   document.body.insertBefore(mask, document.body.firstChild);
@@ -429,26 +428,45 @@ function compressImage(file, maxEdge, quality) {
     });
   }
 
+  function sha256Hex(text) {
+    if (window.crypto && window.crypto.subtle && window.TextEncoder) {
+      return window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then(function (b) {
+        return Array.prototype.map.call(new Uint8Array(b), function (x) {
+          return ('0' + x.toString(16)).slice(-2);
+        }).join('');
+      });
+    }
+    return Promise.reject(new Error('浏览器不支持加密接口'));
+  }
+
   function bindDel() {
     grid.querySelectorAll('.del[data-id]').forEach(b => {
       b.onclick = () => {
-        if (!confirm('删除这件作品？（同时会删掉云端图片，不可恢复）')) return;
-        var id = b.dataset.id;
-        var path = b.dataset.path || '';
+        if (!confirm('删除这件作品？图片会一起删掉，不可恢复。')) return;
+        var pw = prompt('删除需要管理密码：');
+        if (pw === null || !pw.trim()) return;
+        var id = b.dataset.id, path = b.dataset.path || '';
         if (!connected || !window.JW || !JW.sb) { setNote('还没连上云端，删不了。请检查网络后重试。', 'err'); return; }
         busy = true;
-        JW.sb.from('works').delete().eq('id', id).then(function (res) {
+        setNote('正在校验密码并删除……');
+        sha256Hex('jw-salt-2026|' + pw.trim()).then(function (hash) {
+          return JW.sb.rpc('delete_work', { p_work_id: id, p_pw_hash: hash });
+        }).then(function (res) {
           if (res.error) throw res.error;
+          var out = res.data;
+          if (typeof out === 'string') { try { out = JSON.parse(out); } catch (e) {} }
+          if (!out || out.deleted !== true) throw new Error('bad password');
           if (path) return JW.sb.storage.from(JW.bucket).remove([path]).then(function () { return null; });
           return null;
         }).then(function () {
           works = works.filter(w => w.id !== id);
           render();
-          setNote('已删除。', 'ok');
+          setNote('已删除 ✅', 'ok');
           setTimeout(function () { setNote(''); }, 2000);
         }).catch(function (e) {
           console.error(e);
-          setNote('删除失败：' + (e.message || e), 'err');
+          var m = (e && e.message) || String(e);
+          setNote(/bad password/i.test(m) ? '密码不对，没有删除。' : ('删除失败：' + m), 'err');
         }).then(function () { busy = false; });
       };
     });
@@ -656,7 +674,7 @@ function compressImage(file, maxEdge, quality) {
     pendingImg = ''; pendingBlob = null;
   }
 
-  $('btn-export').onclick = function () {
+  /* 导出代码功能已移除 */ void function () {
     if (!works.length) return alert('云端还没有作品');
     var cards = works.map(function (w) {
       var url = avatarUrlOf(w.image_path);
