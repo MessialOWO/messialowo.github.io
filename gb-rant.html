@@ -471,10 +471,11 @@ var GB = (function () {
       hint.textContent = '还没有小分区，先建一个才能发帖：';
       box.appendChild(hint);
     }
-    if (curSub) {
+    // 只有一个小分区时不需要「全部」
+    if (curSub && list.length > 1) {
       var all = document.createElement('button');
-      all.type = 'button'; all.className = 'gb-sec-chip' + (!curSub ? ' on' : '');
-      all.textContent = '全部小分区';
+      all.type = 'button'; all.className = 'gb-sec-chip';
+      all.textContent = '全部';
       all.onclick = function () { curSub = ''; renderSubBar(); render(); };
       box.appendChild(all);
     }
@@ -487,11 +488,20 @@ var GB = (function () {
       b.onclick = function () { curSub = (curSub === sec.id ? '' : sec.id); renderSubBar(); render(); };
       box.appendChild(b);
     });
-    if (curSub) {
+    // 「未分类」是每个大分区的固定小分区，不允许删除
+    var curObj = null;
+    for (var ci = 0; ci < list.length; ci++) if (list[ci].id === curSub) curObj = list[ci];
+    var isFixed = curObj && /(未分组|未分类|未归类|默认)$/.test(btrimName(curObj.name));
+    if (curSub && !isFixed) {
       var del = document.createElement('button');
       del.type = 'button'; del.className = 'gb-sec-chip del'; del.textContent = '🗑 删除小分区';
       del.onclick = function () { deleteSub(curSub); };
       box.appendChild(del);
+    } else if (isFixed) {
+      var fix = document.createElement('span');
+      fix.style.cssText = 'font-size:.78rem;color:var(--muted);align-self:center';
+      fix.textContent = '这是默认小分区，不能删除';
+      box.appendChild(fix);
     }
     var add = document.createElement('button');
     add.type = 'button'; add.className = 'gb-sec-chip add'; add.textContent = '＋ 新建小分区';
@@ -820,6 +830,7 @@ var GB = (function () {
     });
   }
   function deleteSub(id) {
+    if (/(未分组|未分类|未归类|默认)$/.test(btrimName(secName(id)))) { alert('这是默认小分区，不能删除。'); return; }
     if (!confirm('删除小分区「' + secName(id) + '」？\n里面的帖子会回到大分区，不会被删。')) return;
     var pw = prompt('删除小分区需要管理密码：');
     if (pw === null || !pw.trim()) return;
@@ -853,16 +864,25 @@ var GB = (function () {
           var ok = subs.some(function (x) { return x.id === curSub && x.main_section === curMain; });
           if (!ok) curSub = '';
         }
-        // 还没有选小分区时，自动选当前大分区下名为「未分类」的那个
+        // 默认选中的小分区：按后缀识别用户自己的命名
+        // （各分区不同：学习未分组 / 2次元未分组 / 招领未分组 / 吐槽未分组 / 建议未分组）
+        if (curSub) {
+          var mine2 = subs.filter(function (x) { return x.main_section === curMain; });
+          var stillOk = mine2.some(function (x) { return x.id === curSub; });
+          if (!stillOk) curSub = '';
+        }
         if (!curSub) {
-          var list = subs.filter(function (x) { return x.main_section === curMain; });
+          var mine = subs.filter(function (x) { return x.main_section === curMain; });
           var target = null;
-          for (var i = 0; i < list.length; i++) {
-            if (/^(未分类|未归类|默认)$/.test(list[i].name)) { target = list[i]; break; }
+          for (var mi = 0; mi < mine.length; mi++) {
+            if (/(未分组|未分类|未归类|默认)$/.test(btrimName(mine[mi].name))) { target = mine[mi]; break; }
           }
+          if (!target && mine.length) target = mine[0];
           if (target) curSub = target.id;
         }
       });
+
+  function btrimName(x) { return String(x == null ? '' : x).replace(/^\s+|\s+$/g, ''); }
   }
   function loadAll() {
     return sb.from('messages')
