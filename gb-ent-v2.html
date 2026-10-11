@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>留言板 · 内娱 | 达高中（非官网）</title>
+<style>
+  .avatar-circle { display:flex; align-items:center; justify-content:center; color:#fff; border-radius:50%; overflow:hidden; flex-shrink:0; line-height:1; user-select:none; }
+  .avatar-circle.big { width:48px; height:48px; font-size:1.4rem; }
+  .avatar-circle.small { width:28px; height:28px; font-size:.95rem; }
+  .avatar-circle img { width:100%; height:100%; object-fit:cover; display:block; border-radius:50%; }
+  #avatar-preview { width:64px; height:64px; border-radius:50%; background:#f0f0f0; display:flex; align-items:center; justify-content:center; overflow:hidden; border:2px solid var(--border); flex-shrink:0; }
+  #avatar-preview .avatar-circle, #avatar-preview .avatar-circle img { width:64px; height:64px; }
+  .emoji-pick { width:44px; height:44px; font-size:1.3rem; border-radius:50%; border:2px solid var(--glass-brd); background:rgba(255,255,255,.6); cursor:pointer; padding:0; display:flex; align-items:center; justify-content:center; }
+  .emoji-pick.on { border-color:var(--accent); background:var(--accent-light); }
+  .color-pick { width:36px; height:36px; border-radius:50%; cursor:pointer; padding:0; border:2px solid transparent; box-shadow:0 0 0 1px var(--border) inset; }
+  .color-pick.on { border-color:#2c2c2c; }
+  .gb-sections, .gb-subs { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+  .gb-sort { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:14px; }
+  .gb-sort-label { font-size:.85rem; color:var(--muted); }
+  .gb-sort-tip { font-size:.78rem; color:var(--muted); margin-left:4px; }
+  .gb-fold-bar { margin-top:8px; }
+  .gb-fold-btn { font-family:inherit; font-size:.85rem; cursor:pointer; padding:6px 14px; border-radius:16px; border:1px dashed var(--accent); background:none; color:var(--accent); }
+  .gb-fold-btn:hover { background:var(--accent-light); }
+  .gb-sub-replies { margin-top:8px; padding-left:12px; border-left:2px solid var(--border); display:flex; flex-direction:column; gap:8px; }
+  .gb-sub-reply { background:rgba(255,255,255,.55); border-radius:8px; padding:8px 10px; font-size:.85rem; }
+  .gb-sub-reply .gb-reply-content { margin-top:2px; }
+  .gb-sub-more { font-family:inherit; font-size:.78rem; color:var(--accent); background:none; border:none; border-bottom:1px dashed rgba(192,57,43,.4); cursor:pointer; padding:2px 0; text-align:left; align-self:flex-start; }
+  .gb-flash { animation: gbflash 2.4s ease; }
+  @keyframes gbflash { 0%,100% { box-shadow:0 6px 18px rgba(31,27,22,.06); } 25%,75% { box-shadow:0 0 0 4px rgba(192,57,43,.35); } }
+  .gb-sec-chip { font-family:inherit; font-size:.88rem; cursor:pointer; padding:8px 14px; border:1px solid var(--glass-brd); border-radius:20px; background:rgba(255,255,255,.6); color:var(--text); box-shadow:0 2px 8px rgba(31,27,22,.06); text-decoration:none; }
+  .gb-sec-chip:hover { background:rgba(255,255,255,.85); transform:translateY(-1px); }
+  .gb-sec-chip.on { background:linear-gradient(160deg,#c0392b,#962820) !important; color:#fff !important; font-weight:700; }
+  .gb-sec-chip.add { border-style:dashed; color:var(--accent); }
+  .gb-sec-chip.del { border-color:#e0b4b0; color:var(--accent); }
+  .gb-sec-tag { font-size:.72rem; color:var(--muted); background:rgba(0,0,0,.05); padding:1px 8px; border-radius:8px; }
+  .gb-tag { color:var(--accent); text-decoration:none; border-bottom:1px dashed rgba(192,57,43,.4); }
+  .gb-tag:hover { background:var(--accent-light); }
+  .gb-item { display:flex; gap:16px; background:rgba(255,255,255,.55); border:1px solid var(--glass-brd); border-radius:14px; padding:18px; margin-bottom:14px; position:relative; }
+  .gb-item.pinned { border-left:5px solid var(--accent); background:#fffdfb; }
+  .gb-body { flex:1; min-width:0; }
+  .gb-header { display:flex; align-items:baseline; gap:10px; margin-bottom:6px; flex-wrap:wrap; }
+  .gb-name { font-weight:700; overflow-wrap:anywhere; }
+  .gb-time { font-size:.8rem; color:var(--muted); }
+  .gb-pin-badge { background:var(--accent); color:#fff; font-size:.72rem; padding:2px 8px; border-radius:10px; font-weight:700; }
+  .gb-content { white-space:pre-wrap; word-break:break-word; }
+  .gb-actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .gb-action-btn { background:none; border:1px solid transparent; padding:6px 12px; cursor:pointer; color:var(--muted); font-size:1.15rem; font-family:inherit; border-radius:8px; }
+  .gb-action-btn:hover { background:var(--accent-light); color:var(--accent); }
+  .gb-action-btn.liked { color:var(--accent); background:var(--accent-light); }
+  .gb-action-btn.danger { border-color:#e0b4b0; color:var(--accent); }
+  .gb-action-btn.pinned-on { background:var(--accent-light); border-color:var(--accent); }
+  .gb-replies { margin-top:12px; padding-top:12px; border-top:1px dashed var(--border); display:flex; flex-direction:column; gap:10px; }
+  .gb-reply { display:flex; gap:10px; align-items:flex-start; background:rgba(255,255,255,.6); border-radius:8px; padding:10px 12px; }
+  .gb-reply-body { flex:1; min-width:0; font-size:.9rem; }
+  .gb-reply-name { font-weight:600; margin-right:8px; }
+  .gb-reply-to { font-size:.78rem; color:var(--accent); background:var(--accent-light); padding:1px 7px; border-radius:8px; margin-left:8px; }
+  .gb-reply-time { font-size:.75rem; color:var(--muted); }
+  .gb-reply-content { white-space:pre-wrap; word-break:break-word; margin-top:4px; }
+  .gb-reply-actions { margin-top:4px; display:flex; gap:6px; }
+  .gb-reply-actions .gb-action-btn { padding:2px 8px; font-size:.9rem; }
+  .reply-form { margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; }
+  .reply-form input { flex:1 1 140px; min-width:0; padding:9px 12px; border:1px solid var(--glass-brd); border-radius:8px; font-family:inherit; font-size:16px; background:rgba(255,255,255,.75); color:var(--text); }
+  .gb-msg-images { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .gb-msg-images img { width:104px; height:104px; object-fit:cover; border-radius:8px; cursor:zoom-in; border:1px solid var(--border); }
+  .gb-pick-thumb { position:relative; }
+  .gb-pick-thumb img { width:70px; height:70px; object-fit:cover; border-radius:8px; border:1px solid var(--border); display:block; }
+  .gb-pick-thumb button { position:absolute; top:-6px; right:-6px; width:22px; height:22px; border-radius:50%; background:var(--accent); color:#fff; font-size:.75rem; line-height:1; padding:0; }
+  .gb-notice { position:relative; background:rgba(255,250,235,.85); border:1px solid #f0dcae; border-left:5px solid #e6b800; border-radius:12px; padding:16px 44px 14px 18px; margin-bottom:18px; font-size:.9rem; line-height:1.85; }
+  .gb-notice[hidden] { display:none; }
+  .gb-notice-t { font-weight:700; color:#8a6d1a; margin-bottom:8px; letter-spacing:1px; }
+  .gb-notice p { margin:0 0 4px; color:#6b5a22; }
+  .gb-notice-x { position:absolute; top:8px; right:10px; width:28px; height:28px; padding:0; border-radius:50%; background:none; border:1px solid transparent; color:#9a8a55; font-size:.95rem; line-height:1; cursor:pointer; }
+  .lb { position:fixed; inset:0; z-index:999; background:rgba(24,20,18,.86); display:flex; flex-direction:column; }
+  .lb[hidden] { display:none; }
+  .lb-bar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; color:#f2efe9; flex-wrap:wrap; }
+  .lb-btns { display:flex; gap:8px; }
+  .lb-stage { flex:1; min-height:0; display:flex; align-items:center; justify-content:center; padding:0 12px 16px; overflow:auto; }
+  .lb-stage img { max-width:100%; max-height:100%; object-fit:contain; display:block; }
+</style>
+<link rel="icon" href="./img/logo.png">
+<link rel="stylesheet" href="./assets/site.css">
+<link rel="stylesheet" href="./assets/liquid-glass.css">
+</head>
+<body>
+<div class="main">
+<div class="container">
+<div class="page-head">
+  <h1>留言板 · 内娱</h1>
+  <div class="en">Guestbook</div>
+</div>
+<div class="gb-sections">
+<a class="gb-sec-chip" href="./guestbook.html">未分区</a>
+<a class="gb-sec-chip" href="./gb-study.html">学习</a>
+<a class="gb-sec-chip" href="./gb-news.html">新闻</a>
+<a class="gb-sec-chip" href="./gb-works.html">作品</a>
+<a class="gb-sec-chip" href="./gb-lost.html">失物招领</a>
+<a class="gb-sec-chip" href="./gb-game.html">游戏</a>
+<a class="gb-sec-chip" href="./gb-acg.html">二次元</a>
+<a class="gb-sec-chip on" href="./gb-ent.html">内娱</a>
+<a class="gb-sec-chip" href="./gb-rant.html">学校吐槽</a>
+<a class="gb-sec-chip" href="./gb-suggest.html">意见建议</a>
+<a class="gb-sec-chip" href="./gb-other.html">其他</a>
+<a class="gb-sec-chip" href="./search.html">🔍 搜索</a>
+</div>
+<div class="gb-notice" id="gb-notice" hidden>
+  <button class="gb-notice-x" id="gb-notice-x" type="button" aria-label="关闭提醒" title="不再显示">✕</button>
+  <div class="gb-notice-t">发言前请先看这一条</div>
+  <p>这个留言板属于全年级的同学，每个人的圈子、爱好和关注点都不一样，请彼此尊重。</p>
+  <p>不要在留言里引战、骂人、当串子，也不要发带攻击性或误导性的内容。</p>
+  <p>学校、班级、老师和同学都可能看到这里，说话前想一想对方读到的感受。</p>
+</div>
+<div class="status" id="gb-status" hidden></div>
+
+<div class="card-box" style="margin-bottom:20px">
+  <label style="display:block;font-size:.85rem;color:var(--muted);margin-bottom:6px">你的名字（必填）</label>
+  <input type="text" id="gb-name" maxlength="20" placeholder="输入名字或昵称"
+    style="width:100%;padding:10px 12px;border:1px solid var(--glass-brd);border-radius:8px;font-family:inherit;font-size:1rem;margin-bottom:14px">
+
+  <label style="display:block;font-size:.85rem;color:var(--muted);margin-bottom:6px">头像</label>
+  <div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap">
+    <div id="avatar-preview"></div>
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <button class="gb-sec-chip" id="mode-emoji" type="button" style="flex:1 1 120px">😀 emoji 头像</button>
+        <button class="gb-sec-chip" id="mode-image" type="button" style="flex:1 1 120px">🖼 上传图片</button>
+      </div>
+      <div id="panel-emoji">
+        <div id="emoji-row" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px"></div>
+        <div id="color-row" style="display:flex;flex-wrap:wrap;gap:10px"></div>
+      </div>
+      <div id="panel-image" hidden>
+        <label for="gb-avatar-file" style="display:inline-block;padding:9px 16px;background:rgba(255,255,255,.7);border:1px solid var(--glass-brd);border-radius:8px;cursor:pointer;font-size:.9rem">选择图片</label>
+        <input type="file" id="gb-avatar-file" accept="image/*" style="display:none">
+        <button class="btn-ghost" id="btn-avatar-clear" type="button" hidden style="margin-left:8px">清除</button>
+        <div style="font-size:.78rem;color:var(--muted);margin-top:8px">上传时自动压缩到 256 像素</div>
+      </div>
+    </div>
+  </div>
+
+  <label style="display:block;font-size:.85rem;color:var(--muted);margin-bottom:6px">内容</label>
+  <textarea id="gb-content" maxlength="500" placeholder="写些什么……"
+    style="width:100%;min-height:110px;padding:10px 12px;border:1px solid var(--glass-brd);border-radius:8px;font-family:inherit;font-size:1rem;margin-bottom:12px;resize:vertical"></textarea>
+
+  <label style="display:block;font-size:.85rem;color:var(--muted);margin-bottom:6px">配图（可选，最多 4 张）</label>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+    <label for="gb-images" style="display:inline-block;padding:9px 16px;background:rgba(255,255,255,.7);border:1px solid var(--glass-brd);border-radius:8px;cursor:pointer;font-size:.9rem">📷 选择图片</label>
+    <input type="file" id="gb-images" accept="image/*" multiple style="display:none">
+    <span id="gb-img-count" style="font-size:.85rem;color:var(--muted)"></span>
+  </div>
+  <div id="gb-img-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
+
+  <button class="btn-main" id="gb-submit" type="button">发布</button>
+</div>
+
+<div class="gb-sort" id="gb-sort"></div>
+<div class="gb-subs" id="gb-subs"></div>
+<div id="gb-list"></div>
+<div class="lb" id="lightbox" hidden>
+<div class="lb-bar"><span class="lb-title" id="lb-title"></span>
+<div class="lb-btns"><button class="btn-ghost" id="lb-download" type="button">⬇ 下载原图</button>
+<button class="btn-ghost" id="lb-close" type="button">✕ 关闭</button></div></div>
+<div class="lb-stage"><img id="lb-img" alt=""></div></div>
+</div>
+</div>
+<script src="./vendor/supabase.js"></script>
+<script>
+/* ===== 班级期刊 · 全站共享脚本（侧边栏 + 云端连接） ===== */
+var SITE = {
+  name: '达高中（非官网）',
+  school: '达州市高级中学',
+  pages: [
+    { href: './',                  label: '首页',       en: 'Home',      key: 'home' },
+    { href: './gallery.html',      label: '画廊',       en: 'Gallery',   key: 'gallery' },
+    { href: './guestbook.html',    label: '留言板',     en: 'Guestbook', key: 'guestbook' },
+    { href: './journal.html',          label: '期刊投稿',   en: 'Journal',   key: 'journal' },
+    { href: './about-school.html', label: '关于学校',   en: 'About School', key: 'school' },
+    { href: './about-site.html',   label: '关于本站',   en: 'About Site',   key: 'site' }
+  ]
+};
+
+/* 生成侧边栏 + 顶栏（每个页面只需调用 SITE.shell('key')） */
+SITE.shell = function (activeKey) {
+  var links = SITE.pages.map(function (p) {
+    return '<a href="' + p.href + '"' + (p.key === activeKey ? ' class="on"' : '') + '>'
+      + p.label + '<small>' + p.en + '</small></a>';
+  }).join('');
+
+  var bar = document.createElement('div');
+  bar.className = 'topbar';
+  bar.innerHTML = '<button id="nav-toggle" aria-label="菜单">☰</button>'
+    + '<span class="title">' + SITE.name + '</span>';
+
+  var mask = document.createElement('div');
+  mask.className = 'mask';
+  mask.id = 'nav-mask';
+  mask.hidden = true;
+
+  var aside = document.createElement('aside');
+  aside.className = 'sidebar';
+  aside.innerHTML =
+    '<div class="brand">'
+    + '<img src="./img/logo.png" alt="校徽">'
+    + '<div class="name">' + SITE.name + '</div>'
+    + '<div class="sub">Unofficial</div>'
+    + '</div>'
+    + '<nav>' + links + '</nav>'
+    ;
+
+  document.body.insertBefore(aside, document.body.firstChild);
+  document.body.insertBefore(mask, document.body.firstChild);
+  document.body.insertBefore(bar, document.body.firstChild);
+
+  bar.querySelector('#nav-toggle').onclick = function () {
+    document.body.classList.toggle('nav-open');
+    mask.hidden = !document.body.classList.contains('nav-open');
+  };
+  mask.onclick = function () {
+    document.body.classList.remove('nav-open');
+    mask.hidden = true;
+  };
+};
+
+/* 页脚 */
+SITE.footer = function (host) {
+  var el = host || document.querySelector('.main') || document.body;
+  var f = document.createElement('footer');
+  f.className = 'site-footer';
+  f.innerHTML =
+    '<p class="contact-line">联系方式</p>'
+    + '<p class="contact-list">'
+    + '<span>微信：<b>MessialOWO</b></span>'
+    + '<span>QQ：<a href="https://qm.qq.com/cgi-bin/qm/qr?k=&amp;uin=2961001891" target="_blank" rel="noopener">2961001891</a></span>'
+    + '<span>邮箱：<a href="mailto:equalacorn28027@outlook.com">equalacorn28027@outlook.com</a></span>'
+    + '</p>'
+    + '<p><a href="./about-site.html">关于本站</a> · <a href="./about-school.html">关于学校</a> · 非官方网站</p>';
+  el.appendChild(f);
+};
+
+</script>
+<script>
+/* ===== 班级期刊 · 云端连接（所有页面共用） ===== */
+var JW = {
+  url: 'https://wvqrnkgjwnlhjhfuonts.supabase.co',
+  key: 'sb_publishable_cGy9MFHh3-t2i0kEnbHeeg_A1-rUMaF',
+  bucket: 'avatars',
+  timeoutMs: 10000,
+  proxy: ['https://arid-bluejay-4932.messialowo.deno.net'],
+  sb: null, uid: '', deviceId: '', ready: false, error: null, _waiters: [],
+  whenReady: function (cb) { if (JW.ready) cb(JW.error); else JW._waiters.push(cb); },
+  _settle: function (err) {
+    JW.error = err || null; JW.ready = true;
+    JW._waiters.splice(0).forEach(function (cb) { try { cb(JW.error); } catch (e) { console.error(e); } });
+    try { document.dispatchEvent(new Event('jw:ready')); } catch (e) {}
+  },
+  withTimeout: function (p, ms, what) {
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      var t = setTimeout(function () {
+        if (done) return; done = true;
+        reject(new Error('连接超时：' + (what || '请求') + '（' + Math.round(ms / 1000) + ' 秒无响应）'));
+      }, ms);
+      Promise.resolve(p).then(function (v) { if (done) return; done = true; clearTimeout(t); resolve(v); },
+        function (e) { if (done) return; done = true; clearTimeout(t); reject(e); });
+    });
+  },
+  retry: function (fn, times) {
+    times = times === undefined ? 2 : times;
+    var n = 0;
+    var run = function () {
+      n++;
+      return Promise.resolve().then(fn).catch(function (e) {
+        if (n >= times) throw e;
+        return new Promise(function (r) { setTimeout(r, 1200); }).then(run);
+      });
+    };
+    return run();
+  },
+  makeFetch: function () {
+    var BASE = JW.url;
+    return function (input, init) {
+      var url = (typeof input === 'string') ? input : (input && input.url) || '';
+      var rel = null;
+      try {
+        var u = new URL(url, BASE);
+        if (u.origin === BASE) rel = u.pathname + u.search;
+      } catch (e) {}
+      if (!rel || !JW.proxy || !JW.proxy.length) return fetch(input, init);
+      var list = JW.proxy.slice();
+      function attempt(i) {
+        if (i >= list.length) return fetch(url, init);
+        var clean = String(list[i]).replace(/\/$/, '');
+        return fetch(clean + rel, init).then(function (res) {
+          if (!res || res.status >= 500) throw new Error('中转 ' + clean + ' 返回 ' + (res && res.status));
+          return res;
+        }).catch(function (e) {
+          console.warn('中转失败，换下一个：' + clean, e && e.message);
+          return attempt(i + 1);
+        });
+      }
+      return attempt(0);
+    };
+  }
+};
+JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
+
+(function () {
+  function newDeviceId() {
+    if (window.crypto && window.crypto.randomUUID) return 'gb-' + window.crypto.randomUUID();
+    return 'gb-' + Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  }
+  JW.deviceId = localStorage.getItem('jiangwan_gb_device') || '';
+  if (!JW.deviceId || JW.deviceId.length < 8 || JW.deviceId.length > 64) {
+    JW.deviceId = newDeviceId();
+    try { localStorage.setItem('jiangwan_gb_device', JW.deviceId); } catch (e) {}
+  }
+  function boot() {
+    if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
+      JW._settle(new Error('云端组件没加载到（vendor/supabase.js）'));
+      return;
+    }
+    try {
+      JW.sb = window.supabase.createClient(JW.url, JW.key, {
+        auth: { persistSession: true, autoRefreshToken: true },
+        global: JW.proxy && JW.proxy.length ? { fetch: JW.makeFetch() } : undefined
+      });
+    } catch (e) { JW._settle(e); return; }
+    JW.sb.auth.getSession().then(function (r) {
+      var u = r && r.data && r.data.session && r.data.session.user;
+      if (u && u.id) JW.uid = u.id;
+      return null;
+    }).catch(function () { return null; })
+      .then(function () {
+        if (JW.uid) return null;
+        return JW.retry(function () {
+          return JW.withTimeout(JW.sb.auth.signInAnonymously(), JW.timeoutMs, '登录匿名身份');
+        }, 2).then(function (res) {
+          if (res && res.error) throw new Error(res.error.message || '匿名登录被拒绝');
+          if (res && res.data && res.data.user) JW.uid = res.data.user.id || '';
+          return null;
+        });
+      })
+      .then(function () { JW._settle(null); })
+      .catch(function (e) { JW._settle(e); });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+</script>
+<script>
+/* ===== 班级期刊 · 留言板（两级分区 + 标签 + 搜索）=====
+   大分区固定 11 个（未分区/学习/新闻/作品/失物招领/游戏/二次元/内娱/学校吐槽/意见建议/其他）
+   小分区 用户可在某个大分区下自建（≤5汉字或10字母），删除要密码
+   帖子支持 #标签，自动识别，点击跳搜索
+   ===== */
+var GB = (function () {
+  var PW_SALT = 'jw-salt-2026';
+  var MAINS = ['未分区','学习','新闻','作品','失物招领','游戏','二次元','内娱','学校吐槽','意见建议','其他'];
+  var EMOJIS = ['🙂','🐹','🐰','🦊','🐼','🐨','🐯','🦁','🐸','🐧','🐳','🦄','🌻','🌙','⚡','🍀'];
+  var COLORS = ['#c0392b','#e67e22','#d4a017','#27ae60','#16a085','#2980b9','#8e44ad','#d95f8f','#5d6d7e','#2c3e50'];
+  var PAGE_SIZE = 100;
+  var $ = function (id) { return document.getElementById(id); };
+  function scrollToEl(el, block) {
+    if (el && typeof el.scrollIntoView === 'function') {
+      try { el.scrollIntoView({ block: block || 'center', behavior: 'smooth' }); } catch (e) {}
+    }
+  }
+
+  var sb = null, uid = '', deviceId = '', connected = false, busy = false;
+  var sections = [], subs = [], messages = [], msgImages = {}, repliesByMsg = {}, likedSet = {};
+  var curMain = '', curSub = '';
+  var sortMode = 'default';      // default | time | hot
+  var REPLY_FOLD = 3;            // 评论超过几条就折叠
+  var expandedPost = '';         // 当前展开了评论的帖子（只允许一个展开）
+  var openSubReply = '';         // 当前展开了子回评的那条评论
+  var selEmoji = '🙂', selColor = COLORS[0], avatarMode = 'emoji', selImage = '', selImagePath = '';
+  var uploadingAvatar = false;
+  var pendingImgs = [], MAX_IMGS = 4;
+
+  function status(t, kind) {
+    var el = $('gb-status');
+    if (!el) return;
+    if (!t) { el.hidden = true; el.textContent = ''; return; }
+    el.hidden = false; el.className = 'gb-status' + (kind ? ' ' + kind : ''); el.textContent = t;
+  }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+  function fmt(ts) { var d=new Date(ts); if(isNaN(d))return ''; var p=function(n){return n<10?'0'+n:''+n}; return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes()); }
+  function secName(id) { for (var i=0;i<subs.length;i++) if (subs[i].id===id) return subs[i].name; return ''; }
+  function sha(t) {
+    if (window.crypto && crypto.subtle) return crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)).then(function(b){
+      return Array.prototype.map.call(new Uint8Array(b), function(x){return ('0'+x.toString(16)).slice(-2);}).join('');
+    });
+    return Promise.reject(new Error('浏览器不支持加密'));
+  }
+  function badPw(e){ return /bad password/i.test((e&&e.message)||''); }
+  function avatarUrl(p){ if(typeof p!=='string'||!/^[A-Za-z0-9-]{1,64}\/[A-Za-z0-9._-]{1,80}$/.test(p))return ''; return (window.JW&&JW.storagePublic||'')+p; }
+
+  /* ---------- 标签解析：从正文里抓 #标签 ---------- */
+  // 规则：# 后面跟字母/数字/汉字，最长 12 个字符，中间不能有空格
+  function parseTags(text) {
+    var out = [], re = /#([A-Za-z0-9_\u4e00-\u9fff]{1,12})/g, m;
+    while ((m = re.exec(text || '')) !== null) {
+      if (out.indexOf(m[1]) < 0) out.push(m[1]);
+      if (out.length >= 5) break;
+    }
+    return out;
+  }
+  // 渲染正文：把 #标签 变成可点击
+  function renderContent(host, text) {
+    host.textContent = '';
+    var re = /#([A-Za-z0-9_\u4e00-\u9fff]{1,12})/g;
+    var last = 0, m;
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > last) host.appendChild(document.createTextNode(text.slice(last, m.index)));
+      var a = document.createElement('a');
+      a.href = './search.html?tag=' + encodeURIComponent(m[1]);
+      a.className = 'gb-tag';
+      a.textContent = '#' + m[1];
+      host.appendChild(a);
+      last = m.index + m[0].length;
+    }
+    if (last < text.length) host.appendChild(document.createTextNode(text.slice(last)));
+  }
+
+  /* ---------- 渲染 ---------- */
+  function renderSortBar() {
+    var box = $('gb-sort');
+    if (!box) return;
+    box.textContent = '';
+    var opts = [['default','默认'],['time','时间'],['hot','热度']];
+    var lab = document.createElement('span');
+    lab.className = 'gb-sort-label';
+    lab.textContent = '排序：';
+    box.appendChild(lab);
+    opts.forEach(function (o) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'gb-sec-chip' + (sortMode === o[0] ? ' on' : '');
+      b.textContent = o[1];
+      b.onclick = function () {
+        if (sortMode === o[0]) return;
+        sortMode = o[0];
+        var exp = expandedPost; expandedPost = ''; openSubReply = '';
+        renderSortBar(); render();
+        if (exp) setTimeout(function(){ scrollToEl(document.getElementById('p-'+exp)); }, 60);
+      };
+      box.appendChild(b);
+    });
+    var tip = document.createElement('span');
+    tip.className = 'gb-sort-tip';
+    tip.textContent = sortMode === 'default' ? '置顶在最上面' : '置顶不再排到最前（仍带📌标签）';
+    box.appendChild(tip);
+  }
+
+  function renderSubBar() {
+    var box = $('gb-subs');
+    if (!box) return;
+    box.textContent = '';
+    var lab = document.createElement('span');
+    lab.className = 'gb-sort-label';
+    lab.textContent = '发帖到：';
+    box.appendChild(lab);
+    var list = subs.filter(function (x) { return x.main_section === curMain; });
+    if (!curMain) return;          // 只有大分区页才有小分区栏
+
+    if (!list.length) {
+      var hint = document.createElement('span');
+      hint.style.cssText = 'font-size:.85rem;color:var(--muted);align-self:center';
+      hint.textContent = '还没有小分区，先建一个才能发帖：';
+      box.appendChild(hint);
+    }
+    // 只有一个小分区时不需要「全部」
+    if (curSub && list.length > 1) {
+      var all = document.createElement('button');
+      all.type = 'button'; all.className = 'gb-sec-chip';
+      all.textContent = '全部';
+      all.onclick = function () { curSub = ''; renderSubBar(); render(); };
+      box.appendChild(all);
+    }
+    list.forEach(function (sec) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'gb-sec-chip' + (curSub === sec.id ? ' on' : '');
+      var n = messages.filter(function (m) { return m.sub_section_id === sec.id; }).length;
+      b.textContent = sec.name + (n ? ' ' + n : '');
+      b.onclick = function () { curSub = (curSub === sec.id ? '' : sec.id); renderSubBar(); render(); };
+      box.appendChild(b);
+    });
+    // 「未分类」是每个大分区的固定小分区，不允许删除
+    var curObj = null;
+    for (var ci = 0; ci < list.length; ci++) if (list[ci].id === curSub) curObj = list[ci];
+    var isFixed = curObj && /(未分组|未分类|未归类|默认)$/.test(btrimName(curObj.name));
+    if (curSub && !isFixed) {
+      var del = document.createElement('button');
+      del.type = 'button'; del.className = 'gb-sec-chip del'; del.textContent = '🗑 删除小分区';
+      del.onclick = function () { deleteSub(curSub); };
+      box.appendChild(del);
+    } else if (isFixed) {
+      var fix = document.createElement('span');
+      fix.style.cssText = 'font-size:.78rem;color:var(--muted);align-self:center';
+      fix.textContent = '这是默认小分区，不能删除';
+      box.appendChild(fix);
+    }
+    var add = document.createElement('button');
+    add.type = 'button'; add.className = 'gb-sec-chip add'; add.textContent = '＋ 新建小分区';
+    add.onclick = newSub;
+    box.appendChild(add);
+  }
+
+  function render() {
+    renderSortBar();
+    var listEl = $('gb-list');
+    if (!listEl) return;
+    listEl.textContent = '';
+    var show = messages.filter(function (m) {
+      if (curMain && m.main_section !== curMain) return false;
+      if (curSub && m.sub_section_id !== curSub) return false;
+      return true;
+    });
+    // 排序
+    if (sortMode === 'time') {
+      show = show.slice().sort(function (a, b) { return new Date(b.created_at) - new Date(a.created_at); });
+    } else if (sortMode === 'hot') {
+      show = show.slice().sort(function (a, b) {
+        var d = (b.like_count || 0) - (a.like_count || 0);
+        return d !== 0 ? d : (new Date(b.created_at) - new Date(a.created_at));
+      });
+    } else {
+      // 默认：置顶的单独提到最前面，其余按时间倒序
+      var pinned = show.filter(function (m) { return m.is_pinned; });
+      var rest = show.filter(function (m) { return !m.is_pinned; });
+      pinned.sort(function (a, b) { return new Date(b.pinned_at || b.created_at) - new Date(a.pinned_at || a.created_at); });
+      rest.sort(function (a, b) { return new Date(b.created_at) - new Date(a.created_at); });
+      show = pinned.concat(rest);
+    }
+    if (!show.length) {
+      var e = document.createElement('div');
+      e.className = 'empty';
+      e.textContent = connected ? '这里还没有帖子。' : '加载中……';
+      listEl.appendChild(e);
+      return;
+    }
+    show.forEach(function (m) { listEl.appendChild(postEl(m)); });
+  }
+
+  function postEl(msg) {
+    var item = document.createElement('div');
+    item.className = 'gb-item' + (msg.is_pinned ? ' pinned' : '');
+    item.id = 'p-' + msg.id;                      // 供搜索页跳转定位
+    item.appendChild(avatarNode(msg.avatar_color, msg.avatar_emoji, msg.avatar_path, 'big'));
+
+    var body = document.createElement('div');
+    body.className = 'gb-body';
+
+    var head = document.createElement('div');
+    head.className = 'gb-header';
+    if (msg.is_pinned) {
+      var pin = document.createElement('span'); pin.className = 'gb-pin-badge'; pin.textContent = '📌 置顶'; head.appendChild(pin);
+    }
+    var nm = document.createElement('span'); nm.className = 'gb-name'; nm.textContent = msg.name; head.appendChild(nm);
+    var tm = document.createElement('span'); tm.className = 'gb-time'; tm.textContent = fmt(msg.created_at); head.appendChild(tm);
+    var tag = document.createElement('span'); tag.className = 'gb-sec-tag';
+    tag.textContent = (msg.main_section || '未分区') + (msg.sub_section_id && secName(msg.sub_section_id) ? ' · ' + secName(msg.sub_section_id) : '');
+    head.appendChild(tag);
+
+    var ct = document.createElement('div'); ct.className = 'gb-content';
+    renderContent(ct, msg.content);
+
+    body.appendChild(head); body.appendChild(ct);
+    renderImages(body, msg);
+    body.appendChild(actionsEl(msg, body));
+    renderReplies(body, msg);
+    item.appendChild(body);
+    return item;
+  }
+
+  function avatarNode(color, emoji, path, size) {
+    var el = document.createElement('div');
+    el.className = 'avatar-circle ' + (size === 'small' ? 'small' : 'big');
+    var url = avatarUrl(path);
+    if (url) {
+      var im = document.createElement('img'); im.src = url; im.alt = ''; im.loading = 'lazy';
+      im.onerror = function () { el.textContent = emoji || '🙂'; el.style.background = color || COLORS[0]; };
+      el.style.background = '#f0f0f0'; el.appendChild(im);
+    } else {
+      el.style.background = /^#[0-9a-fA-F]{6}$/.test(color || '') ? color : COLORS[0];
+      el.textContent = emoji || '🙂';
+    }
+    return el;
+  }
+
+  function renderImages(host, msg) {
+    var list = msgImages[msg.id] || [];
+    if (!list.length) return;
+    var box = document.createElement('div'); box.className = 'gb-msg-images';
+    list.forEach(function (im) {
+      var url = avatarUrl(im.image_path);
+      if (!url) return;
+      var el = document.createElement('img'); el.src = url; el.loading = 'lazy'; el.alt = '配图';
+      el.onclick = function () { if (window.__jwOpenImage) window.__jwOpenImage(url, '配图'); else window.open(url, '_blank'); };
+      box.appendChild(el);
+    });
+    if (box.childNodes.length) host.appendChild(box);
+  }
+
+  function actionsEl(msg, host) {
+    var acts = document.createElement('div'); acts.className = 'gb-actions';
+    var liked = !!likedSet[msg.id];
+    var like = document.createElement('button');
+    like.type = 'button'; like.className = 'gb-action-btn' + (liked ? ' liked' : '');
+    like.textContent = '👍 ' + (msg.like_count || 0); like.title = '点赞';
+    like.onclick = function () {
+      if (busy || !connected) return; busy = true;
+      sb.rpc('like_message', { p_message_id: msg.id, p_device_id: deviceId }).then(function (r) {
+        if (r.error) throw r.error;
+        var o = r.data; if (typeof o === 'string') { try { o = JSON.parse(o); } catch (e) {} }
+        if (o) { msg.like_count = o.like_count; if (o.liked) likedSet[msg.id]=true; else delete likedSet[msg.id];
+                 like.className = 'gb-action-btn' + (o.liked ? ' liked' : ''); like.textContent = '👍 ' + o.like_count; }
+      }).catch(function (e) { status('点赞失败：' + ((e&&e.message)||e), 'err'); }).then(function(){ busy=false; });
+    };
+    var rep = document.createElement('button');
+    rep.type = 'button'; rep.className = 'gb-action-btn';
+    var n = (repliesByMsg[msg.id] || []).length;
+    rep.textContent = '💬' + (n ? ' ' + n : ''); rep.title = '回复';
+    rep.onclick = function () { openReply(msg, null, host); };
+    var cp = document.createElement('button');
+    cp.type = 'button'; cp.className = 'gb-action-btn'; cp.textContent = '📋'; cp.title = '复制内容';
+    cp.onclick = function () { if (navigator.clipboard) navigator.clipboard.writeText(msg.content); else prompt('复制：', msg.content); };
+    var pin = document.createElement('button');
+    pin.type = 'button'; pin.className = 'gb-action-btn' + (msg.is_pinned ? ' pinned-on' : '');
+    pin.textContent = '📌'; pin.title = msg.is_pinned ? '取消置顶' : '置顶';
+    pin.onclick = function () { togglePin(msg); };
+    var del = document.createElement('button');
+    del.type = 'button'; del.className = 'gb-action-btn danger'; del.textContent = '🗑'; del.title = '删除';
+    del.onclick = function () { deleteMessage(msg); };
+    acts.appendChild(like); acts.appendChild(rep); acts.appendChild(cp); acts.appendChild(pin); acts.appendChild(del);
+    return acts;
+  }
+
+  function renderReplies(host, msg) {
+    var list = repliesByMsg[msg.id] || [];
+    if (!list.length) return;
+
+    var isExpanded = (expandedPost === msg.id);
+    var box = document.createElement('div');
+    box.className = 'gb-replies';
+
+    // 要显示哪几条
+    var shown = isExpanded ? list : list.slice(0, REPLY_FOLD);
+
+    shown.forEach(function (r, idx) {
+      // 展开状态下：每条回评本来也带自己的"回评"？这里用嵌套深度控制：
+      // 列表里第 4 条及以后在折叠时根本不显示；展开后全显示
+      box.appendChild(replyEl(msg, r, host, isExpanded));
+    });
+
+    // 折叠/展开按钮
+    if (list.length > REPLY_FOLD || isExpanded) {
+      var bar = document.createElement('div');
+      bar.className = 'gb-fold-bar';
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'gb-fold-btn';
+      if (!isExpanded) {
+        btn.textContent = '展开全部 ' + list.length + ' 条评论 ▾';
+      } else {
+        btn.textContent = '收起评论 ▴';
+      }
+      btn.onclick = function () {
+        // 只允许一个帖子处于展开状态，其他自动收回
+        expandedPost = isExpanded ? '' : msg.id;
+        openSubReply = '';
+        render();
+        scrollToEl(document.getElementById('p-' + msg.id));
+      };
+      bar.appendChild(btn);
+      box.appendChild(bar);
+    }
+    host.appendChild(box);
+  }
+
+  /* 单条回复（可带"回评折叠"：展开后才有子回复） */
+  function replyEl(msg, r, host, showSubReplies) {
+    var el = document.createElement('div'); el.className = 'gb-reply';
+    el.appendChild(avatarNode(r.avatar_color, r.avatar_emoji, r.avatar_path, 'small'));
+    var b = document.createElement('div'); b.className = 'gb-reply-body';
+    var h = document.createElement('div');
+    var n = document.createElement('span'); n.className = 'gb-reply-name'; n.textContent = r.name; h.appendChild(n);
+    if (r.reply_to_name) { var to = document.createElement('span'); to.className = 'gb-reply-to'; to.textContent = '回复 ' + r.reply_to_name; h.appendChild(to); }
+    var t = document.createElement('span'); t.className = 'gb-reply-time'; t.textContent = fmt(r.created_at); h.appendChild(t);
+    var c = document.createElement('div'); c.className = 'gb-reply-content';
+    renderContent(c, r.content);
+    b.appendChild(h); b.appendChild(c);
+
+    var ra = document.createElement('div'); ra.className = 'gb-reply-actions';
+    var rb = document.createElement('button'); rb.type='button'; rb.className='gb-action-btn'; rb.textContent='↩'; rb.title='回复';
+    rb.onclick = function () { openReply(msg, r, host); };
+    var db = document.createElement('button'); db.type='button'; db.className='gb-action-btn'; db.textContent='🗑'; db.title='删除';
+    db.onclick = function () { deleteReply(r); };
+    ra.appendChild(rb); ra.appendChild(db); b.appendChild(ra);
+
+    // 子回评（回复这条回复的）：
+    //   帖子折叠时 → 完全不显示
+    //   帖子展开后 → 先显示 1 条，剩下的要再点「展开」才看得到
+    var children = (repliesByMsg[msg.id] || []).filter(function (x) { return x.reply_to_id === r.id; });
+    if (children.length && showSubReplies) {
+      var sub = document.createElement('div');
+      sub.className = 'gb-sub-replies';
+      var allOpen = (openSubReply === r.id);
+      var showN = allOpen ? children.length : 1;
+      children.slice(0, showN).forEach(function (ch) {
+        var ce = document.createElement('div'); ce.className = 'gb-sub-reply';
+        var cn = document.createElement('span'); cn.className = 'gb-reply-name'; cn.textContent = ch.name;
+        var ct = document.createElement('span'); ct.className = 'gb-reply-time'; ct.textContent = fmt(ch.created_at);
+        var cc = document.createElement('div'); cc.className = 'gb-reply-content';
+        renderContent(cc, ch.content);
+        ce.appendChild(cn); ce.appendChild(ct); ce.appendChild(cc);
+        sub.appendChild(ce);
+      });
+      if (children.length > 1) {
+        var more = document.createElement('button');
+        more.type = 'button';
+        more.className = 'gb-sub-more';
+        more.textContent = allOpen ? '收起回评 ▴' : ('还有 ' + (children.length - 1) + ' 条回评，展开 ▾');
+        more.onclick = function () {
+          openSubReply = allOpen ? '' : r.id;
+          render();
+          scrollToEl(document.getElementById('p-' + msg.id));
+        };
+        sub.appendChild(more);
+      }
+      b.appendChild(sub);
+    }
+
+    el.appendChild(b);
+    return el;
+  }
+
+  /* ---------- 回复 ---------- */
+  function openReply(msg, replyTo, host) {
+    var old = host.querySelector('.gb-reply-form-inline');
+    if (old) old.remove();
+    var box = document.createElement('div'); box.className = 'reply-form gb-reply-form-inline';
+    var inp = document.createElement('input'); inp.type='text'; inp.maxLength=300;
+    inp.placeholder = replyTo ? ('回复 ' + replyTo.name + '……') : ('回复 ' + msg.name + '……');
+    var send = document.createElement('button'); send.type='button'; send.className='btn-main'; send.textContent='发送';
+    var cancel = document.createElement('button'); cancel.type='button'; cancel.className='btn-ghost'; cancel.textContent='取消';
+    cancel.onclick = function () { box.remove(); };
+    send.onclick = function () {
+      var name = ($('gb-name') && $('gb-name').value.trim()) || localStorage.getItem('jiangwan_gb_name') || '';
+      if (!name) { alert('请先填你的名字'); return; }
+      var text = inp.value.trim();
+      if (!text) { alert('回复不能为空'); return; }
+      if (busy || !connected) { status('还没连上服务器，暂时发不了。', 'err'); return; }
+      busy = true; send.disabled = true; send.textContent = '…';
+      var av = avatarPayload();
+      sb.from('replies').insert({
+        message_id: msg.id, device_id: deviceId, name: name.slice(0,20), content: text.slice(0,300),
+        reply_to_id: replyTo ? replyTo.id : null, reply_to_name: replyTo ? replyTo.name : null,
+        avatar_mode: av.avatar_mode, avatar_path: av.avatar_path, avatar_color: av.avatar_color, avatar_emoji: av.avatar_emoji
+      }).then(function (r) { if (r.error) throw r.error; box.remove(); return loadAll().then(render); })
+        .catch(function (e) { status('回复失败：' + ((e&&e.message)||e), 'err'); })
+        .then(function () { busy = false; send.disabled = false; send.textContent = '发送'; });
+    };
+    box.appendChild(inp); box.appendChild(send); box.appendChild(cancel);
+    host.appendChild(box); inp.focus();
+  }
+
+  /* ---------- 置顶 / 删除 ---------- */
+  function togglePin(msg) {
+    var pw = prompt((msg.is_pinned ? '取消置顶' : '置顶这条帖子') + '\n请输入管理密码：');
+    if (pw === null || !pw.trim()) return;
+    status('正在校验密码……');
+    sha(PW_SALT + '|' + pw.trim()).then(function (h) {
+      return sb.rpc('set_message_pinned', { p_message_id: msg.id, p_pinned: !msg.is_pinned, p_pw_hash: h });
+    }).then(function (r) {
+      if (r.error) throw r.error;
+      var o = r.data; if (typeof o === 'string') { try { o = JSON.parse(o); } catch (e) {} }
+      status(o && o.is_pinned ? '已置顶 📌' : '已取消置顶', 'ok');
+      return loadAll().then(render);
+    }).catch(function (e) { status(badPw(e) ? '密码不对。' : ('置顶失败：' + ((e&&e.message)||e)), 'err'); });
+  }
+  function deleteMessage(msg) {
+    if (!confirm('删除这条帖子？回复和配图会一起删掉。')) return;
+    var pw = prompt('删除需要管理密码：');
+    if (pw === null || !pw.trim()) return;
+    sha(PW_SALT + '|' + pw.trim()).then(function (h) {
+      return sb.rpc('delete_message', { p_message_id: msg.id, p_pw_hash: h });
+    }).then(function (r) {
+      if (r.error) throw r.error;
+      var o = r.data; if (typeof o === 'string') { try { o = JSON.parse(o); } catch (e) {} }
+      if (!o || o.deleted !== true) throw new Error('bad password');
+      status('已删除 ✅', 'ok'); return loadAll().then(render);
+    }).catch(function (e) { status(badPw(e) ? '密码不对，没有删除。' : ('删除失败：' + ((e&&e.message)||e)), 'err'); });
+  }
+  function deleteReply(r) {
+    if (!confirm('删除这条回复？')) return;
+    var pw = prompt('删除需要管理密码：');
+    if (pw === null || !pw.trim()) return;
+    sha(PW_SALT + '|' + pw.trim()).then(function (h) {
+      return sb.rpc('delete_reply', { p_reply_id: r.id, p_pw_hash: h });
+    }).then(function (res) {
+      if (res.error) throw res.error;
+      var o = res.data; if (typeof o === 'string') { try { o = JSON.parse(o); } catch (e) {} }
+      if (!o || o.deleted !== true) throw new Error('bad password');
+      status('已删除 ✅', 'ok'); return loadAll().then(render);
+    }).catch(function (e) { status(badPw(e) ? '密码不对。' : ('删除失败：' + ((e&&e.message)||e)), 'err'); });
+  }
+
+  /* ---------- 小分区增删 ---------- */
+  function newSub() {
+    if (!curMain) { status('请先从左侧进入某个大分区。', 'err'); return; }
+    var name = prompt('在「' + curMain + '」下面新建小分区\n名称不超过 5 个汉字或 10 个字母：');
+    if (name === null || !name.trim()) return;
+    var v = name.trim();
+    var cjk = (v.match(/[\u4e00-\u9fff]/g) || []).length;
+    var lat = v.replace(/[\u4e00-\u9fff]/g, '').length;
+    if (cjk > 5 || lat > 10) { alert('名称太长：最多 5 个汉字或 10 个字母'); return; }
+    status('正在新建小分区……');
+    sb.rpc('create_gb_subsection', { p_main: curMain, p_name: v, p_device: deviceId }).then(function (r) {
+      if (r.error) throw r.error;
+      var o = r.data; if (typeof o === 'string') { try { o = JSON.parse(o); } catch (e) {} }
+      status('小分区已新建 ✅', 'ok');
+      return loadSections().then(function () { if (o && o.id) curSub = o.id; renderSubBar(); render(); });
+    }).catch(function (e) {
+      var m = (e && e.message) || String(e);
+      status(/duplicate/i.test(m) ? '这个分区里已经有同名小分区了。' : (/too long/i.test(m) ? '名称太长：最多 5 个汉字或 10 个字母' : ('新建失败：' + m)), 'err');
+    });
+  }
+  function deleteSub(id) {
+    if (/(未分组|未分类|未归类|默认)$/.test(btrimName(secName(id)))) { alert('这是默认小分区，不能删除。'); return; }
+    if (!confirm('删除小分区「' + secName(id) + '」？\n里面的帖子会回到大分区，不会被删。')) return;
+    var pw = prompt('删除小分区需要管理密码：');
+    if (pw === null || !pw.trim()) return;
+    sha(PW_SALT + '|' + pw.trim()).then(function (h) {
+      return sb.rpc('delete_gb_subsection', { p_id: id, p_pw_hash: h });
+    }).then(function (r) {
+      if (r.error) throw r.error;
+      var o = r.data; if (typeof o === 'string') { try { o = JSON.parse(o); } catch (e) {} }
+      if (!o || o.deleted !== true) throw new Error('bad password');
+      status('小分区已删除，帖子已回到「' + curMain + '」✅', 'ok');
+      curSub = '';
+      return loadAll().then(function () { renderSubBar(); render(); });
+    }).catch(function (e) { status(badPw(e) ? '密码不对。' : ('删除失败：' + ((e&&e.message)||e)), 'err'); });
+  }
+
+  /* ---------- 头像/配图 ---------- */
+  function avatarPayload() {
+    if (avatarMode === 'image' && selImagePath) return { avatar_mode:'image', avatar_path: selImagePath, avatar_color: selColor, avatar_emoji: selEmoji };
+    return { avatar_mode:'emoji', avatar_path: null, avatar_color: selColor, avatar_emoji: selEmoji };
+  }
+
+  /* ---------- 数据 ---------- */
+  function loadSections() {
+    return sb.from('gb_sections').select('id,name,main_section,sort_order,is_default').order('sort_order')
+      .then(function (r) {
+        if (r.error) throw r.error;
+        sections = r.data || [];
+        subs = sections.filter(function (x) { return !x.is_default; });
+        // 当前选中的小分区若不属于这个大分区，清掉
+        if (curSub) {
+          var ok = subs.some(function (x) { return x.id === curSub && x.main_section === curMain; });
+          if (!ok) curSub = '';
+        }
+        // 默认选中的小分区：按后缀识别用户自己的命名
+        // （各分区不同：学习未分组 / 2次元未分组 / 招领未分组 / 吐槽未分组 / 建议未分组）
+        if (curSub) {
+          var mine2 = subs.filter(function (x) { return x.main_section === curMain; });
+          var stillOk = mine2.some(function (x) { return x.id === curSub; });
+          if (!stillOk) curSub = '';
+        }
+        if (!curSub) {
+          var mine = subs.filter(function (x) { return x.main_section === curMain; });
+          var target = null;
+          for (var mi = 0; mi < mine.length; mi++) {
+            if (/(未分组|未分类|未归类|默认)$/.test(btrimName(mine[mi].name))) { target = mine[mi]; break; }
+          }
+          if (!target && mine.length) target = mine[0];
+          if (target) curSub = target.id;
+        }
+      });
+  }
+
+  function btrimName(x) { return String(x == null ? '' : x).replace(/^\s+|\s+$/g, ''); }
+
+  function loadAll() {
+    return sb.from('messages')
+      .select('id,created_at,name,content,avatar_color,avatar_emoji,avatar_path,avatar_mode,like_count,reply_count,is_pinned,pinned_at,main_section,sub_section_id,tags')
+      .eq('hidden', false)
+      .order('is_pinned', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(PAGE_SIZE)
+      .then(function (r) {
+        if (r.error) throw r.error;
+        messages = r.data || [];
+        var ids = messages.map(function (m) { return m.id; });
+        if (!ids.length) { repliesByMsg = {}; msgImages = {}; return null; }
+        return sb.from('message_images').select('id,message_id,image_path,sort_order').in('message_id', ids).eq('hidden', false).limit(400)
+          .then(function (r2) {
+            msgImages = {};
+            if (!r2.error) (r2.data || []).forEach(function (x) { (msgImages[x.message_id] = msgImages[x.message_id] || []).push(x); });
+            return sb.from('replies').select('id,message_id,created_at,name,content,avatar_color,avatar_emoji,avatar_path,avatar_mode,reply_to_id,reply_to_name')
+              .in('message_id', ids).order('created_at', { ascending: true }).limit(600);
+          }).then(function (r3) {
+            repliesByMsg = {};
+            if (r3 && !r3.error) (r3.data || []).forEach(function (x) { (repliesByMsg[x.message_id] = repliesByMsg[x.message_id] || []).push(x); });
+            return null;
+          });
+      });
+  }
+
+  /* ---------- 发帖 ---------- */
+  function submit() {
+    var nameEl = $('gb-name'), ctEl = $('gb-content');
+    var name = nameEl ? nameEl.value.trim() : '';
+    var content = ctEl ? ctEl.value.trim() : '';
+    if (!name) { alert('请填你的名字'); nameEl && nameEl.focus(); return; }
+    if (!content) { alert('请写点内容'); ctEl && ctEl.focus(); return; }
+    if (!curSub) {
+      alert('请先选一个小分区再发帖。\n\n如果这个分区里还没有小分区，点「＋ 新建小分区」建一个（不用密码），建好后会自动选中。');
+      var bar = $('gb-subs');
+      if (bar && typeof bar.scrollIntoView === 'function') {
+        try { bar.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+      }
+      return;
+    }
+    if (avatarMode === 'image' && !selImagePath) { alert('头像还没上传成功'); return; }
+    if (!connected) { status('还没连上云端，暂时发不了。', 'err'); return; }
+    if (busy) return;
+    busy = true;
+    var btn = $('gb-submit'); if (btn) { btn.disabled = true; btn.textContent = '发送中…'; }
+    var tags = parseTags(content);
+    var av = avatarPayload();
+    sb.from('messages').insert({
+      device_id: deviceId, name: name.slice(0,20), content: content.slice(0,500),
+      main_section: curMain || '未分区',
+      sub_section_id: curSub || null,
+      tags: tags,
+      avatar_mode: av.avatar_mode, avatar_path: av.avatar_path,
+      avatar_color: av.avatar_color, avatar_emoji: av.avatar_emoji
+    }).select('id').then(function (r) {
+      if (r.error) throw r.error;
+      if (ctEl) ctEl.value = '';
+      try { localStorage.setItem('jiangwan_gb_name', name); } catch (e) {}
+      var nid = (r.data && r.data[0] && r.data[0].id) || '';
+      return uploadImgs(nid);
+    }).then(function () {
+      status('已发布 ✅' + (parseTags(content).length ? '（识别到标签：' + parseTags(content).map(function(t){return '#'+t;}).join(' ') + '）' : ''), 'ok');
+      setTimeout(function () { status(''); }, 3000);
+      return loadAll().then(render);
+    }).catch(function (e) {
+      status('发布失败：' + ((e&&e.message)||e), 'err');
+    }).then(function () { busy = false; if (btn) { btn.disabled = false; btn.textContent = '发布'; } });
+  }
+
+  function uploadImgs(mid) {
+    if (!pendingImgs.length || !uid || !mid) return Promise.resolve();
+    var total = pendingImgs.length;
+    return pendingImgs.reduce(function (chain, item, i) {
+      return chain.then(function () {
+        status('上传配图 ' + (i+1) + '/' + total + '……');
+        return new Promise(function (res, rej) {
+          var im = new Image();
+          im.onload = function () {
+            var cv = document.createElement('canvas');
+            var sc = Math.min(1, 1600 / Math.max(im.width, im.height));
+            cv.width = Math.max(1, Math.round(im.width*sc)); cv.height = Math.max(1, Math.round(im.height*sc));
+            var cx = cv.getContext('2d'); cx.fillStyle='#fff'; cx.fillRect(0,0,cv.width,cv.height);
+            cx.drawImage(im,0,0,cv.width,cv.height);
+            cv.toBlob(function (b) { b ? res(b) : rej(new Error('编码失败')); }, 'image/jpeg', 0.85);
+          };
+          im.onerror = function () { rej(new Error('读图失败')); };
+          var fr = new FileReader();
+          fr.onload = function () { im.src = fr.result; };
+          fr.onerror = function () { rej(new Error('读文件失败')); };
+          fr.readAsDataURL(item.file);
+        }).then(function (blob) {
+          var path = uid + '/msg-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8) + '.jpg';
+          return sb.storage.from('avatars').upload(path, blob, { contentType:'image/jpeg', upsert:false })
+            .then(function (r) { if (r.error) throw r.error;
+              return sb.from('message_images').insert({ message_id: mid, device_id: deviceId, image_path: path, sort_order: i }); })
+            .then(function (r) { if (r && r.error) throw r.error; return null; });
+        });
+      });
+    }, Promise.resolve()).then(function () {
+      pendingImgs.forEach(function (x) { URL.revokeObjectURL(x.url); });
+      pendingImgs = []; renderImgPick();
+    });
+  }
+
+  function renderImgPick() {
+    var box = $('gb-img-preview'), cnt = $('gb-img-count');
+    if (!box) return;
+    box.textContent = '';
+    pendingImgs.forEach(function (it, i) {
+      var w = document.createElement('div'); w.className = 'gb-pick-thumb';
+      var im = document.createElement('img'); im.src = it.url; im.alt = '';
+      var del = document.createElement('button'); del.type='button'; del.textContent='×'; del.title='移除';
+      del.onclick = function () { URL.revokeObjectURL(it.url); pendingImgs.splice(i,1); renderImgPick(); };
+      w.appendChild(im); w.appendChild(del); box.appendChild(w);
+    });
+    if (cnt) cnt.textContent = pendingImgs.length ? ('已选 ' + pendingImgs.length + ' 张') : '还没选图片（最多 ' + MAX_IMGS + ' 张）';
+  }
+
+  /* ---------- 启动 ---------- */
+  function boot(opts) {
+    curMain = (opts && opts.main) || '';
+    sb = JW.sb; uid = JW.uid || ''; deviceId = JW.deviceId;
+    // 头像偏好
+    try {
+      var look = JSON.parse(localStorage.getItem('jiangwan_gb_look') || 'null');
+      if (look) {
+        if (look.emoji) selEmoji = look.emoji;
+        if (look.color) selColor = look.color;
+        if (look.mode) avatarMode = look.mode;
+        if (look.image) selImage = look.image;
+        if (look.imagePath) selImagePath = look.imagePath;
+      }
+    } catch (e) {}
+    var nm = $('gb-name');
+    if (nm) nm.value = localStorage.getItem('jiangwan_gb_name') || '';
+
+    // 头像选择器
+    var er = $('emoji-row'), cr = $('color-row');
+    if (er) EMOJIS.forEach(function (em) {
+      var b = document.createElement('button'); b.type='button'; b.className='emoji-pick'+(em===selEmoji?' on':''); b.textContent=em;
+      b.onclick = function(){ selEmoji=em; saveLook(); renderPickers(); };
+      er.appendChild(b);
+    });
+    if (cr) COLORS.forEach(function (c) {
+      var b = document.createElement('button'); b.type='button'; b.className='color-pick'+(c===selColor?' on':''); b.style.background=c;
+      b.onclick = function(){ selColor=c; saveLook(); renderPickers(); };
+      cr.appendChild(b);
+    });
+    renderPickers();
+    bindAvatarUI();
+    renderImgPick();
+
+    // 配图选择
+    var fi = $('gb-images');
+    if (fi) fi.onchange = function (e) {
+      Array.prototype.slice.call(e.target.files || []).forEach(function (f) {
+        if (pendingImgs.length >= MAX_IMGS) return;
+        if (!f.type || f.type.indexOf('image/') !== 0) return;
+        if (f.size > 20*1024*1024) { alert('图片超过 20MB，跳过'); return; }
+        pendingImgs.push({ file: f, url: URL.createObjectURL(f) });
+      });
+      renderImgPick(); e.target.value = '';
+    };
+    var sub = $('gb-submit');
+    if (sub) sub.onclick = submit;
+
+    loadSections().then(loadAll).then(function () {
+      connected = true;
+      renderSortBar(); renderSubBar(); render();
+      status('');
+      // 从搜索页跳过来：定位到那条帖子
+      var pid = new URLSearchParams(location.search).get('post');
+      if (pid) {
+        setTimeout(function () {
+          var el = document.getElementById('p-' + pid);
+          if (el) {
+            scrollToEl(el);
+            el.classList.add('gb-flash');
+            setTimeout(function () { el.classList.remove('gb-flash'); }, 2600);
+          }
+        }, 200);
+      }
+    }).catch(function (e) { status('加载失败：' + ((e&&e.message)||e), 'err'); });
+  }
+
+  /* ---------- 头像：emoji 或 上传图片 ---------- */
+  function setMode(mode) {
+    avatarMode = (mode === 'image') ? 'image' : 'emoji';
+    var pe = $('panel-emoji'), pi = $('panel-image');
+    if (pe) pe.hidden = avatarMode !== 'emoji';
+    if (pi) pi.hidden = avatarMode !== 'image';
+    var be = $('mode-emoji'), bi = $('mode-image');
+    if (be) be.className = 'gb-sec-chip' + (avatarMode === 'emoji' ? ' on' : '');
+    if (bi) bi.className = 'gb-sec-chip' + (avatarMode === 'image' ? ' on' : '');
+    var clr = $('btn-avatar-clear');
+    if (clr) clr.hidden = !(avatarMode === 'image' && selImage);
+    saveLook();
+  }
+
+  function uploadAvatar(file) {
+    return new Promise(function (res, rej) {
+      var im = new Image();
+      im.onload = function () {
+        var cv = document.createElement('canvas');
+        cv.width = 256; cv.height = 256;
+        var cx = cv.getContext('2d');
+        cx.fillStyle = '#fff'; cx.fillRect(0, 0, 256, 256);
+        var side = Math.min(im.width, im.height);
+        cx.drawImage(im, (im.width - side) / 2, (im.height - side) / 2, side, side, 0, 0, 256, 256);
+        cv.toBlob(function (b) {
+          if (!b) return rej(new Error('图片编码失败'));
+          var path = uid + '/avatar-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8) + '.jpg';
+          sb.storage.from('avatars').upload(path, b, { contentType: 'image/jpeg', upsert: false })
+            .then(function (r) { if (r.error) throw r.error; res(path); })
+            .catch(rej);
+        }, 'image/jpeg', 0.85);
+      };
+      im.onerror = function () { rej(new Error('图片打不开（HEIC 请先转 JPG）')); };
+      var fr = new FileReader();
+      fr.onload = function () { im.src = fr.result; };
+      fr.onerror = function () { rej(new Error('读取文件失败')); };
+      fr.readAsDataURL(file);
+    });
+  }
+
+  function bindAvatarUI() {
+    var be = $('mode-emoji'), bi = $('mode-image');
+    if (be) be.onclick = function () { setMode('emoji'); };
+    if (bi) bi.onclick = function () { setMode('image'); };
+    var clr = $('btn-avatar-clear');
+    if (clr) clr.onclick = function () { selImage = ''; selImagePath = ''; setMode('emoji'); };
+    var fi = $('gb-avatar-file');
+    if (fi) fi.onchange = function (e) {
+      var f = e.target.files && e.target.files[0];
+      if (!f) return;
+      if (!uid) { status('还在连接服务器，稍等再传头像。', 'err'); e.target.value = ''; return; }
+      if (f.size > 8 * 1024 * 1024) { alert('头像超过 8MB，请换一张小一点的'); e.target.value = ''; return; }
+      status('正在上传头像……');
+      uploadingAvatar = true;
+      uploadAvatar(f).then(function (path) {
+        selImagePath = path;
+        selImage = avatarUrl(path);
+        setMode('image');
+        status('头像已上传 ✅', 'ok');
+        setTimeout(function () { if (/头像已上传/.test((statusEl() || {}).textContent || '')) status(''); }, 2500);
+      }).catch(function (err) {
+        status('头像上传失败：' + ((err && err.message) || err), 'err');
+      }).then(function () { uploadingAvatar = false; e.target.value = ''; });
+    };
+    setMode(avatarMode);
+  }
+  function statusEl() { return $('gb-status'); }
+
+  function saveLook() {
+    try { localStorage.setItem('jiangwan_gb_look', JSON.stringify({ mode:avatarMode, emoji:selEmoji, color:selColor, image:selImage, imagePath:selImagePath })); } catch (e) {}
+    var pv = $('avatar-preview');
+    if (pv) { pv.textContent=''; pv.appendChild(avatarNode(selColor, selEmoji, selImagePath, 'big')); }
+  }
+  function renderPickers() {
+    var er = $('emoji-row');
+    if (er) Array.prototype.forEach.call(er.children, function (b) { b.className = 'emoji-pick' + (b.textContent === selEmoji ? ' on' : ''); });
+    var cr = $('color-row');
+    if (cr) Array.prototype.forEach.call(cr.children, function (b) { b.className = 'color-pick' + (b.style.background && rgbEq(b.style.background, selColor) ? ' on' : ''); });
+    saveLook();
+  }
+  function rgbEq(rgb, hex) {
+    var m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(rgb); if (!m) return false;
+    var h = hex.replace('#',''); 
+    return parseInt(m[1])===parseInt(h.slice(0,2),16) && parseInt(m[2])===parseInt(h.slice(2,4),16) && parseInt(m[3])===parseInt(h.slice(4,6),16);
+  }
+
+  return { boot: boot, parseTags: parseTags, MAINS: MAINS };
+})();
+
+</script>
+<script>
+JW.whenReady(function(e){ if(e){ document.getElementById('gb-status').hidden=false; document.getElementById('gb-status').textContent='连不上云端：'+(e.message||e); return;} GB.boot({main:'内娱'}); });
+</script>
+<script>
+
+(function () {
+  var KEY = 'jw_notice_seen2';
+  var box = document.getElementById('gb-notice');
+  if (!box) return;
+  try { if (localStorage.getItem(KEY) === '1') box.hidden = true; else box.hidden = false; } catch (e) { box.hidden = false; }
+  document.getElementById('gb-notice-x').onclick = function () {
+    box.hidden = true;
+    try { localStorage.setItem(KEY, '1'); } catch (e) {}
+  };
+  var lb = document.getElementById('lightbox');
+  if (lb) {
+    var img = document.getElementById('lb-img'), title = document.getElementById('lb-title');
+    window.__jwOpenImage = function (url, name) {
+      img.src = url; title.textContent = (name || '图片') + '　（长按可直接保存）';
+      lb.hidden = false; document.body.style.overflow = 'hidden';
+      lb.dataset.url = url; lb.dataset.name = name || '图片';
+    };
+    function close() { lb.hidden = true; document.body.style.overflow = ''; }
+    document.getElementById('lb-close').onclick = close;
+    lb.querySelector('.lb-stage').onclick = function (e) { if (e.target === lb.querySelector('.lb-stage')) close(); };
+    document.getElementById('lb-download').onclick = function () {
+      var b = this; b.disabled = true; b.textContent = '下载中…';
+      fetch(lb.dataset.url).then(function (r) { return r.blob(); }).then(function (bl) {
+        var u = URL.createObjectURL(bl), a = document.createElement('a');
+        a.href = u; a.download = (lb.dataset.name || '图片') + '.jpg';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(u); }, 4000);
+        b.disabled = false; b.textContent = '⬇ 下载原图';
+      }).catch(function () { window.open(lb.dataset.url, '_blank'); b.disabled = false; b.textContent = '⬇ 下载原图'; });
+    };
+  }
+})();
+</script>
+
+<script>
+SITE.shell('guestbook');
+SITE.footer(document.querySelector('.container'));
+
+</script>
+</body>
+</html>
