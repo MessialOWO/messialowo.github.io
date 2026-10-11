@@ -375,8 +375,14 @@ var GB = (function () {
     if (!box) return;
     box.textContent = '';
     var list = subs.filter(function (x) { return x.main_section === curMain; });
-    if (!list.length && !curSub) return;
+    if (!curMain) return;          // 只有大分区页才有小分区栏
 
+    if (!list.length) {
+      var hint = document.createElement('span');
+      hint.style.cssText = 'font-size:.85rem;color:var(--muted);align-self:center';
+      hint.textContent = '还没有小分区，';
+      box.appendChild(hint);
+    }
     if (curSub) {
       var all = document.createElement('button');
       all.type = 'button'; all.className = 'gb-sec-chip' + (!curSub ? ' on' : '');
