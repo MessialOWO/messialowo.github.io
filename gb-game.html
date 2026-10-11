@@ -110,8 +110,20 @@
   <div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap">
     <div id="avatar-preview"></div>
     <div style="flex:1;min-width:0">
-      <div id="emoji-row" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px"></div>
-      <div id="color-row" style="display:flex;flex-wrap:wrap;gap:10px"></div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <button class="gb-sec-chip" id="mode-emoji" type="button" style="flex:1 1 120px">😀 emoji 头像</button>
+        <button class="gb-sec-chip" id="mode-image" type="button" style="flex:1 1 120px">🖼 上传图片</button>
+      </div>
+      <div id="panel-emoji">
+        <div id="emoji-row" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px"></div>
+        <div id="color-row" style="display:flex;flex-wrap:wrap;gap:10px"></div>
+      </div>
+      <div id="panel-image" hidden>
+        <label for="gb-avatar-file" style="display:inline-block;padding:9px 16px;background:rgba(255,255,255,.7);border:1px solid var(--glass-brd);border-radius:8px;cursor:pointer;font-size:.9rem">选择图片</label>
+        <input type="file" id="gb-avatar-file" accept="image/*" style="display:none">
+        <button class="btn-ghost" id="btn-avatar-clear" type="button" hidden style="margin-left:8px">清除</button>
+        <div style="font-size:.78rem;color:var(--muted);margin-top:8px">上传时自动压缩到 256 像素</div>
+      </div>
     </div>
   </div>
 
@@ -342,6 +354,7 @@ var GB = (function () {
   var sections = [], subs = [], messages = [], msgImages = {}, repliesByMsg = {}, likedSet = {};
   var curMain = '', curSub = '';
   var selEmoji = '🙂', selColor = COLORS[0], avatarMode = 'emoji', selImage = '', selImagePath = '';
+  var uploadingAvatar = false;
   var pendingImgs = [], MAX_IMGS = 4;
 
   function status(t, kind) {
@@ -833,6 +846,7 @@ var GB = (function () {
       cr.appendChild(b);
     });
     renderPickers();
+    bindAvatarUI();
     renderImgPick();
 
     // 配图选择
@@ -855,6 +869,74 @@ var GB = (function () {
       status('');
     }).catch(function (e) { status('加载失败：' + ((e&&e.message)||e), 'err'); });
   }
+
+  /* ---------- 头像：emoji 或 上传图片 ---------- */
+  function setMode(mode) {
+    avatarMode = (mode === 'image') ? 'image' : 'emoji';
+    var pe = $('panel-emoji'), pi = $('panel-image');
+    if (pe) pe.hidden = avatarMode !== 'emoji';
+    if (pi) pi.hidden = avatarMode !== 'image';
+    var be = $('mode-emoji'), bi = $('mode-image');
+    if (be) be.className = 'gb-sec-chip' + (avatarMode === 'emoji' ? ' on' : '');
+    if (bi) bi.className = 'gb-sec-chip' + (avatarMode === 'image' ? ' on' : '');
+    var clr = $('btn-avatar-clear');
+    if (clr) clr.hidden = !(avatarMode === 'image' && selImage);
+    saveLook();
+  }
+
+  function uploadAvatar(file) {
+    return new Promise(function (res, rej) {
+      var im = new Image();
+      im.onload = function () {
+        var cv = document.createElement('canvas');
+        cv.width = 256; cv.height = 256;
+        var cx = cv.getContext('2d');
+        cx.fillStyle = '#fff'; cx.fillRect(0, 0, 256, 256);
+        var side = Math.min(im.width, im.height);
+        cx.drawImage(im, (im.width - side) / 2, (im.height - side) / 2, side, side, 0, 0, 256, 256);
+        cv.toBlob(function (b) {
+          if (!b) return rej(new Error('图片编码失败'));
+          var path = uid + '/avatar-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8) + '.jpg';
+          sb.storage.from('avatars').upload(path, b, { contentType: 'image/jpeg', upsert: false })
+            .then(function (r) { if (r.error) throw r.error; res(path); })
+            .catch(rej);
+        }, 'image/jpeg', 0.85);
+      };
+      im.onerror = function () { rej(new Error('图片打不开（HEIC 请先转 JPG）')); };
+      var fr = new FileReader();
+      fr.onload = function () { im.src = fr.result; };
+      fr.onerror = function () { rej(new Error('读取文件失败')); };
+      fr.readAsDataURL(file);
+    });
+  }
+
+  function bindAvatarUI() {
+    var be = $('mode-emoji'), bi = $('mode-image');
+    if (be) be.onclick = function () { setMode('emoji'); };
+    if (bi) bi.onclick = function () { setMode('image'); };
+    var clr = $('btn-avatar-clear');
+    if (clr) clr.onclick = function () { selImage = ''; selImagePath = ''; setMode('emoji'); };
+    var fi = $('gb-avatar-file');
+    if (fi) fi.onchange = function (e) {
+      var f = e.target.files && e.target.files[0];
+      if (!f) return;
+      if (!uid) { status('还在连接服务器，稍等再传头像。', 'err'); e.target.value = ''; return; }
+      if (f.size > 8 * 1024 * 1024) { alert('头像超过 8MB，请换一张小一点的'); e.target.value = ''; return; }
+      status('正在上传头像……');
+      uploadingAvatar = true;
+      uploadAvatar(f).then(function (path) {
+        selImagePath = path;
+        selImage = avatarUrl(path);
+        setMode('image');
+        status('头像已上传 ✅', 'ok');
+        setTimeout(function () { if (/头像已上传/.test((statusEl() || {}).textContent || '')) status(''); }, 2500);
+      }).catch(function (err) {
+        status('头像上传失败：' + ((err && err.message) || err), 'err');
+      }).then(function () { uploadingAvatar = false; e.target.value = ''; });
+    };
+    setMode(avatarMode);
+  }
+  function statusEl() { return $('gb-status'); }
 
   function saveLook() {
     try { localStorage.setItem('jiangwan_gb_look', JSON.stringify({ mode:avatarMode, emoji:selEmoji, color:selColor, image:selImage, imagePath:selImagePath })); } catch (e) {}
