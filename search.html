@@ -848,9 +848,10 @@ var GB = (function () {
           if (target) curSub = target.id;
         }
       });
+  }
 
   function btrimName(x) { return String(x == null ? '' : x).replace(/^\s+|\s+$/g, ''); }
-  }
+
   function loadAll() {
     return sb.from('messages')
       .select('id,created_at,name,content,avatar_color,avatar_emoji,avatar_path,avatar_mode,like_count,reply_count,is_pinned,pinned_at,main_section,sub_section_id,tags')
