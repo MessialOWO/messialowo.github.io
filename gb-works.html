@@ -458,13 +458,17 @@ var GB = (function () {
     var box = $('gb-subs');
     if (!box) return;
     box.textContent = '';
+    var lab = document.createElement('span');
+    lab.className = 'gb-sort-label';
+    lab.textContent = '发帖到：';
+    box.appendChild(lab);
     var list = subs.filter(function (x) { return x.main_section === curMain; });
     if (!curMain) return;          // 只有大分区页才有小分区栏
 
     if (!list.length) {
       var hint = document.createElement('span');
       hint.style.cssText = 'font-size:.85rem;color:var(--muted);align-self:center';
-      hint.textContent = '还没有小分区，';
+      hint.textContent = '还没有小分区，先建一个才能发帖：';
       box.appendChild(hint);
     }
     if (curSub) {
@@ -844,6 +848,20 @@ var GB = (function () {
         if (r.error) throw r.error;
         sections = r.data || [];
         subs = sections.filter(function (x) { return !x.is_default; });
+        // 当前选中的小分区若不属于这个大分区，清掉
+        if (curSub) {
+          var ok = subs.some(function (x) { return x.id === curSub && x.main_section === curMain; });
+          if (!ok) curSub = '';
+        }
+        // 还没有选小分区时，自动选当前大分区下名为「未分类」的那个
+        if (!curSub) {
+          var list = subs.filter(function (x) { return x.main_section === curMain; });
+          var target = null;
+          for (var i = 0; i < list.length; i++) {
+            if (/^(未分类|未归类|默认)$/.test(list[i].name)) { target = list[i]; break; }
+          }
+          if (target) curSub = target.id;
+        }
       });
   }
   function loadAll() {
@@ -879,6 +897,14 @@ var GB = (function () {
     var content = ctEl ? ctEl.value.trim() : '';
     if (!name) { alert('请填你的名字'); nameEl && nameEl.focus(); return; }
     if (!content) { alert('请写点内容'); ctEl && ctEl.focus(); return; }
+    if (!curSub) {
+      alert('请先选一个小分区再发帖。\n\n如果这个分区里还没有小分区，点「＋ 新建小分区」建一个（不用密码），建好后会自动选中。');
+      var bar = $('gb-subs');
+      if (bar && typeof bar.scrollIntoView === 'function') {
+        try { bar.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+      }
+      return;
+    }
     if (avatarMode === 'image' && !selImagePath) { alert('头像还没上传成功'); return; }
     if (!connected) { status('还没连上云端，暂时发不了。', 'err'); return; }
     if (busy) return;
