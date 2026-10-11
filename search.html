@@ -17,6 +17,18 @@
   .color-pick { width:36px; height:36px; border-radius:50%; cursor:pointer; padding:0; border:2px solid transparent; box-shadow:0 0 0 1px var(--border) inset; }
   .color-pick.on { border-color:#2c2c2c; }
   .gb-sections, .gb-subs { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+  .gb-sort { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:14px; }
+  .gb-sort-label { font-size:.85rem; color:var(--muted); }
+  .gb-sort-tip { font-size:.78rem; color:var(--muted); margin-left:4px; }
+  .gb-fold-bar { margin-top:8px; }
+  .gb-fold-btn { font-family:inherit; font-size:.85rem; cursor:pointer; padding:6px 14px; border-radius:16px; border:1px dashed var(--accent); background:none; color:var(--accent); }
+  .gb-fold-btn:hover { background:var(--accent-light); }
+  .gb-sub-replies { margin-top:8px; padding-left:12px; border-left:2px solid var(--border); display:flex; flex-direction:column; gap:8px; }
+  .gb-sub-reply { background:rgba(255,255,255,.55); border-radius:8px; padding:8px 10px; font-size:.85rem; }
+  .gb-sub-reply .gb-reply-content { margin-top:2px; }
+  .gb-sub-more { font-family:inherit; font-size:.78rem; color:var(--accent); background:none; border:none; border-bottom:1px dashed rgba(192,57,43,.4); cursor:pointer; padding:2px 0; text-align:left; align-self:flex-start; }
+  .gb-flash { animation: gbflash 2.4s ease; }
+  @keyframes gbflash { 0%,100% { box-shadow:0 6px 18px rgba(31,27,22,.06); } 25%,75% { box-shadow:0 0 0 4px rgba(192,57,43,.35); } }
   .gb-sec-chip { font-family:inherit; font-size:.88rem; cursor:pointer; padding:8px 14px; border:1px solid var(--glass-brd); border-radius:20px; background:rgba(255,255,255,.6); color:var(--text); box-shadow:0 2px 8px rgba(31,27,22,.06); text-decoration:none; }
   .gb-sec-chip:hover { background:rgba(255,255,255,.85); transform:translateY(-1px); }
   .gb-sec-chip.on { background:linear-gradient(160deg,#c0392b,#962820) !important; color:#fff !important; font-weight:700; }
@@ -317,10 +329,19 @@ var GB = (function () {
   var COLORS = ['#c0392b','#e67e22','#d4a017','#27ae60','#16a085','#2980b9','#8e44ad','#d95f8f','#5d6d7e','#2c3e50'];
   var PAGE_SIZE = 100;
   var $ = function (id) { return document.getElementById(id); };
+  function scrollToEl(el, block) {
+    if (el && typeof el.scrollIntoView === 'function') {
+      try { el.scrollIntoView({ block: block || 'center', behavior: 'smooth' }); } catch (e) {}
+    }
+  }
 
   var sb = null, uid = '', deviceId = '', connected = false, busy = false;
   var sections = [], subs = [], messages = [], msgImages = {}, repliesByMsg = {}, likedSet = {};
   var curMain = '', curSub = '';
+  var sortMode = 'default';      // default | time | hot
+  var REPLY_FOLD = 3;            // 评论超过几条就折叠
+  var expandedPost = '';         // 当前展开了评论的帖子（只允许一个展开）
+  var openSubReply = '';         // 当前展开了子回评的那条评论
   var selEmoji = '🙂', selColor = COLORS[0], avatarMode = 'emoji', selImage = '', selImagePath = '';
   var uploadingAvatar = false;
   var pendingImgs = [], MAX_IMGS = 4;
@@ -371,6 +392,35 @@ var GB = (function () {
   }
 
   /* ---------- 渲染 ---------- */
+  function renderSortBar() {
+    var box = $('gb-sort');
+    if (!box) return;
+    box.textContent = '';
+    var opts = [['default','默认'],['time','时间'],['hot','热度']];
+    var lab = document.createElement('span');
+    lab.className = 'gb-sort-label';
+    lab.textContent = '排序：';
+    box.appendChild(lab);
+    opts.forEach(function (o) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'gb-sec-chip' + (sortMode === o[0] ? ' on' : '');
+      b.textContent = o[1];
+      b.onclick = function () {
+        if (sortMode === o[0]) return;
+        sortMode = o[0];
+        var exp = expandedPost; expandedPost = ''; openSubReply = '';
+        renderSortBar(); render();
+        if (exp) setTimeout(function(){ scrollToEl(document.getElementById('p-'+exp)); }, 60);
+      };
+      box.appendChild(b);
+    });
+    var tip = document.createElement('span');
+    tip.className = 'gb-sort-tip';
+    tip.textContent = sortMode === 'default' ? '置顶在最上面' : '置顶不再排到最前（仍带📌标签）';
+    box.appendChild(tip);
+  }
+
   function renderSubBar() {
     var box = $('gb-subs');
     if (!box) return;
@@ -413,6 +463,7 @@ var GB = (function () {
   }
 
   function render() {
+    renderSortBar();
     var listEl = $('gb-list');
     if (!listEl) return;
     listEl.textContent = '';
@@ -421,6 +472,22 @@ var GB = (function () {
       if (curSub && m.sub_section_id !== curSub) return false;
       return true;
     });
+    // 排序
+    if (sortMode === 'time') {
+      show = show.slice().sort(function (a, b) { return new Date(b.created_at) - new Date(a.created_at); });
+    } else if (sortMode === 'hot') {
+      show = show.slice().sort(function (a, b) {
+        var d = (b.like_count || 0) - (a.like_count || 0);
+        return d !== 0 ? d : (new Date(b.created_at) - new Date(a.created_at));
+      });
+    } else {
+      // 默认：置顶的单独提到最前面，其余按时间倒序
+      var pinned = show.filter(function (m) { return m.is_pinned; });
+      var rest = show.filter(function (m) { return !m.is_pinned; });
+      pinned.sort(function (a, b) { return new Date(b.pinned_at || b.created_at) - new Date(a.pinned_at || a.created_at); });
+      rest.sort(function (a, b) { return new Date(b.created_at) - new Date(a.created_at); });
+      show = pinned.concat(rest);
+    }
     if (!show.length) {
       var e = document.createElement('div');
       e.className = 'empty';
@@ -434,6 +501,7 @@ var GB = (function () {
   function postEl(msg) {
     var item = document.createElement('div');
     item.className = 'gb-item' + (msg.is_pinned ? ' pinned' : '');
+    item.id = 'p-' + msg.id;                      // 供搜索页跳转定位
     item.appendChild(avatarNode(msg.avatar_color, msg.avatar_emoji, msg.avatar_path, 'big'));
 
     var body = document.createElement('div');
@@ -527,27 +595,100 @@ var GB = (function () {
   function renderReplies(host, msg) {
     var list = repliesByMsg[msg.id] || [];
     if (!list.length) return;
-    var box = document.createElement('div'); box.className = 'gb-replies';
-    list.forEach(function (r) {
-      var el = document.createElement('div'); el.className = 'gb-reply';
-      el.appendChild(avatarNode(r.avatar_color, r.avatar_emoji, r.avatar_path, 'small'));
-      var b = document.createElement('div'); b.className = 'gb-reply-body';
-      var h = document.createElement('div');
-      var n = document.createElement('span'); n.className = 'gb-reply-name'; n.textContent = r.name; h.appendChild(n);
-      if (r.reply_to_name) { var to = document.createElement('span'); to.className = 'gb-reply-to'; to.textContent = '回复 ' + r.reply_to_name; h.appendChild(to); }
-      var t = document.createElement('span'); t.className = 'gb-reply-time'; t.textContent = fmt(r.created_at); h.appendChild(t);
-      var c = document.createElement('div'); c.className = 'gb-reply-content';
-      renderContent(c, r.content);
-      b.appendChild(h); b.appendChild(c);
-      var ra = document.createElement('div'); ra.className = 'gb-reply-actions';
-      var rb = document.createElement('button'); rb.type='button'; rb.className='gb-action-btn'; rb.textContent='↩'; rb.title='回复';
-      rb.onclick = function () { openReply(msg, r, host); };
-      var db = document.createElement('button'); db.type='button'; db.className='gb-action-btn'; db.textContent='🗑'; db.title='删除';
-      db.onclick = function () { deleteReply(r); };
-      ra.appendChild(rb); ra.appendChild(db); b.appendChild(ra);
-      el.appendChild(b); box.appendChild(el);
+
+    var isExpanded = (expandedPost === msg.id);
+    var box = document.createElement('div');
+    box.className = 'gb-replies';
+
+    // 要显示哪几条
+    var shown = isExpanded ? list : list.slice(0, REPLY_FOLD);
+
+    shown.forEach(function (r, idx) {
+      // 展开状态下：每条回评本来也带自己的"回评"？这里用嵌套深度控制：
+      // 列表里第 4 条及以后在折叠时根本不显示；展开后全显示
+      box.appendChild(replyEl(msg, r, host, isExpanded));
     });
+
+    // 折叠/展开按钮
+    if (list.length > REPLY_FOLD || isExpanded) {
+      var bar = document.createElement('div');
+      bar.className = 'gb-fold-bar';
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'gb-fold-btn';
+      if (!isExpanded) {
+        btn.textContent = '展开全部 ' + list.length + ' 条评论 ▾';
+      } else {
+        btn.textContent = '收起评论 ▴';
+      }
+      btn.onclick = function () {
+        // 只允许一个帖子处于展开状态，其他自动收回
+        expandedPost = isExpanded ? '' : msg.id;
+        openSubReply = '';
+        render();
+        scrollToEl(document.getElementById('p-' + msg.id));
+      };
+      bar.appendChild(btn);
+      box.appendChild(bar);
+    }
     host.appendChild(box);
+  }
+
+  /* 单条回复（可带"回评折叠"：展开后才有子回复） */
+  function replyEl(msg, r, host, showSubReplies) {
+    var el = document.createElement('div'); el.className = 'gb-reply';
+    el.appendChild(avatarNode(r.avatar_color, r.avatar_emoji, r.avatar_path, 'small'));
+    var b = document.createElement('div'); b.className = 'gb-reply-body';
+    var h = document.createElement('div');
+    var n = document.createElement('span'); n.className = 'gb-reply-name'; n.textContent = r.name; h.appendChild(n);
+    if (r.reply_to_name) { var to = document.createElement('span'); to.className = 'gb-reply-to'; to.textContent = '回复 ' + r.reply_to_name; h.appendChild(to); }
+    var t = document.createElement('span'); t.className = 'gb-reply-time'; t.textContent = fmt(r.created_at); h.appendChild(t);
+    var c = document.createElement('div'); c.className = 'gb-reply-content';
+    renderContent(c, r.content);
+    b.appendChild(h); b.appendChild(c);
+
+    var ra = document.createElement('div'); ra.className = 'gb-reply-actions';
+    var rb = document.createElement('button'); rb.type='button'; rb.className='gb-action-btn'; rb.textContent='↩'; rb.title='回复';
+    rb.onclick = function () { openReply(msg, r, host); };
+    var db = document.createElement('button'); db.type='button'; db.className='gb-action-btn'; db.textContent='🗑'; db.title='删除';
+    db.onclick = function () { deleteReply(r); };
+    ra.appendChild(rb); ra.appendChild(db); b.appendChild(ra);
+
+    // 子回评（回复这条回复的）：
+    //   帖子折叠时 → 完全不显示
+    //   帖子展开后 → 先显示 1 条，剩下的要再点「展开」才看得到
+    var children = (repliesByMsg[msg.id] || []).filter(function (x) { return x.reply_to_id === r.id; });
+    if (children.length && showSubReplies) {
+      var sub = document.createElement('div');
+      sub.className = 'gb-sub-replies';
+      var allOpen = (openSubReply === r.id);
+      var showN = allOpen ? children.length : 1;
+      children.slice(0, showN).forEach(function (ch) {
+        var ce = document.createElement('div'); ce.className = 'gb-sub-reply';
+        var cn = document.createElement('span'); cn.className = 'gb-reply-name'; cn.textContent = ch.name;
+        var ct = document.createElement('span'); ct.className = 'gb-reply-time'; ct.textContent = fmt(ch.created_at);
+        var cc = document.createElement('div'); cc.className = 'gb-reply-content';
+        renderContent(cc, ch.content);
+        ce.appendChild(cn); ce.appendChild(ct); ce.appendChild(cc);
+        sub.appendChild(ce);
+      });
+      if (children.length > 1) {
+        var more = document.createElement('button');
+        more.type = 'button';
+        more.className = 'gb-sub-more';
+        more.textContent = allOpen ? '收起回评 ▴' : ('还有 ' + (children.length - 1) + ' 条回评，展开 ▾');
+        more.onclick = function () {
+          openSubReply = allOpen ? '' : r.id;
+          render();
+          scrollToEl(document.getElementById('p-' + msg.id));
+        };
+        sub.appendChild(more);
+      }
+      b.appendChild(sub);
+    }
+
+    el.appendChild(b);
+    return el;
   }
 
   /* ---------- 回复 ---------- */
@@ -833,8 +974,20 @@ var GB = (function () {
 
     loadSections().then(loadAll).then(function () {
       connected = true;
-      renderSubBar(); render();
+      renderSortBar(); renderSubBar(); render();
       status('');
+      // 从搜索页跳过来：定位到那条帖子
+      var pid = new URLSearchParams(location.search).get('post');
+      if (pid) {
+        setTimeout(function () {
+          var el = document.getElementById('p-' + pid);
+          if (el) {
+            scrollToEl(el);
+            el.classList.add('gb-flash');
+            setTimeout(function () { el.classList.remove('gb-flash'); }, 2600);
+          }
+        }, 200);
+      }
     }).catch(function (e) { status('加载失败：' + ((e&&e.message)||e), 'err'); });
   }
 
@@ -935,32 +1088,101 @@ var GB = (function () {
   function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
   function fmt(ts){var d=new Date(ts);if(isNaN(d))return '';var p=function(n){return n<10?'0'+n:''+n};return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());}
 
-  // 大分区下拉
+  // 大分区 slug → 页面文件名
+  var PAGE = {'未分区':'guestbook.html','学习':'gb-study.html','新闻':'gb-news.html','作品':'gb-works.html',
+              '失物招领':'gb-lost.html','游戏':'gb-game.html','二次元':'gb-acg.html','内娱':'gb-ent.html',
+              '学校吐槽':'gb-rant.html','意见建议':'gb-suggest.html','其他':'gb-other.html'};
+
   GB.MAINS.forEach(function (m) {
     var o = document.createElement('option'); o.value = m; o.textContent = m; $('s-main').appendChild(o);
   });
 
+  // 标签渲染（可点击）
+  function tagsEl(tags) {
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'margin-top:8px;display:flex;gap:8px;flex-wrap:wrap';
+    (tags || []).forEach(function (t) {
+      var a = document.createElement('a'); a.className = 'gb-tag';
+      a.href = './search.html?tag=' + encodeURIComponent(t);
+      a.textContent = '#' + t;
+      wrap.appendChild(a);
+    });
+    return wrap;
+  }
+
   function card(m) {
     var el = document.createElement('div');
     el.className = 'gb-item' + (m.is_pinned ? ' pinned' : '');
+    var body = document.createElement('div'); body.className = 'gb-body';
+
     var head = document.createElement('div'); head.className = 'gb-header';
+    if (m.is_pinned) { var pb = document.createElement('span'); pb.className='gb-pin-badge'; pb.textContent='📌 置顶'; head.appendChild(pb); }
     var nm = document.createElement('span'); nm.className='gb-name'; nm.textContent = m.name; head.appendChild(nm);
     var tm = document.createElement('span'); tm.className='gb-time'; tm.textContent = fmt(m.created_at); head.appendChild(tm);
-    var tag = document.createElement('span'); tag.className='gb-sec-tag'; tag.textContent = m.main_section || '未分区'; head.appendChild(tag);
-    var ct = document.createElement('div'); ct.className='gb-content'; ct.textContent = m.content;
-    // 标签
-    var tags = document.createElement('div'); tags.style.cssText = 'margin-top:8px;display:flex;gap:8px;flex-wrap:wrap';
-    (m.tags || []).forEach(function (t) {
-      var a = document.createElement('a'); a.className = 'gb-tag'; a.href = './search.html?tag=' + encodeURIComponent(t); a.textContent = '#' + t;
-      tags.appendChild(a);
-    });
-    var body = document.createElement('div'); body.className='gb-body';
-    body.appendChild(head); body.appendChild(ct); if ((m.tags||[]).length) body.appendChild(tags);
+    var tag = document.createElement('span'); tag.className='gb-sec-tag';
+    tag.textContent = (m.main_section || '未分区') + (m.sub_section_name ? ' · ' + m.sub_section_name : '');
+    head.appendChild(tag);
+    body.appendChild(head);
+
+    var ct = document.createElement('div'); ct.className='gb-content';
+    ct.textContent = m.content;
+    body.appendChild(ct);
+
+    // 图片
+    if (m._images && m._images.length) {
+      var ib = document.createElement('div'); ib.className = 'gb-msg-images';
+      m._images.forEach(function (im) {
+        var url = (window.JW && JW.storagePublic || '') + im.image_path;
+        var el2 = document.createElement('img'); el2.src = url; el2.loading='lazy'; el2.alt='配图';
+        el2.onclick = function () { window.open(url, '_blank'); };
+        ib.appendChild(el2);
+      });
+      body.appendChild(ib);
+    }
+
+    if ((m.tags || []).length) body.appendChild(tagsEl(m.tags));
+
+    // 跳到原帖
+    var page = PAGE[m.main_section] || 'guestbook.html';
+    var url = './' + page + '?post=' + encodeURIComponent(m.id) + (m.sub_section_id ? ('&sub=' + m.sub_section_id) : '');
+    var acts = document.createElement('div'); acts.className = 'gb-actions';
+    var go = document.createElement('a'); go.className = 'gb-sec-chip'; go.href = url;
+    go.textContent = '查看原帖 →';
+    go.style.textDecoration = 'none';
+    acts.appendChild(go);
+    body.appendChild(acts);
+
     el.appendChild(body);
     return el;
   }
 
   var listEl = $('gb-list');
+
+  function attachImages(rows) {
+    var ids = rows.map(function (m) { return m.id; });
+    if (!ids.length) return Promise.resolve(rows);
+    return JW.sb.from('message_images').select('message_id,image_path,sort_order')
+      .in('message_id', ids).eq('hidden', false).limit(400)
+      .then(function (r) {
+        var map = {};
+        if (!r.error) (r.data || []).forEach(function (x) { (map[x.message_id] = map[x.message_id] || []).push(x); });
+        rows.forEach(function (m) { m._images = map[m.id] || []; });
+        return rows;
+      }).catch(function () { return rows; });
+  }
+
+  function attachSubNames(rows) {
+    var ids = rows.map(function (m) { return m.sub_section_id; }).filter(Boolean);
+    if (!ids.length) return Promise.resolve(rows);
+    return JW.sb.from('gb_sections').select('id,name').in('id', ids)
+      .then(function (r) {
+        var map = {};
+        if (!r.error) (r.data || []).forEach(function (x) { map[x.id] = x.name; });
+        rows.forEach(function (m) { if (m.sub_section_id) m.sub_section_name = map[m.sub_section_id]; });
+        return rows;
+      }).catch(function () { return rows; });
+  }
+
   function doSearch() {
     var kw = $('s-kw').value.trim(), tg = $('s-tag').value.trim(), mn = $('s-main').value;
     if (tg.charAt(0) === '#') tg = tg.slice(1);
@@ -969,8 +1191,12 @@ var GB = (function () {
     JW.sb.rpc('search_messages', { p_keyword: kw || null, p_tag: tg || null, p_main: mn || null, p_limit: 80 })
       .then(function (r) {
         if (r.error) throw r.error;
-        var rows = r.data || [];
-        $('gb-status').textContent = '找到 ' + rows.length + ' 条' + (tg ? '（标签 #' + tg + '）' : '') + (kw ? '（关键词「' + kw + '」）' : '');
+        return attachSubNames(r.data || []);
+      })
+      .then(attachImages)
+      .then(function (rows) {
+        $('gb-status').textContent = '找到 ' + rows.length + ' 条'
+          + (tg ? '（标签 #' + tg + '）' : '') + (kw ? '（关键词「' + kw + '」）' : '');
         if (!rows.length) { var e=document.createElement('div'); e.className='empty'; e.textContent='没有匹配的帖子。'; listEl.appendChild(e); return; }
         rows.forEach(function (m) { listEl.appendChild(card(m)); });
       })
