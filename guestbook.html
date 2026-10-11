@@ -43,6 +43,22 @@
   .reply-form { margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; }
   .reply-form input { flex:1 1 140px; min-width:0; padding:9px 12px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:16px; background:var(--bg); color:var(--text); }
   .gb-clear-pins { text-align:center; padding:8px 0; }
+  /* 分区栏 */
+  .gb-sections { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px; }
+  .gb-sec-chip {
+    font-family:inherit; font-size:.88rem; cursor:pointer; padding:8px 14px;
+    border:1px solid var(--glass-brd); border-radius:20px;
+    background:rgba(255,255,255,.6); color:var(--text);
+    box-shadow:0 2px 8px rgba(31,27,22,.06);
+  }
+  .gb-sec-chip:hover { background:rgba(255,255,255,.85); transform:translateY(-1px); }
+  .gb-sec-chip.on { background:linear-gradient(160deg,#c0392b,#962820) !important; color:#fff !important; font-weight:700; border-color:rgba(255,255,255,.4) !important; }
+  .gb-sec-chip.add { border-style:dashed; color:var(--accent); }
+  .gb-sec-chip.del { border-color:#e0b4b0; color:var(--accent); }
+  .gb-sec-tag {
+    font-size:.72rem; color:var(--muted); background:rgba(0,0,0,.05);
+    padding:1px 8px; border-radius:8px;
+  }
   .gb-msg-images { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
   .gb-msg-images img { width:104px; height:104px; object-fit:cover; border-radius:8px; cursor:zoom-in; border:1px solid var(--border); }
   .gb-pick-thumb { position:relative; }
@@ -64,6 +80,8 @@
 </div>
 
 <div class="status" id="gb-status" hidden></div>
+
+<div class="gb-sections" id="gb-sections"></div>
 
 <div class="card-box">
   <label style="display:block;font-size:.85rem;color:var(--muted);margin-bottom:8px">你的名字（必填）</label>
@@ -614,6 +632,134 @@ function compressImage(file, maxEdge, quality) {
     return (nameInput.value || localStorage.getItem(NAME_KEY) || '').trim();
   }
 
+  /* ---------------- 分区 ---------------- */
+  var sections = [];          // 全部分区
+  var curSection = '';        // '' = 全部；'none' = 未分区；其他 = 分区 id
+  var SECTION_CACHE = 'jiangwan_gb_sections_v1';
+
+  function readSecCache() {
+    try {
+      var c = JSON.parse(localStorage.getItem(SECTION_CACHE) || 'null');
+      return (c && c.length) ? c : null;
+    } catch (e) { return null; }
+  }
+  function writeSecCache(list) {
+    try { localStorage.setItem(SECTION_CACHE, JSON.stringify(list || [])); } catch (e) {}
+  }
+
+  function secName(id) {
+    if (!id) return '未分区';
+    for (var i = 0; i < sections.length; i++) if (sections[i].id === id) return sections[i].name;
+    return '未分区';
+  }
+
+  function loadSections() {
+    return withTimeout(sb.from('gb_sections')
+      .select('id,name,sort_order,is_default,created_at')
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true }), 12000, '读取分区')
+      .then(function (r) {
+        if (r.error) throw r.error;
+        sections = r.data || [];
+        writeSecCache(sections);
+      });
+  }
+
+  /* 分区栏渲染 */
+  function renderSections() {
+    var box = $('gb-sections');
+    if (!box) return;
+    box.textContent = '';
+
+    // 「全部」和「未分区」在最前
+    var all = [{ id: '', name: '全部' }, { id: 'none', name: '未分区' }];
+    all.concat(sections.filter(function (x) { return !x.is_default; }))
+       .forEach(function (sec) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      var key = sec.id;
+      b.className = 'gb-sec-chip' + (curSection === key ? ' on' : '');
+      var n = messages.filter(function (m) {
+        return key === '' ? true : (key === 'none' ? !m.section_id : m.section_id === key);
+      }).length;
+      b.textContent = sec.name + (n ? ' ' + n : '');
+      b.onclick = function () {
+        curSection = key;
+        renderSections();
+        render();
+      };
+      box.appendChild(b);
+    });
+
+    // 删除分区（要密码）
+    if (curSection && curSection !== 'none') {
+      var del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'gb-sec-chip del';
+      del.textContent = '🗑 删除此分区';
+      del.onclick = function () { deleteSection(curSection); };
+      box.appendChild(del);
+    }
+
+    // 新建分区（不需要密码）
+    var add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'gb-sec-chip add';
+    add.textContent = '＋ 新建分区';
+    add.onclick = newSection;
+    box.appendChild(add);
+  }
+
+  function newSection() {
+    var name = prompt('新建分区\n名称不超过 5 个汉字或 10 个字母：');
+    if (name === null || !name.trim()) return;
+    var v = name.trim();
+    var cjk = (v.match(/[\u4e00-\u9fff]/g) || []).length;
+    var lat = v.replace(/[\u4e00-\u9fff]/g, '').length;
+    if (cjk > 5 || lat > 10) { alert('名称太长：最多 5 个汉字或 10 个字母'); return; }
+    status('正在新建分区……');
+    sb.rpc('create_gb_section', { p_name: v, p_device_id: deviceId }).then(function (r) {
+      if (r.error) throw r.error;
+      var o = r.data; if (typeof o === 'string') { try { o = JSON.parse(o); } catch (e) {} }
+      status('分区已新建 ✅', 'ok');
+      setTimeout(function () { if (/分区已新建/.test(statusEl.textContent)) status(''); }, 2000);
+      return loadSections().then(function () {
+        if (o && o.id) curSection = o.id;
+        renderSections(); render();
+      });
+    }).catch(function (e) {
+      console.error(e);
+      var m = (e && e.message) || String(e);
+      status(/duplicate key/i.test(m) ? '已经有同名分区了。'
+        : (/too long/i.test(m) ? '名称太长：最多 5 个汉字或 10 个字母' : ('新建分区失败：' + m)), 'err');
+    });
+  }
+
+  function deleteSection(id) {
+    if (!confirm('删除分区「' + secName(id) + '」？\n里面的帖子会自动归到「未分区」，不会被删。')) return;
+    var pw = prompt('删除分区需要管理密码：');
+    if (pw === null || !pw.trim()) return;
+    status('正在校验密码……');
+    sha256Hex(PW_SALT + '|' + pw.trim()).then(function (h) {
+      return sb.rpc('delete_gb_section', { p_section_id: id, p_pw_hash: h });
+    }).then(function (r) {
+      if (r.error) throw r.error;
+      var o = r.data; if (typeof o === 'string') { try { o = JSON.parse(o); } catch (e) {} }
+      if (!o || o.deleted !== true) throw new Error('bad password');
+      status('分区已删除，帖子已归到「未分区」✅', 'ok');
+      curSection = '';
+      return loadAll().then(function () {
+        renderSections(); render();
+        setTimeout(function () { if (/分区已删除/.test(statusEl.textContent)) status(''); }, 3000);
+      });
+    }).catch(function (e) {
+      console.error(e);
+      var m = (e && e.message) || String(e);
+      status(/bad password/i.test(m) ? '密码不对，分区没有删除。'
+        : (/cannot delete default/i.test(m) ? '「未分区」不能删除。' : ('删除失败：' + m)), 'err');
+    });
+  }
+
   /* ---------------- 数据读写 ---------------- */
   function scheduleRetry() {
     if (retryTimer) return;
@@ -659,16 +805,16 @@ function compressImage(file, maxEdge, quality) {
   function loadAll() {
     if (!sb) return Promise.reject(new Error('云端未就绪'));
     return withTimeout(sb.from('messages')
-      .select('id,created_at,name,content,avatar_color,avatar_emoji,avatar_path,avatar_mode,like_count,reply_count,is_pinned,pinned_at')
+      .select('id,created_at,name,content,avatar_color,avatar_emoji,avatar_path,avatar_mode,like_count,reply_count,is_pinned,pinned_at,section_id')
       .eq('hidden', false)
       .order('created_at', { ascending: false })
       .limit(PAGE_SIZE), 15000, '读取留言')
       .then(function (res) {
         if (res.error) throw res.error;
-        messages = (res.data || []).slice().reverse();      // 时间正序
-        messages.sort(function (a, b) {                     // 置顶排最前
+        messages = res.data || [];                          // 已经是时间倒序（新的在前）
+        messages.sort(function (a, b) {                     // 置顶的抽到最前面，其余保持新的在前
           if (!!a.is_pinned !== !!b.is_pinned) return a.is_pinned ? -1 : 1;
-          return 0;
+          return new Date(b.created_at) - new Date(a.created_at);
         });
         var ids = messages.map(function (m) { return m.id; });
         if (!ids.length) { repliesByMsg = {}; msgImages = {}; writeGbCache(messages, []); return null; }
@@ -903,6 +1049,10 @@ function compressImage(file, maxEdge, quality) {
     timeEl.className = 'gb-time';
     timeEl.textContent = fmt(msg.created_at);
     header.appendChild(nameEl); header.appendChild(timeEl);
+    var secTag = document.createElement('span');
+    secTag.className = 'gb-sec-tag';
+    secTag.textContent = secName(msg.section_id);
+    header.appendChild(secTag);
 
     var content = document.createElement('div');
     content.className = 'gb-content';
@@ -987,6 +1137,7 @@ function compressImage(file, maxEdge, quality) {
   }
 
   function render() {
+    renderSections();
     listEl.textContent = '';
     if (!messages.length) {
       var empty = document.createElement('div');
@@ -995,7 +1146,18 @@ function compressImage(file, maxEdge, quality) {
       listEl.appendChild(empty);
       return;
     }
-    messages.forEach(function (msg) { listEl.appendChild(createPostEl(msg)); });
+    messages.filter(function (m) {
+      if (!curSection) return true;                       // 全部
+      if (curSection === 'none') return !m.section_id;     // 未分区
+      return m.section_id === curSection;
+    }).forEach(function (msg) { listEl.appendChild(createPostEl(msg)); });
+
+    if (!listEl.childNodes.length) {
+      var none = document.createElement('div');
+      none.className = 'empty';
+      none.textContent = '这个分区还没有帖子。';
+      listEl.appendChild(none);
+    }
 
     if (messages.some(function (m) { return m.is_pinned; })) {
       var bar = document.createElement('div');
@@ -1027,6 +1189,8 @@ function compressImage(file, maxEdge, quality) {
         URL.revokeObjectURL(it.url);
         pendingImgs.splice(i, 1);
         renderImgPick();
+  var secCached = readSecCache();
+  if (secCached) { sections = secCached; renderSections(); }
       };
       w.appendChild(im); w.appendChild(del);
       box.appendChild(w);
@@ -1052,6 +1216,8 @@ function compressImage(file, maxEdge, quality) {
         alert('最多只能发 ' + MAX_IMGS + ' 张图');
       }
       renderImgPick();
+  var secCached = readSecCache();
+  if (secCached) { sections = secCached; renderSections(); }
       e.target.value = '';
     };
   }
@@ -1111,6 +1277,8 @@ function compressImage(file, maxEdge, quality) {
     pendingImgs.forEach(function (it) { URL.revokeObjectURL(it.url); });
     pendingImgs = [];
     renderImgPick();
+  var secCached = readSecCache();
+  if (secCached) { sections = secCached; renderSections(); }
   }
 
   /* 留言里的图片：点击看大图 */
@@ -1170,7 +1338,8 @@ function compressImage(file, maxEdge, quality) {
     sb.from('messages').insert({
       device_id: deviceId, name: name.slice(0, 20), content: content.slice(0, 500),
       avatar_mode: av.avatar_mode, avatar_path: av.avatar_path,
-      avatar_color: av.avatar_color, avatar_emoji: av.avatar_emoji
+      avatar_color: av.avatar_color, avatar_emoji: av.avatar_emoji,
+      section_id: (curSection && curSection !== 'none' && curSection !== '') ? curSection : null
     }).select('id').then(function (res) {
       if (res.error) throw res.error;
       var newId = (res.data && res.data[0] && res.data[0].id) || '';
@@ -1192,6 +1361,8 @@ function compressImage(file, maxEdge, quality) {
   buildPickers();
   setMode(avatarMode);
   renderImgPick();
+  var secCached = readSecCache();
+  if (secCached) { sections = secCached; renderSections(); }
   render();
   status('正在连接留言服务器……');
 
@@ -1209,7 +1380,7 @@ function compressImage(file, maxEdge, quality) {
       messages = gbCached.messages.slice();
       messages.sort(function (a, b) {
         if (!!a.is_pinned !== !!b.is_pinned) return a.is_pinned ? -1 : 1;
-        return 0;
+        return new Date(b.created_at) - new Date(a.created_at);
       });
       repliesByMsg = {};
       (gbCached.replies || []).forEach(function (r) {
@@ -1222,7 +1393,7 @@ function compressImage(file, maxEdge, quality) {
       var cached = JSON.parse(localStorage.getItem(LIKED_KEY) || '{}');
       if (cached && typeof cached === 'object') likedSet = cached;
     } catch (e) { likedSet = {}; }
-    loadAll().then(loadLiked).then(function () {
+    loadSections().then(loadAll).then(loadLiked).then(function () {
       connected = true;
       render();
       var icon = (avatarMode === 'image' && selectedImage) ? '（图片头像）' : selectedEmoji;
