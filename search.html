@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light">
-<title>留言板 · 未分区 | 达高中（非官网）</title>
+<title>搜索 | 达高中（非官网）</title>
 <style>
   .avatar-circle { display:flex; align-items:center; justify-content:center; color:#fff; border-radius:50%; overflow:hidden; flex-shrink:0; line-height:1; user-select:none; }
   .avatar-circle.big { width:48px; height:48px; font-size:1.4rem; }
@@ -75,11 +75,13 @@
 <div class="main">
 <div class="container">
 <div class="page-head">
-  <h1>留言板 · 未分区</h1>
-  <div class="en">Guestbook</div>
+  <h1>搜索</h1>
+  <div class="en">Search</div>
+  <p>按关键词或 #标签搜索留言。</p>
 </div>
+
 <div class="gb-sections">
-<a class="gb-sec-chip on" href="./guestbook.html">未分区</a>
+<a class="gb-sec-chip" href="./guestbook.html">未分区</a>
 <a class="gb-sec-chip" href="./gb-study.html">学习</a>
 <a class="gb-sec-chip" href="./gb-news.html">新闻</a>
 <a class="gb-sec-chip" href="./gb-works.html">作品</a>
@@ -92,51 +94,29 @@
 <a class="gb-sec-chip" href="./gb-other.html">其他</a>
 <a class="gb-sec-chip" href="./search.html">🔍 搜索</a>
 </div>
-<div class="gb-notice" id="gb-notice" hidden>
-  <button class="gb-notice-x" id="gb-notice-x" type="button" aria-label="关闭提醒" title="不再显示">✕</button>
-  <div class="gb-notice-t">发言前请先看这一条</div>
-  <p>这个留言板属于全年级的同学，每个人的圈子、爱好和关注点都不一样，请彼此尊重。</p>
-  <p>不要在留言里引战、骂人、当串子，也不要发带攻击性或误导性的内容。</p>
-  <p>学校、班级、老师和同学都可能看到这里，说话前想一想对方读到的感受。</p>
-</div>
-<div class="status" id="gb-status" hidden></div>
 
 <div class="card-box" style="margin-bottom:20px">
-  <label style="display:block;font-size:.85rem;color:var(--muted);margin-bottom:6px">你的名字（必填）</label>
-  <input type="text" id="gb-name" maxlength="20" placeholder="输入名字或昵称"
-    style="width:100%;padding:10px 12px;border:1px solid var(--glass-brd);border-radius:8px;font-family:inherit;font-size:1rem;margin-bottom:14px">
-
-  <label style="display:block;font-size:.85rem;color:var(--muted);margin-bottom:6px">头像</label>
-  <div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap">
-    <div id="avatar-preview"></div>
-    <div style="flex:1;min-width:0">
-      <div id="emoji-row" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px"></div>
-      <div id="color-row" style="display:flex;flex-wrap:wrap;gap:10px"></div>
-    </div>
+  <label style="display:block;font-size:.85rem;color:var(--muted);margin-bottom:6px">关键词（搜内容或名字）</label>
+  <input type="text" id="s-kw" placeholder="例如：篮球、考试、老王" style="width:100%;padding:10px 12px;border:1px solid var(--glass-brd);border-radius:8px;font-family:inherit;font-size:1rem;margin-bottom:12px">
+  <label style="display:block;font-size:.85rem;color:var(--muted);margin-bottom:6px">标签（#后面的部分，可不带 #）</label>
+  <input type="text" id="s-tag" placeholder="例如：篮球" style="width:100%;padding:10px 12px;border:1px solid var(--glass-brd);border-radius:8px;font-family:inherit;font-size:1rem;margin-bottom:12px">
+  <label style="display:block;font-size:.85rem;color:var(--muted);margin-bottom:6px">大分区</label>
+  <select id="s-main" style="width:100%;padding:10px 12px;border:1px solid var(--glass-brd);border-radius:8px;font-family:inherit;font-size:1rem;margin-bottom:16px;background:rgba(255,255,255,.75)">
+    <option value="">全部大分区</option>
+  </select>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <button class="btn-main" id="s-go" type="button">搜索</button>
+    <button class="btn-ghost" id="s-clear" type="button">清空</button>
   </div>
-
-  <label style="display:block;font-size:.85rem;color:var(--muted);margin-bottom:6px">内容（可用 #标签，最多 5 个）</label>
-  <textarea id="gb-content" maxlength="500" placeholder="写点什么…… 例如：今天打球真爽 #篮球 #体育课"
-    style="width:100%;min-height:110px;padding:10px 12px;border:1px solid var(--glass-brd);border-radius:8px;font-family:inherit;font-size:1rem;margin-bottom:12px;resize:vertical"></textarea>
-
-  <label style="display:block;font-size:.85rem;color:var(--muted);margin-bottom:6px">配图（可选，最多 4 张）</label>
-  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
-    <label for="gb-images" style="display:inline-block;padding:9px 16px;background:rgba(255,255,255,.7);border:1px solid var(--glass-brd);border-radius:8px;cursor:pointer;font-size:.9rem">📷 选择图片</label>
-    <input type="file" id="gb-images" accept="image/*" multiple style="display:none">
-    <span id="gb-img-count" style="font-size:.85rem;color:var(--muted)"></span>
-  </div>
-  <div id="gb-img-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
-
-  <button class="btn-main" id="gb-submit" type="button">发布</button>
 </div>
 
-<div class="gb-subs" id="gb-subs"></div>
+<div class="card-box" id="s-tagcloud" style="margin-bottom:20px" hidden>
+  <div style="font-weight:700;color:var(--accent);margin-bottom:10px">热门标签</div>
+  <div id="s-tags" class="gb-sections"></div>
+</div>
+
+<div class="status" id="gb-status" hidden></div>
 <div id="gb-list"></div>
-<div class="lb" id="lightbox" hidden>
-<div class="lb-bar"><span class="lb-title" id="lb-title"></span>
-<div class="lb-btns"><button class="btn-ghost" id="lb-download" type="button">⬇ 下载原图</button>
-<button class="btn-ghost" id="lb-close" type="button">✕ 关闭</button></div></div>
-<div class="lb-stage"><img id="lb-img" alt=""></div></div>
 </div>
 </div>
 <script src="./vendor/supabase.js"></script>
@@ -873,42 +853,83 @@ var GB = (function () {
 
 </script>
 <script>
-JW.whenReady(function(e){ if(e){ document.getElementById('gb-status').hidden=false; document.getElementById('gb-status').textContent='连不上云端：'+(e.message||e); return;} GB.boot({main:'未分区'}); });
-</script>
-<script>
 
 (function () {
-  var KEY = 'jw_notice_seen2';
-  var box = document.getElementById('gb-notice');
-  if (!box) return;
-  try { if (localStorage.getItem(KEY) === '1') box.hidden = true; else box.hidden = false; } catch (e) { box.hidden = false; }
-  document.getElementById('gb-notice-x').onclick = function () {
-    box.hidden = true;
-    try { localStorage.setItem(KEY, '1'); } catch (e) {}
-  };
-  var lb = document.getElementById('lightbox');
-  if (lb) {
-    var img = document.getElementById('lb-img'), title = document.getElementById('lb-title');
-    window.__jwOpenImage = function (url, name) {
-      img.src = url; title.textContent = (name || '图片') + '　（长按可直接保存）';
-      lb.hidden = false; document.body.style.overflow = 'hidden';
-      lb.dataset.url = url; lb.dataset.name = name || '图片';
-    };
-    function close() { lb.hidden = true; document.body.style.overflow = ''; }
-    document.getElementById('lb-close').onclick = close;
-    lb.querySelector('.lb-stage').onclick = function (e) { if (e.target === lb.querySelector('.lb-stage')) close(); };
-    document.getElementById('lb-download').onclick = function () {
-      var b = this; b.disabled = true; b.textContent = '下载中…';
-      fetch(lb.dataset.url).then(function (r) { return r.blob(); }).then(function (bl) {
-        var u = URL.createObjectURL(bl), a = document.createElement('a');
-        a.href = u; a.download = (lb.dataset.name || '图片') + '.jpg';
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(function () { URL.revokeObjectURL(u); }, 4000);
-        b.disabled = false; b.textContent = '⬇ 下载原图';
-      }).catch(function () { window.open(lb.dataset.url, '_blank'); b.disabled = false; b.textContent = '⬇ 下载原图'; });
-    };
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+  function fmt(ts){var d=new Date(ts);if(isNaN(d))return '';var p=function(n){return n<10?'0'+n:''+n};return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());}
+
+  // 大分区下拉
+  GB.MAINS.forEach(function (m) {
+    var o = document.createElement('option'); o.value = m; o.textContent = m; $('s-main').appendChild(o);
+  });
+
+  function card(m) {
+    var el = document.createElement('div');
+    el.className = 'gb-item' + (m.is_pinned ? ' pinned' : '');
+    var head = document.createElement('div'); head.className = 'gb-header';
+    var nm = document.createElement('span'); nm.className='gb-name'; nm.textContent = m.name; head.appendChild(nm);
+    var tm = document.createElement('span'); tm.className='gb-time'; tm.textContent = fmt(m.created_at); head.appendChild(tm);
+    var tag = document.createElement('span'); tag.className='gb-sec-tag'; tag.textContent = m.main_section || '未分区'; head.appendChild(tag);
+    var ct = document.createElement('div'); ct.className='gb-content'; ct.textContent = m.content;
+    // 标签
+    var tags = document.createElement('div'); tags.style.cssText = 'margin-top:8px;display:flex;gap:8px;flex-wrap:wrap';
+    (m.tags || []).forEach(function (t) {
+      var a = document.createElement('a'); a.className = 'gb-tag'; a.href = './search.html?tag=' + encodeURIComponent(t); a.textContent = '#' + t;
+      tags.appendChild(a);
+    });
+    var body = document.createElement('div'); body.className='gb-body';
+    body.appendChild(head); body.appendChild(ct); if ((m.tags||[]).length) body.appendChild(tags);
+    el.appendChild(body);
+    return el;
   }
+
+  var listEl = $('gb-list');
+  function doSearch() {
+    var kw = $('s-kw').value.trim(), tg = $('s-tag').value.trim(), mn = $('s-main').value;
+    if (tg.charAt(0) === '#') tg = tg.slice(1);
+    $('gb-status').hidden = false; $('gb-status').textContent = '搜索中……';
+    listEl.textContent = '';
+    JW.sb.rpc('search_messages', { p_keyword: kw || null, p_tag: tg || null, p_main: mn || null, p_limit: 80 })
+      .then(function (r) {
+        if (r.error) throw r.error;
+        var rows = r.data || [];
+        $('gb-status').textContent = '找到 ' + rows.length + ' 条' + (tg ? '（标签 #' + tg + '）' : '') + (kw ? '（关键词「' + kw + '」）' : '');
+        if (!rows.length) { var e=document.createElement('div'); e.className='empty'; e.textContent='没有匹配的帖子。'; listEl.appendChild(e); return; }
+        rows.forEach(function (m) { listEl.appendChild(card(m)); });
+      })
+      .catch(function (e) { $('gb-status').textContent = '搜索失败：' + ((e && e.message) || e); });
+  }
+
+  function loadTags() {
+    return JW.sb.rpc('top_tags', { p_limit: 40 }).then(function (r) {
+      if (r.error || !r.data || !r.data.length) return;
+      $('s-tagcloud').hidden = false;
+      var box = $('s-tags'); box.textContent = '';
+      r.data.forEach(function (t) {
+        var b = document.createElement('button'); b.type='button'; b.className='gb-sec-chip';
+        b.textContent = '#' + (t.tag || t[0]) + ' ' + (t.cnt || t[1]);
+        b.onclick = function () { $('s-tag').value = (t.tag || t[0]); $('s-kw').value = ''; $('s-main').value=''; doSearch(); };
+        box.appendChild(b);
+      });
+    }).catch(function () {});
+  }
+
+  $('s-go').onclick = doSearch;
+  $('s-clear').onclick = function () { $('s-kw').value=''; $('s-tag').value=''; $('s-main').value=''; listEl.textContent=''; $('gb-status').hidden=true; };
+  ['s-kw','s-tag'].forEach(function (id) {
+    $(id).addEventListener('keydown', function (e) { if (e.key === 'Enter') doSearch(); });
+  });
+
+  JW.whenReady(function (e) {
+    if (e) { $('gb-status').hidden=false; $('gb-status').textContent='连不上云端：' + (e.message||e); return; }
+    var q = new URLSearchParams(location.search);
+    if (q.get('tag')) $('s-tag').value = q.get('tag');
+    if (q.get('q')) $('s-kw').value = q.get('q');
+    loadTags().then(function () { if ($('s-tag').value || $('s-kw').value) doSearch(); else $('gb-status').hidden = true; });
+  });
 })();
+
 </script>
 
 <script>
