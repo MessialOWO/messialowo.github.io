@@ -1,12 +1,12 @@
 /* ===== 班级期刊 · 全站共享脚本（侧边栏 + 云端连接） ===== */
 var SITE = {
-  name: '班级期刊',
+  name: '达高中（非官网）',
   school: '达州市高级中学',
   pages: [
     { href: './',                  label: '首页',       en: 'Home',      key: 'home' },
     { href: './gallery.html',      label: '画廊',       en: 'Gallery',   key: 'gallery' },
     { href: './guestbook.html',    label: '留言板',     en: 'Guestbook', key: 'guestbook' },
-    { href: './journal/',          label: '期刊投稿',   en: 'Journal',   key: 'journal' },
+    { href: './journal.html',          label: '期刊投稿',   en: 'Journal',   key: 'journal' },
     { href: './about-school.html', label: '关于学校',   en: 'About School', key: 'school' },
     { href: './about-site.html',   label: '关于本站',   en: 'About Site',   key: 'site' }
   ]
