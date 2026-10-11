@@ -38,7 +38,20 @@
 <p>本站不主动发布、存储违反中华人民共和国法律法规的内容。如相关内容涉及侵权或不当，请联系我们，我们将在核实后及时处理。</p>
 <p>本站为非营利性质，为爱（并非爱）发电，由学生自费维护。如校方对本站有任何异议，我们（其实也就我一个人qwq）愿意配合调整或下线。</p>
 <div class="card-box"><h3 class="school-h3">联系我们</h3><ul class="contact-ul"><li><span>微信Wechat</span><b>MessialOWO</b></li><li><span>QQ</span><a href="https://qm.qq.com/cgi-bin/qm/qr?k=&amp;uin=2961001891" target="_blank" rel="noopener">2961001891</a></li><li><span>邮箱</span><a href="mailto:equalacorn28027@outlook.com">equalacorn28027@outlook.com</a></li><li><span>Discord</span><b>@EqualAcorn28027</b></li></ul></div></div>
-<div class="card-box" style="margin-top:26px"><h3 class="school-h3">本站的技术说明</h3><p>本站使用 GitHub Pages 免费托管，网址 <b>messialowo.github.io</b>，源码公开在 GitHub 上。数据存放在 Supabase 的免费数据库里，图片存放在它的对象存储里。</p><p>因为国内直连 Supabase 时常被干扰，本站加了一层免费中转，所以你在国内打开也能正常看到内容，不需要任何设置。</p><p>网站由学生自己维护，服务器额度、域名等全部自费，没有任何广告和收费。</p></div>
+<div class="card-box" style="margin-top:26px"><h3 class="school-h3">本站的技术说明</h3><p>本站使用 GitHub Pages 免费托管，网址 <b>messialowo.github.io</b>，源码公开在 GitHub 上。数据存放在 Supabase 的免费数据库里，图片存放在它的对象存储里。</p><p>因为国内直连 Supabase 时常被干扰，本站加了一层免费中转，所以你在国内打开也能正常看到内容，不需要任何设置。</p><p>网站由学生自己维护，服务器额度、域名等全部自费，没有任何广告和收费。</p></div><div class="card-box" style="margin-top:22px">
+<h3 class="school-h3">搭建本站用到的开源项目</h3>
+<ul class="contact-ul">
+  <li><span>GitHub Pages</span><a href="https://pages.github.com/" target="_blank" rel="noopener">静态站点托管</a></li>
+  <li><span>Supabase</span><a href="https://supabase.com/" target="_blank" rel="noopener">数据库、用户鉴权、对象存储</a></li>
+  <li><span>supabase-js</span><a href="https://github.com/supabase/supabase-js" target="_blank" rel="noopener">前端数据库客户端（MIT）</a></li>
+  <li><span>Deno Deploy</span><a href="https://deno.com/deploy" target="_blank" rel="noopener">接口中转服务</a></li>
+  <li><span>Render</span><a href="https://render.com/" target="_blank" rel="noopener">备用中转服务</a></li>
+  <li><span>GitHub Actions</span><a href="https://github.com/features/actions" target="_blank" rel="noopener">定时任务与自动部署</a></li>
+  <li><span>Google Sans</span><span style="color:var(--muted)">标题与界面字体</span></li>
+  <li><span>Liquid Glass</span><a href="https://github.com/shuding/liquid-glass" target="_blank" rel="noopener">界面折射效果参考（MIT）</a></li>
+</ul>
+<p style="font-size:.82rem;color:var(--muted);margin-top:12px">以上项目各自遵循其开源许可，本站仅作学习与非商业用途使用。</p>
+</div>
 </div>
 </div>
 <script src="./vendor/supabase.js"></script>
@@ -80,7 +93,7 @@ SITE.shell = function (activeKey) {
     '<div class="brand">'
     + '<img src="./img/logo.png" alt="校徽">'
     + '<div class="name">' + SITE.name + '</div>'
-    + '<div class="sub">非官方网站</div>'
+    + '<div class="sub">Unofficial</div>'
     + '</div>'
     + '<nav>' + links + '</nav>'
     ;
