@@ -35,10 +35,10 @@ SITE.shell = function (activeKey) {
     '<div class="brand">'
     + '<img src="./img/logo.png" alt="校徽">'
     + '<div class="name">' + SITE.name + '</div>'
-    + '<div class="sub">' + SITE.school + ' · 学生自建</div>'
+    + '<div class="sub">非官方网站</div>'
     + '</div>'
     + '<nav>' + links + '</nav>'
-    + '<footer>由学生自费维护<br>非学校官方网站</footer>';
+    + '<footer><a href="./about-site.html">关于本站</a></footer>';
 
   document.body.insertBefore(aside, document.body.firstChild);
   document.body.insertBefore(mask, document.body.firstChild);
@@ -60,13 +60,12 @@ SITE.footer = function (host) {
   var f = document.createElement('footer');
   f.className = 'site-footer';
   f.innerHTML =
-    '<p>班级期刊 · ' + SITE.school + ' 学生自建</p>'
-    + '<p class="contact-line">联系方式</p>'
+    '<p class="contact-line">联系方式</p>'
     + '<p class="contact-list">'
     + '<span>微信：<b>MessialOWO</b></span>'
     + '<span>QQ：<a href="https://qm.qq.com/cgi-bin/qm/qr?k=&amp;uin=2961001891" target="_blank" rel="noopener">2961001891</a></span>'
     + '<span>邮箱：<a href="mailto:equalacorn28027@outlook.com">equalacorn28027@outlook.com</a></span>'
     + '</p>'
-    + '<p><a href="./about-site.html">关于本站</a> · <a href="./about-school.html">关于学校</a></p>';
+    + '<p><a href="./about-site.html">关于本站</a> · <a href="./about-school.html">关于学校</a> · 非官方网站</p>';
   el.appendChild(f);
 };
