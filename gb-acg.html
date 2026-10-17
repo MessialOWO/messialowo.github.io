@@ -182,6 +182,53 @@
   }
   @keyframes gbspin { to { transform: rotate(360deg); } }
 
+  /* 用户名小字（灰色，很小） */
+  .gb-name-wrap { display: inline-flex; flex-direction: column; line-height: 1.25; }
+  .gb-uid {
+    font-size: .62rem; color: #9a9a9a; font-weight: 400;
+    letter-spacing: .2px; margin-top: 1px;
+  }
+  .gb-uid:hover { color: var(--accent); }
+
+  /* 加载文字：小一点 */
+  .gb-loading { font-size: .76rem !important; }
+  .gb-loading .gb-spin { width: 14px !important; height: 14px !important; }
+
+  /* ===== 个人资料卡 ===== */
+  .pc-modal { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; padding: 18px; }
+  .pc-modal[hidden] { display: none; }
+  .pc-mask { position: absolute; inset: 0; background: rgba(20,16,14,.55); }
+  .pc-card {
+    position: relative; width: 100%; max-width: 380px; max-height: 88vh; overflow-y: auto;
+    background: #fffdfb; border-radius: 18px; box-shadow: 0 18px 50px rgba(0,0,0,.3);
+    animation: pcIn .2s ease;
+  }
+  @keyframes pcIn { from { transform: translateY(14px) scale(.97); opacity: 0; } to { none; opacity: 1; } }
+  .pc-cover {
+    height: 118px; background: linear-gradient(150deg, #c0392b, #8e44ad);
+    background-size: cover; background-position: center; border-radius: 18px 18px 0 0;
+  }
+  .pc-cover.no-cover { background-image: linear-gradient(150deg, #c0392b, #8e44ad) !important; }
+  .pc-close {
+    position: absolute; top: 10px; right: 10px; width: 30px; height: 30px;
+    border-radius: 50%; border: none; padding: 0; cursor: pointer;
+    background: rgba(0,0,0,.32); color: #fff; font-size: .85rem; line-height: 1;
+  }
+  .pc-close:hover { background: rgba(0,0,0,.5); }
+  .pc-body { padding: 0 20px 22px; }
+  .pc-avatar { margin-top: -38px; margin-bottom: 10px; display: flex; }
+  .pc-name { font-size: 1.15rem; font-weight: 700; margin-bottom: 2px; word-break: break-word; }
+  .pc-uid { font-size: .72rem; color: #9a9a9a; margin-bottom: 12px; }
+  .pc-bio {
+    font-size: .84rem; line-height: 1.8; color: var(--text);
+    background: rgba(0,0,0,.032); border-radius: 10px; padding: 12px 14px;
+    margin-bottom: 14px; white-space: pre-wrap; word-break: break-word;
+  }
+  .pc-bio.empty-bio { color: var(--muted); font-style: normal; }
+  .pc-meta { display: flex; gap: 16px; font-size: .74rem; color: var(--muted); }
+  .pc-meta span::before { content: '· '; }
+  .pc-meta span:first-child::before { content: ''; }
+
   .gb-item { display:flex; gap:14px; background:rgba(255,255,255,.55); border:1px solid var(--glass-brd); border-radius:14px; padding:15px 16px; margin-bottom:12px; position:relative; }
   .gb-item.pinned { border-left:5px solid var(--accent); background:#fffdfb; }
   .gb-body { flex:1; min-width:0; }
@@ -785,6 +832,159 @@ JW.storagePublic = (JW.proxy && JW.proxy.length ? String(JW.proxy[0]).replace(/\
 
 </script>
 <script>
+/* ===== 个人资料卡（点帖子头像弹出） ===== */
+var PROFILE = (function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var cache = {};          // username -> profile
+  var cur = null;
+
+  function storageUrl(p) {
+    if (typeof p !== 'string' || !/^[A-Za-z0-9-]{1,64}\/[A-Za-z0-9._-]{1,80}$/.test(p)) return '';
+    return (window.JW && JW.storagePublic || '') + p;
+  }
+  function fmtDate(ts) {
+    var d = new Date(ts); if (isNaN(d)) return '';
+    return d.getFullYear() + ' 年 ' + (d.getMonth() + 1) + ' 月加入';
+  }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  /* 建弹层（只建一次） */
+  function ensureDom() {
+    if ($('pc-modal')) return;
+    var box = document.createElement('div');
+    box.className = 'pc-modal';
+    box.id = 'pc-modal';
+    box.hidden = true;
+    box.innerHTML =
+      '<div class="pc-mask" id="pc-mask"></div>' +
+      '<div class="pc-card" role="dialog" aria-modal="true">' +
+      '  <div class="pc-cover" id="pc-cover"></div>' +
+      '  <button class="pc-close" id="pc-close" type="button" aria-label="关闭">✕</button>' +
+      '  <div class="pc-body">' +
+      '    <div class="pc-avatar" id="pc-avatar"></div>' +
+      '    <div class="pc-name" id="pc-name"></div>' +
+      '    <div class="pc-uid" id="pc-uid"></div>' +
+      '    <div class="pc-bio" id="pc-bio"></div>' +
+      '    <div class="pc-meta" id="pc-meta"></div>' +
+      '    <div class="pc-actions" id="pc-actions"></div>' +
+      '  </div>' +
+      '</div>';
+    document.body.appendChild(box);
+
+    $('pc-mask').onclick = close;
+    $('pc-close').onclick = close;
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !box.hidden) close();
+    });
+  }
+
+  function close() {
+    var box = $('pc-modal');
+    if (box) box.hidden = true;
+    document.body.style.overflow = '';
+    cur = null;
+  }
+
+  function render(p) {
+    var cover = $('pc-cover');
+    cover.style.backgroundImage = '';
+    if (p.cover_path) {
+      var cu = storageUrl(p.cover_path);
+      if (cu) cover.style.backgroundImage = 'url("' + cu + '")';
+    }
+    cover.classList.toggle('no-cover', !p.cover_path);
+
+    var av = $('pc-avatar');
+    av.textContent = '';
+    var el = document.createElement('div');
+    el.className = 'avatar-circle';
+    el.style.cssText = 'width:76px;height:76px;font-size:2.1rem;border:3px solid #fff;box-shadow:0 3px 12px rgba(0,0,0,.16)';
+    if (p.avatar_mode === 'image' && p.avatar_path) {
+      var im = document.createElement('img');
+      im.src = storageUrl(p.avatar_path); im.alt = '';
+      im.onerror = function () { el.textContent = p.avatar_emoji || '🙂'; el.style.background = p.avatar_color || '#c0392b'; };
+      el.appendChild(im);
+    } else {
+      el.textContent = p.avatar_emoji || '🙂';
+      el.style.background = /^#[0-9a-fA-F]{6}$/.test(p.avatar_color || '') ? p.avatar_color : '#c0392b';
+    }
+    av.appendChild(el);
+
+    $('pc-name').textContent = p.nickname || p.username;
+    $('pc-uid').textContent = p.username;
+
+    var bio = $('pc-bio');
+    if (p.bio) { bio.textContent = p.bio; bio.hidden = false; }
+    else { bio.textContent = '这个人还没写简介'; bio.hidden = false; bio.classList.add('empty-bio'); }
+
+    var meta = $('pc-meta');
+    meta.textContent = '';
+    if (p.posts != null) {
+      var s1 = document.createElement('span');
+      s1.textContent = p.posts + ' 条帖子';
+      meta.appendChild(s1);
+    }
+    if (p.created_at) {
+      var s2 = document.createElement('span');
+      s2.textContent = fmtDate(p.created_at);
+      meta.appendChild(s2);
+    }
+  }
+
+  function openByUsername(username) {
+    if (!username) return;
+    var key = String(username).replace(/^@+/, '').toLowerCase();
+    ensureDom();
+    var box = $('pc-modal');
+    box.hidden = false;
+    document.body.style.overflow = 'hidden';
+
+    if (cache[key]) { render(cache[key]); return; }
+
+    // 先占位
+    $('pc-name').textContent = '加载中……';
+    $('pc-uid').textContent = '@' + username;
+    $('pc-bio').textContent = '';
+    $('pc-meta').textContent = '';
+    $('pc-avatar').textContent = '';
+    $('pc-cover').style.backgroundImage = '';
+    $('pc-cover').classList.add('no-cover');
+
+    if (!window.JW || !JW.sb) {
+      $('pc-name').textContent = '连不上服务器';
+      return;
+    }
+    JW.sb.rpc('get_profile', { p_username: username }).then(function (r) {
+      if (r.error) throw r.error;
+      var p = r.data;
+      if (typeof p === 'string') { try { p = JSON.parse(p); } catch (e) {} }
+      if (!p) { $('pc-name').textContent = '找不到这个用户'; return; }
+      cache[key] = p;
+      render(p);
+    }).catch(function (e) {
+      $('pc-name').textContent = '加载失败：' + ((e && e.message) || e);
+    });
+  }
+
+  function bind(container) {
+    if (!container) return;
+    container.addEventListener('click', function (e) {
+      var trigger = e.target.closest ? e.target.closest('[data-profile]') : null;
+      if (!trigger) return;
+      e.preventDefault();
+      e.stopPropagation();
+      openByUsername(trigger.getAttribute('data-profile'));
+    });
+  }
+
+  return { open: openByUsername, bind: bind, close: close, clearCache: function () { cache = {}; } };
+})();
+
+</script>
+<script>
 /* ===== 班级期刊 · 留言板（两级分区 + 标签 + 搜索）=====
    大分区固定 11 个（未分区/学习/新闻/作品/失物招领/游戏/二次元/内娱/学校吐槽/意见建议/其他）
    小分区 用户可在某个大分区下自建（≤5汉字或10字母），删除要密码
@@ -1013,7 +1213,7 @@ var GB = (function () {
     var item = document.createElement('div');
     item.className = 'gb-item' + (msg.is_pinned ? ' pinned' : '');
     item.id = 'p-' + msg.id;                      // 供搜索页跳转定位
-    item.appendChild(avatarNode(msg.avatar_color, msg.avatar_emoji, msg.avatar_path, 'big'));
+    item.appendChild(avatarNode(msg.avatar_color, msg.avatar_emoji, msg.avatar_path, 'big', msg.author_username));
 
     var body = document.createElement('div');
     body.className = 'gb-body';
@@ -1023,7 +1223,19 @@ var GB = (function () {
     if (msg.is_pinned) {
       var pin = document.createElement('span'); pin.className = 'gb-pin-badge'; pin.textContent = '📌 置顶'; head.appendChild(pin);
     }
-    var nm = document.createElement('span'); nm.className = 'gb-name'; nm.textContent = msg.name; head.appendChild(nm);
+    var nmWrap = document.createElement('span');
+    nmWrap.className = 'gb-name-wrap';
+    var nm = document.createElement('span'); nm.className = 'gb-name'; nm.textContent = msg.name;
+    nmWrap.appendChild(nm);
+    if (msg.author_username) {
+      var uid = document.createElement('span');
+      uid.className = 'gb-uid';
+      uid.textContent = '@' + String(msg.author_username).replace(/^@+/, '');
+      uid.setAttribute('data-profile', String(msg.author_username).replace(/^@+/, ''));
+      uid.style.cursor = 'pointer';
+      nmWrap.appendChild(uid);
+    }
+    head.appendChild(nmWrap);
     var tm = document.createElement('span'); tm.className = 'gb-time'; tm.textContent = fmt(msg.created_at); head.appendChild(tm);
     var tag = document.createElement('span'); tag.className = 'gb-sec-tag';
     tag.textContent = (msg.main_section || '未分区') + (msg.sub_section_id && secName(msg.sub_section_id) ? ' · ' + secName(msg.sub_section_id) : '');
@@ -1040,9 +1252,14 @@ var GB = (function () {
     return item;
   }
 
-  function avatarNode(color, emoji, path, size) {
+  function avatarNode(color, emoji, path, size, username) {
     var el = document.createElement('div');
     el.className = 'avatar-circle ' + (size === 'small' ? 'small' : 'big');
+    if (username) {
+      el.setAttribute('data-profile', String(username).replace(/^@+/, ''));
+      el.style.cursor = 'pointer';
+      el.title = '查看 @' + String(username).replace(/^@+/, '') + ' 的资料';
+    }
     var url = avatarUrl(path);
     if (url) {
       var im = document.createElement('img'); im.src = url; im.alt = ''; im.loading = 'lazy';
@@ -1192,10 +1409,20 @@ var GB = (function () {
   /* 单条回复（可带"回评折叠"：展开后才有子回复） */
   function replyEl(msg, r, host, showSubReplies) {
     var el = document.createElement('div'); el.className = 'gb-reply';
-    el.appendChild(avatarNode(r.avatar_color, r.avatar_emoji, r.avatar_path, 'small'));
+    el.appendChild(avatarNode(r.avatar_color, r.avatar_emoji, r.avatar_path, 'small', r.author_username));
     var b = document.createElement('div'); b.className = 'gb-reply-body';
     var h = document.createElement('div');
-    var n = document.createElement('span'); n.className = 'gb-reply-name'; n.textContent = r.name; h.appendChild(n);
+    var nWrap = document.createElement('span'); nWrap.className = 'gb-name-wrap';
+    var n = document.createElement('span'); n.className = 'gb-reply-name'; n.textContent = r.name;
+    nWrap.appendChild(n);
+    if (r.author_username) {
+      var ru = document.createElement('span'); ru.className = 'gb-uid';
+      ru.textContent = '@' + String(r.author_username).replace(/^@+/, '');
+      ru.setAttribute('data-profile', String(r.author_username).replace(/^@+/, ''));
+      ru.style.cursor = 'pointer';
+      nWrap.appendChild(ru);
+    }
+    h.appendChild(nWrap);
     if (r.reply_to_name) { var to = document.createElement('span'); to.className = 'gb-reply-to'; to.textContent = '回复 ' + r.reply_to_name; h.appendChild(to); }
     var t = document.createElement('span'); t.className = 'gb-reply-time'; t.textContent = fmt(r.created_at); h.appendChild(t);
     var c = document.createElement('div'); c.className = 'gb-reply-content';
@@ -1220,11 +1447,20 @@ var GB = (function () {
       var showN = allOpen ? children.length : 1;
       children.slice(0, showN).forEach(function (ch) {
         var ce = document.createElement('div'); ce.className = 'gb-sub-reply';
+        var cw = document.createElement('span'); cw.className = 'gb-name-wrap';
         var cn = document.createElement('span'); cn.className = 'gb-reply-name'; cn.textContent = ch.name;
+        cw.appendChild(cn);
+        if (ch.author_username) {
+          var cu2 = document.createElement('span'); cu2.className = 'gb-uid';
+          cu2.textContent = '@' + String(ch.author_username).replace(/^@+/, '');
+          cu2.setAttribute('data-profile', String(ch.author_username).replace(/^@+/, ''));
+          cu2.style.cursor = 'pointer';
+          cw.appendChild(cu2);
+        }
         var ct = document.createElement('span'); ct.className = 'gb-reply-time'; ct.textContent = fmt(ch.created_at);
         var cc = document.createElement('div'); cc.className = 'gb-reply-content';
         renderContent(cc, ch.content);
-        ce.appendChild(cn); ce.appendChild(ct); ce.appendChild(cc);
+        ce.appendChild(cw); ce.appendChild(ct); ce.appendChild(cc);
         sub.appendChild(ce);
       });
       if (children.length > 1) {
@@ -1443,7 +1679,7 @@ var GB = (function () {
           .then(function (r2) {
             msgImages = {};
             if (!r2.error) (r2.data || []).forEach(function (x) { (msgImages[x.message_id] = msgImages[x.message_id] || []).push(x); });
-            return sb.from('replies').select('id,message_id,created_at,name,content,avatar_color,avatar_emoji,avatar_path,avatar_mode,reply_to_id,reply_to_name')
+            return sb.from('replies').select('id,message_id,created_at,name,content,avatar_color,avatar_emoji,avatar_path,avatar_mode,reply_to_id,reply_to_name,author_username')
               .in('message_id', ids).order('created_at', { ascending: true }).limit(600);
           }).then(function (r3) {
             repliesByMsg = {};
@@ -1629,6 +1865,7 @@ var GB = (function () {
     renderWho();
     renderImgPick();
     gatePosting();
+    if (window.PROFILE && $('gb-list')) PROFILE.bind($('gb-list'));
 
     // 附件选择（图片/音频/视频）
     var fi = $('gb-files');

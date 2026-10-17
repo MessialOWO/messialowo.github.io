@@ -190,6 +190,32 @@
   </div>
 
   <div style="border-top:1px dashed var(--border);margin-top:18px;padding-top:16px">
+    <div style="font-size:.9rem;font-weight:700;margin-bottom:10px">个人资料卡</div>
+    <div style="font-size:.76rem;color:var(--muted);line-height:1.7;margin-bottom:12px">
+      别人点你帖子上的头像时，看到的就是这张卡片。
+    </div>
+
+    <div id="pc-cover-preview"
+      style="height:86px;border-radius:10px;border:1px solid var(--glass-brd);margin-bottom:8px;background:linear-gradient(150deg,#c0392b,#8e44ad) center/cover no-repeat"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+      <label for="pc-cover-file" style="display:inline-block;padding:8px 14px;background:rgba(255,255,255,.75);border:1px solid var(--glass-brd);border-radius:8px;cursor:pointer;font-size:.84rem">选择背景图</label>
+      <input type="file" id="pc-cover-file" accept="image/*" style="display:none">
+      <button class="btn-ghost" id="pc-cover-clear" type="button" style="font-size:.84rem">清除</button>
+    </div>
+
+    <label style="display:block;font-size:.82rem;color:var(--muted);margin-bottom:5px">简介（最多 200 字）</label>
+    <textarea id="pc-bio-input" maxlength="200" rows="3"
+      placeholder="介绍一下自己，比如喜欢什么、在哪个班…"
+      style="width:100%;padding:10px 12px;border:1px solid var(--glass-brd);border-radius:8px;font-family:inherit;font-size:.92rem;line-height:1.7;background:rgba(255,255,255,.75);margin-bottom:6px;resize:vertical"></textarea>
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:12px"><span id="pc-bio-count">0</span> / 200</div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn-main" id="pc-save" type="button">保存资料卡</button>
+      <button class="btn-ghost" id="pc-preview-btn" type="button">预览</button>
+    </div>
+  </div>
+
+  <div style="border-top:1px dashed var(--border);margin-top:18px;padding-top:16px">
     <div style="font-size:.9rem;font-weight:700;margin-bottom:10px">修改用户名</div>
     <label style="display:block;font-size:.82rem;color:var(--muted);margin-bottom:5px">当前用户名</label>
     <input type="text" id="u-uname-view" readonly
@@ -710,6 +736,159 @@ JW.storagePublic = (JW.proxy && JW.proxy.length ? String(JW.proxy[0]).replace(/\
 
 </script>
 <script>
+/* ===== 个人资料卡（点帖子头像弹出） ===== */
+var PROFILE = (function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var cache = {};          // username -> profile
+  var cur = null;
+
+  function storageUrl(p) {
+    if (typeof p !== 'string' || !/^[A-Za-z0-9-]{1,64}\/[A-Za-z0-9._-]{1,80}$/.test(p)) return '';
+    return (window.JW && JW.storagePublic || '') + p;
+  }
+  function fmtDate(ts) {
+    var d = new Date(ts); if (isNaN(d)) return '';
+    return d.getFullYear() + ' 年 ' + (d.getMonth() + 1) + ' 月加入';
+  }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  /* 建弹层（只建一次） */
+  function ensureDom() {
+    if ($('pc-modal')) return;
+    var box = document.createElement('div');
+    box.className = 'pc-modal';
+    box.id = 'pc-modal';
+    box.hidden = true;
+    box.innerHTML =
+      '<div class="pc-mask" id="pc-mask"></div>' +
+      '<div class="pc-card" role="dialog" aria-modal="true">' +
+      '  <div class="pc-cover" id="pc-cover"></div>' +
+      '  <button class="pc-close" id="pc-close" type="button" aria-label="关闭">✕</button>' +
+      '  <div class="pc-body">' +
+      '    <div class="pc-avatar" id="pc-avatar"></div>' +
+      '    <div class="pc-name" id="pc-name"></div>' +
+      '    <div class="pc-uid" id="pc-uid"></div>' +
+      '    <div class="pc-bio" id="pc-bio"></div>' +
+      '    <div class="pc-meta" id="pc-meta"></div>' +
+      '    <div class="pc-actions" id="pc-actions"></div>' +
+      '  </div>' +
+      '</div>';
+    document.body.appendChild(box);
+
+    $('pc-mask').onclick = close;
+    $('pc-close').onclick = close;
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !box.hidden) close();
+    });
+  }
+
+  function close() {
+    var box = $('pc-modal');
+    if (box) box.hidden = true;
+    document.body.style.overflow = '';
+    cur = null;
+  }
+
+  function render(p) {
+    var cover = $('pc-cover');
+    cover.style.backgroundImage = '';
+    if (p.cover_path) {
+      var cu = storageUrl(p.cover_path);
+      if (cu) cover.style.backgroundImage = 'url("' + cu + '")';
+    }
+    cover.classList.toggle('no-cover', !p.cover_path);
+
+    var av = $('pc-avatar');
+    av.textContent = '';
+    var el = document.createElement('div');
+    el.className = 'avatar-circle';
+    el.style.cssText = 'width:76px;height:76px;font-size:2.1rem;border:3px solid #fff;box-shadow:0 3px 12px rgba(0,0,0,.16)';
+    if (p.avatar_mode === 'image' && p.avatar_path) {
+      var im = document.createElement('img');
+      im.src = storageUrl(p.avatar_path); im.alt = '';
+      im.onerror = function () { el.textContent = p.avatar_emoji || '🙂'; el.style.background = p.avatar_color || '#c0392b'; };
+      el.appendChild(im);
+    } else {
+      el.textContent = p.avatar_emoji || '🙂';
+      el.style.background = /^#[0-9a-fA-F]{6}$/.test(p.avatar_color || '') ? p.avatar_color : '#c0392b';
+    }
+    av.appendChild(el);
+
+    $('pc-name').textContent = p.nickname || p.username;
+    $('pc-uid').textContent = p.username;
+
+    var bio = $('pc-bio');
+    if (p.bio) { bio.textContent = p.bio; bio.hidden = false; }
+    else { bio.textContent = '这个人还没写简介'; bio.hidden = false; bio.classList.add('empty-bio'); }
+
+    var meta = $('pc-meta');
+    meta.textContent = '';
+    if (p.posts != null) {
+      var s1 = document.createElement('span');
+      s1.textContent = p.posts + ' 条帖子';
+      meta.appendChild(s1);
+    }
+    if (p.created_at) {
+      var s2 = document.createElement('span');
+      s2.textContent = fmtDate(p.created_at);
+      meta.appendChild(s2);
+    }
+  }
+
+  function openByUsername(username) {
+    if (!username) return;
+    var key = String(username).replace(/^@+/, '').toLowerCase();
+    ensureDom();
+    var box = $('pc-modal');
+    box.hidden = false;
+    document.body.style.overflow = 'hidden';
+
+    if (cache[key]) { render(cache[key]); return; }
+
+    // 先占位
+    $('pc-name').textContent = '加载中……';
+    $('pc-uid').textContent = '@' + username;
+    $('pc-bio').textContent = '';
+    $('pc-meta').textContent = '';
+    $('pc-avatar').textContent = '';
+    $('pc-cover').style.backgroundImage = '';
+    $('pc-cover').classList.add('no-cover');
+
+    if (!window.JW || !JW.sb) {
+      $('pc-name').textContent = '连不上服务器';
+      return;
+    }
+    JW.sb.rpc('get_profile', { p_username: username }).then(function (r) {
+      if (r.error) throw r.error;
+      var p = r.data;
+      if (typeof p === 'string') { try { p = JSON.parse(p); } catch (e) {} }
+      if (!p) { $('pc-name').textContent = '找不到这个用户'; return; }
+      cache[key] = p;
+      render(p);
+    }).catch(function (e) {
+      $('pc-name').textContent = '加载失败：' + ((e && e.message) || e);
+    });
+  }
+
+  function bind(container) {
+    if (!container) return;
+    container.addEventListener('click', function (e) {
+      var trigger = e.target.closest ? e.target.closest('[data-profile]') : null;
+      if (!trigger) return;
+      e.preventDefault();
+      e.stopPropagation();
+      openByUsername(trigger.getAttribute('data-profile'));
+    });
+  }
+
+  return { open: openByUsername, bind: bind, close: close, clearCache: function () { cache = {}; } };
+})();
+
+</script>
+<script>
 
 /* ===== 用户中心 ===== */
 (function () {
@@ -978,6 +1157,115 @@ JW.storagePublic = (JW.proxy && JW.proxy.length ? String(JW.proxy[0]).replace(/\
       go.href = './auth.html?next=' + encodeURIComponent('./user.html');
       go.onclick = null;
     }
+  }
+
+  /* 资料卡设置 */
+  var cardCoverPath = '';
+
+  function bindProfileCard() {
+    var bioEl = $('pc-bio-input'), cnt = $('pc-bio-count');
+    if (!bioEl) return;
+
+    // 载入现有资料
+    if (isLogged() && window.JW && JW.sb) {
+      JW.sb.rpc('get_profile', { p_username: account.username }).then(function (r) {
+        if (r.error) return;
+        var p = r.data;
+        if (typeof p === 'string') { try { p = JSON.parse(p); } catch (e) {} }
+        if (!p) return;
+        bioEl.value = p.bio || '';
+        if (cnt) cnt.textContent = bioEl.value.length;
+        cardCoverPath = p.cover_path || '';
+        var pv = $('pc-cover-preview');
+        if (pv && cardCoverPath) pv.style.backgroundImage = 'url("' + avatarUrl(cardCoverPath) + '")';
+      }).catch(function () {});
+    }
+
+    bioEl.oninput = function () { if (cnt) cnt.textContent = this.value.length; };
+
+    // 背景图
+    var fi = $('pc-cover-file');
+    if (fi) fi.onchange = function (e) {
+      var f = e.target.files && e.target.files[0];
+      if (!f) return;
+      if (!isLogged()) { status('先登录。', 'err'); e.target.value = ''; return; }
+      if (!f.type || f.type.indexOf('image/') !== 0) { alert('请选图片'); e.target.value = ''; return; }
+      status('正在上传背景图……');
+      compressToBlob(f, 1200, 0.85).then(function (blob) {
+        var path = uid + '/cover-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8) + '.jpg';
+        return JW.sb.storage.from(JW.bucket).upload(path, blob, { contentType: 'image/jpeg', upsert: false })
+          .then(function (r) { if (r.error) throw r.error; return path; });
+      }).then(function (path) {
+        cardCoverPath = path;
+        var pv = $('pc-cover-preview');
+        if (pv) pv.style.backgroundImage = 'url("' + avatarUrl(path) + '")';
+        status('背景图已上传，记得点「保存资料卡」。', 'ok');
+      }).catch(function (err) {
+        status('上传失败：' + ((err && err.message) || err), 'err');
+      }).then(function () { e.target.value = ''; });
+    };
+
+    var clr = $('pc-cover-clear');
+    if (clr) clr.onclick = function () {
+      cardCoverPath = '';
+      var pv = $('pc-cover-preview');
+      if (pv) pv.style.backgroundImage = '';
+      status('背景图已清除，记得点「保存资料卡」。', 'ok');
+    };
+
+    // 保存
+    var saveBtn = $('pc-save');
+    if (saveBtn) saveBtn.onclick = function () {
+      if (!isLogged()) { status('先登录。', 'err'); return; }
+      if (!accountPw) { status('登录状态已失效，请重新登录。', 'err'); return; }
+      saveBtn.disabled = true; saveBtn.textContent = '保存中…';
+      var bio = bioEl.value.slice(0, 200);
+      hashPw(accountPw).then(function (h) {
+        return JW.sb.rpc('set_bio', { p_username: account.username, p_pw_hash: h, p_bio: bio })
+          .then(function (r) {
+            if (r.error) throw r.error;
+            return JW.sb.rpc('set_cover', { p_username: account.username, p_pw_hash: h, p_cover_path: cardCoverPath || null });
+          });
+      }).then(function (r) {
+        if (r.error) throw r.error;
+        status('资料卡已保存 ✅', 'ok');
+        if (window.PROFILE) PROFILE.clearCache();
+        setTimeout(function () { if (/资料卡已保存/.test(($('u-status')||{}).textContent||'')) status(''); }, 2500);
+      }).catch(function (e) {
+        var m = (e && e.message) || String(e);
+        status(/bad password/i.test(m) ? '登录状态已失效，请重新登录。' : ('保存失败：' + m), 'err');
+      }).then(function () { saveBtn.disabled = false; saveBtn.textContent = '保存资料卡'; });
+    };
+
+    // 预览
+    var pvBtn = $('pc-preview-btn');
+    if (pvBtn) pvBtn.onclick = function () {
+      if (!isLogged()) { status('先登录。', 'err'); return; }
+      if (window.PROFILE) PROFILE.clearCache();
+      if (window.PROFILE) PROFILE.open(account.username);
+    };
+  }
+
+  /* 压缩成 blob */
+  function compressToBlob(file, max, quality) {
+    return new Promise(function (res, rej) {
+      var im = new Image();
+      im.onload = function () {
+        var sc = Math.min(1, max / Math.max(im.width, im.height));
+        var cv = document.createElement('canvas');
+        cv.width = Math.max(1, Math.round(im.width * sc));
+        cv.height = Math.max(1, Math.round(im.height * sc));
+        var cx = cv.getContext('2d');
+        cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);
+        cx.drawImage(im, 0, 0, cv.width, cv.height);
+        cv.toBlob(function (b) { b ? res(b) : rej(new Error('编码失败')); }, 'image/jpeg', quality || 0.85);
+      };
+      im.onerror = function () { rej(new Error('图片打不开')); };
+      var fr = new FileReader();
+      fr.onload = function () { im.src = fr.result; };
+      fr.onerror = function () { rej(new Error('读取失败')); };
+      fr.readAsDataURL(file);
+    });
   }
 
   /* 改用户名 */
@@ -1270,6 +1558,7 @@ JW.storagePublic = (JW.proxy && JW.proxy.length ? String(JW.proxy[0]).replace(/\
     renderAccountCard();
     bindFolds();
     bindPassword();
+    bindProfileCard();
     bindUsername();
     bindBackground();
 
