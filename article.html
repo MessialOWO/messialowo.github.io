@@ -426,10 +426,10 @@ var JW = {
         });
       }
       /* ===== 连接策略 =====
-         默认（自动）：直连优先，5 秒没响应或失败 → 自动切中转，不打扰用户
+         默认（自动）：先试直连，3 秒没响应或失败 → 自动切中转，不打扰用户
          手动：用户可在「用户中心 → 连接线路」里指定「只直连」或「只中转」
          文件存储（storage）已在上面单独处理，不走这里 */
-      var DIRECT_TIMEOUT = 5000;
+      var DIRECT_TIMEOUT = 3000;
       var cleanList = JW.proxy.map(function (x) { return String(x).replace(/\/$/, ''); });
 
       function viaRelay() {
