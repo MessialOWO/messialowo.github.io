@@ -1,6 +1,17 @@
 /* ===== 班级期刊 · 期刊投稿（期刊 → 专区 → 板块 → 文章） ===== */
 (function () {
   var PW_SALT = 'jw-salt-2026';
+
+  function isLoggedIn() {
+    try {
+      var a = JSON.parse(localStorage.getItem('jw_account') || 'null');
+      return !!(a && a.username);
+    } catch (e) { return false; }
+  }
+  function needLogin(msg) {
+    alert(msg || '登录后才能写作或修改。');
+    location.href = './auth.html?next=' + encodeURIComponent(location.pathname.split('/').pop() + location.search);
+  }
   var SECTIONS = [
     { id: 'essay',   name: '散文',       en: 'Prose',  icon: '🖋' },
     { id: 'poem',    name: '诗歌',       en: 'Poetry', icon: '🌾' },
@@ -189,6 +200,7 @@
 
   /* ---------------- 写 / 改 文章 ---------------- */
   function openEditor(board, article) {
+    if (!isLoggedIn()) { needLogin('登录后才能写文章或修改文章。'); return; }
     var old = document.getElementById('editor');
     if (old) old.remove();
     var form = document.createElement('div');
@@ -286,6 +298,7 @@
 
   /* ---------------- 新建板块（需要密码） ---------------- */
   function newBoard() {
+    if (!isLoggedIn()) { needLogin('登录后才能新建板块。'); return; }
     if (!curIssue) { status('请先新建一期期刊。', 'err'); return; }
     var name = prompt('在「' + issueName(curIssue) + ' · ' + sectionById(curSection).name + '」新建板块\n请输入板块名：');
     if (name === null || !name.trim()) return;

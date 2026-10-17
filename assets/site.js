@@ -6,9 +6,14 @@ var SITE = {
     { href: './',                  label: '首页',       en: 'Home',      key: 'home' },
     { href: './gallery.html',      label: '画廊',       en: 'Gallery',   key: 'gallery' },
     { href: './guestbook.html',    label: '留言板',     en: 'Guestbook', key: 'guestbook' },
-    { href: './journal.html',      label: '期刊投稿',   en: 'Journal',   key: 'journal' },
-    { href: './user.html',         label: '用户中心',   en: 'Account',   key: 'user' },
-    { href: './auth.html',         label: '登录 / 注册', en: 'Sign in',   key: 'auth' }
+    { href: './journal.html',      label: '期刊投稿',   en: 'Journal',   key: 'journal' }
+  ],
+  /* 「用户中心」折叠组 */
+  userPages: [
+    { href: './auth.html',          label: '登录 / 注册', en: 'Sign in',  key: 'auth' },
+    { href: './user.html#fold-msg',      label: '消息中心', en: 'Messages', key: 'user' },
+    { href: './user.html#fold-settings', label: '账户设置', en: 'Settings', key: 'user-settings' },
+    { href: './user.html#fold-bg',       label: '背景',     en: 'Theme',    key: 'user-bg' }
   ],
   /* 「关于」折叠组 */
   aboutPages: [
@@ -24,6 +29,20 @@ SITE.shell = function (activeKey) {
     return '<a href="' + p.href + '"' + (p.key === activeKey ? ' class="on"' : '') + '>'
       + p.label + '<small>' + p.en + '</small></a>';
   }).join('');
+
+  // 「用户中心」折叠组
+  var userOpen = SITE.userPages.some(function (p) { return p.key === activeKey; })
+                 || ['auth','user','user-settings','user-bg'].indexOf(activeKey) >= 0;
+  var userLinks = SITE.userPages.map(function (p) {
+    var on = (p.key === activeKey) || (p.key === activeKey + '') && false;
+    return '<a class="sub-link" href="' + p.href + '"' + (p.key === activeKey ? ' class="on"' : '') + '>'
+      + p.label + '<small>' + p.en + '</small></a>';
+  }).join('');
+  links += '<div class="nav-group' + (userOpen ? ' open' : '') + '" id="nav-user">'
+    + '<button type="button" class="nav-group-btn' + (userOpen ? ' on' : '') + '" id="nav-user-btn">'
+    + '用户中心<small>Account</small><i class="caret">▾</i></button>'
+    + '<div class="nav-group-body">' + userLinks + '</div>'
+    + '</div>';
 
   // 「关于」折叠组：关于学校 / 关于本站
   var aboutOpen = SITE.aboutPages.some(function (p) { return p.key === activeKey; });
@@ -61,6 +80,20 @@ SITE.shell = function (activeKey) {
   document.body.insertBefore(aside, document.body.firstChild);
   document.body.insertBefore(mask, document.body.firstChild);
   document.body.insertBefore(bar, document.body.firstChild);
+
+  var userBtn = aside.querySelector('#nav-user-btn');
+  if (userBtn) {
+    userBtn.onclick = function () {
+      var g = aside.querySelector('#nav-user');
+      var open = g.classList.toggle('open');
+      try { localStorage.setItem('jw_user_open', open ? '1' : '0'); } catch (e) {}
+    };
+    if (!userOpen) {
+      try {
+        if (localStorage.getItem('jw_user_open') === '1') aside.querySelector('#nav-user').classList.add('open');
+      } catch (e) {}
+    }
+  }
 
   var aboutBtn = aside.querySelector('#nav-about-btn');
   if (aboutBtn) {

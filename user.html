@@ -248,9 +248,14 @@ var SITE = {
     { href: './',                  label: '首页',       en: 'Home',      key: 'home' },
     { href: './gallery.html',      label: '画廊',       en: 'Gallery',   key: 'gallery' },
     { href: './guestbook.html',    label: '留言板',     en: 'Guestbook', key: 'guestbook' },
-    { href: './journal.html',      label: '期刊投稿',   en: 'Journal',   key: 'journal' },
-    { href: './user.html',         label: '用户中心',   en: 'Account',   key: 'user' },
-    { href: './auth.html',         label: '登录 / 注册', en: 'Sign in',   key: 'auth' }
+    { href: './journal.html',      label: '期刊投稿',   en: 'Journal',   key: 'journal' }
+  ],
+  /* 「用户中心」折叠组 */
+  userPages: [
+    { href: './auth.html',          label: '登录 / 注册', en: 'Sign in',  key: 'auth' },
+    { href: './user.html#fold-msg',      label: '消息中心', en: 'Messages', key: 'user' },
+    { href: './user.html#fold-settings', label: '账户设置', en: 'Settings', key: 'user-settings' },
+    { href: './user.html#fold-bg',       label: '背景',     en: 'Theme',    key: 'user-bg' }
   ],
   /* 「关于」折叠组 */
   aboutPages: [
@@ -266,6 +271,20 @@ SITE.shell = function (activeKey) {
     return '<a href="' + p.href + '"' + (p.key === activeKey ? ' class="on"' : '') + '>'
       + p.label + '<small>' + p.en + '</small></a>';
   }).join('');
+
+  // 「用户中心」折叠组
+  var userOpen = SITE.userPages.some(function (p) { return p.key === activeKey; })
+                 || ['auth','user','user-settings','user-bg'].indexOf(activeKey) >= 0;
+  var userLinks = SITE.userPages.map(function (p) {
+    var on = (p.key === activeKey) || (p.key === activeKey + '') && false;
+    return '<a class="sub-link" href="' + p.href + '"' + (p.key === activeKey ? ' class="on"' : '') + '>'
+      + p.label + '<small>' + p.en + '</small></a>';
+  }).join('');
+  links += '<div class="nav-group' + (userOpen ? ' open' : '') + '" id="nav-user">'
+    + '<button type="button" class="nav-group-btn' + (userOpen ? ' on' : '') + '" id="nav-user-btn">'
+    + '用户中心<small>Account</small><i class="caret">▾</i></button>'
+    + '<div class="nav-group-body">' + userLinks + '</div>'
+    + '</div>';
 
   // 「关于」折叠组：关于学校 / 关于本站
   var aboutOpen = SITE.aboutPages.some(function (p) { return p.key === activeKey; });
@@ -303,6 +322,20 @@ SITE.shell = function (activeKey) {
   document.body.insertBefore(aside, document.body.firstChild);
   document.body.insertBefore(mask, document.body.firstChild);
   document.body.insertBefore(bar, document.body.firstChild);
+
+  var userBtn = aside.querySelector('#nav-user-btn');
+  if (userBtn) {
+    userBtn.onclick = function () {
+      var g = aside.querySelector('#nav-user');
+      var open = g.classList.toggle('open');
+      try { localStorage.setItem('jw_user_open', open ? '1' : '0'); } catch (e) {}
+    };
+    if (!userOpen) {
+      try {
+        if (localStorage.getItem('jw_user_open') === '1') aside.querySelector('#nav-user').classList.add('open');
+      } catch (e) {}
+    }
+  }
 
   var aboutBtn = aside.querySelector('#nav-about-btn');
   if (aboutBtn) {
@@ -811,6 +844,18 @@ JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
   }
 
   /* ================= 账户系统 ================= */
+  var PW_SALT = 'jw-salt-2026';
+  function hashPw(pw) {
+    if (window.crypto && window.crypto.subtle && window.TextEncoder) {
+      return window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(PW_SALT + '|' + pw))
+        .then(function (b) {
+          return Array.prototype.map.call(new Uint8Array(b), function (x) {
+            return ('0' + x.toString(16)).slice(-2);
+          }).join('');
+        });
+    }
+    return Promise.reject(new Error('当前环境不支持加密（请用 https 打开）'));
+  }
   var ACC_KEY = 'jw_account', PW_KEY = 'jw_account_pw';
   var account = null, accountPw = '';
 
@@ -897,8 +942,10 @@ JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
       if (!pw) { status('请输入密码确认。', 'err'); return; }
       if (!confirm('确定把用户名改成 @' + nv + ' 吗？\n（之前发过的内容不受影响）')) return;
       btn.disabled = true; btn.textContent = '提交中…';
-      JW.sb.rpc('change_username', {
-        p_old_username: account.username, p_password: pw, p_new_username: nv
+      hashPw(pw).then(function (h) {
+        return JW.sb.rpc('change_username', {
+          p_old_username: account.username, p_pw_hash: h, p_new_username: nv
+        });
       }).then(function (r) {
         if (r.error) throw r.error;
         var d = r.data; if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) {} }
@@ -930,8 +977,10 @@ JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
       if (!oldPw) { status('请填当前密码。', 'err'); return; }
       if (newPw.length < 6) { status('新密码至少 6 位。', 'err'); return; }
       btn.disabled = true; btn.textContent = '提交中…';
-      JW.sb.rpc('change_password', {
-        p_username: account.username, p_old: oldPw, p_new: newPw
+      Promise.all([hashPw(oldPw), hashPw(newPw)]).then(function (hs) {
+        return JW.sb.rpc('change_password', {
+          p_username: account.username, p_old_hash: hs[0], p_new_hash: hs[1]
+        });
       }).then(function (r) {
         if (r.error) throw r.error;
         try { localStorage.setItem(PW_KEY, newPw); } catch (e) {}
@@ -954,8 +1003,10 @@ JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
       return;
     }
     box.innerHTML = '<div class="empty">加载中……</div>';
-    JW.sb.rpc('list_notifications', {
-      p_username: account.username, p_password: accountPw, p_limit: 30
+    hashPw(accountPw).then(function (h) {
+      return JW.sb.rpc('list_notifications', {
+        p_username: account.username, p_pw_hash: h, p_limit: 30
+      });
     }).then(function (r) {
       if (r.error) throw r.error;
       var d = r.data; if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) {} }
@@ -1000,8 +1051,10 @@ JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
   }
 
   function markRead(id, silent) {
-    JW.sb.rpc('mark_notifications_read', {
-      p_username: account.username, p_password: accountPw, p_id: id
+    hashPw(accountPw).then(function (h) {
+      return JW.sb.rpc('mark_notifications_read', {
+        p_username: account.username, p_pw_hash: h, p_id: id
+      });
     }).then(function (r) {
       if (r.error) throw r.error;
       if (!silent) loadMessages();
@@ -1089,6 +1142,14 @@ JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
   }
 
   /* 折叠面板 */
+  var FOLD_IDS = { msg: 'fold-msg', settings: 'fold-settings', bg: 'fold-bg' };
+  function openFold(name) {
+    var fold = document.getElementById(FOLD_IDS[name] || name);
+    if (!fold) return;
+    fold.classList.add('open');
+    try { localStorage.setItem('jw_fold_' + name, '1'); } catch (e) {}
+    if (name === 'msg' && isLogged()) loadMessages();
+  }
   function bindFolds() {
     var heads = document.querySelectorAll('.acc-fold-head');
     Array.prototype.forEach.call(heads, function (h) {
@@ -1103,6 +1164,23 @@ JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
         if (localStorage.getItem('jw_fold_' + h.dataset.fold) === '1') h.parentNode.classList.add('open');
       } catch (e) {}
     });
+
+    // 从侧边栏点进来的 #fold-xxx 直达
+    function fromHash() {
+      var h = (location.hash || '').replace('#', '');
+      if (!h) return;
+      var name = h.replace(/^fold-/, '');
+      if (!FOLD_IDS[name] && !document.getElementById(h)) return;
+      openFold(name);
+      setTimeout(function () {
+        var el = document.getElementById(FOLD_IDS[name] || h);
+        if (el && typeof el.scrollIntoView === 'function') {
+          try { el.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (e) {}
+        }
+      }, 120);
+    }
+    fromHash();
+    window.addEventListener('hashchange', fromHash);
   }
 
   function boot() {
@@ -1141,10 +1219,12 @@ JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
       renderPreview();
       // 已登录：把昵称和头像写进账户
       if (isLogged() && accountPw) {
-        JW.sb.rpc('update_account_profile', {
-          p_username: account.username, p_password: accountPw,
-          p_nickname: name, p_avatar_mode: mode, p_avatar_path: imagePath || null,
-          p_avatar_color: color, p_avatar_emoji: emoji
+        hashPw(accountPw).then(function (h) {
+          return JW.sb.rpc('update_account_profile', {
+            p_username: account.username, p_pw_hash: h,
+            p_nickname: name, p_avatar_mode: mode, p_avatar_path: imagePath || null,
+            p_avatar_color: color, p_avatar_emoji: emoji
+          });
         }).then(function (r) {
           if (r.error) throw r.error;
           account.nickname = name;
