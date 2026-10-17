@@ -5,14 +5,6 @@
    ========================================================================== */
 
 /* ---------- 字体 ---------- */
-@font-face {
-  font-family: 'Google Sans';
-  src: url('./fonts/GoogleSans-Bold.ttf') format('truetype');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
 :root {
   --bg: #faf9f6;
   --text: #2c2c2c;
@@ -119,19 +111,46 @@ input:focus, textarea:focus {
 
 .sidebar .brand img { filter: drop-shadow(0 3px 8px rgba(31, 27, 22, .16)); }
 
-/* ---------- 字重分级：标题粗、正文常规 ---------- */
-h1, h2, h3, h4, h5, h6, b, strong,
-button, .btn, .action-btn, .board-chip, .issue-pick, .section-tab, .tab,
-.sidebar nav a, .sidebar .brand .name, .topbar .title,
-.gb-name, .comment-name, .gb-reply-name, .article-title, .school-h2, .school-h3, .en {
-  font-family: 'Google Sans', "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, sans-serif;
+/* ==========================================================================
+   全站字体：统一 Google Sans
+   —— GoogleSans-Bold.ttf 只含西文/数字（684 个码位，0 个汉字），
+      汉字自动回落到系统黑体，这是字体本身决定的，无法绕过。
+   —— 只有 700 一个字重，所以全部用 700，避免浏览器合成假细体发虚。
+   ========================================================================== */
+@font-face {
+  font-family: 'Google Sans';
+  src: url('./fonts/GoogleSans-Bold.ttf') format('truetype');
+  font-weight: 100 900;      /* 声明区间，让浏览器直接用真字形，不合成 */
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 用 * 兜底，任何元素都不会漏掉 */
+*,
+*::before,
+*::after {
+  font-family: 'Google Sans', -apple-system, "PingFang SC", "HarmonyOS Sans SC",
+               "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+}
+
+/* 代码类保留等宽（只有中转站那个工具页用得到） */
+code, pre, kbd, samp, .mono {
+  font-family: ui-monospace, Menlo, Consolas, "Courier New", monospace;
+}
+
+/* 全部统一为 Bold：西文用真字形，中文用系统粗体 */
+body, button, input, textarea, select, label, legend,
+h1, h2, h3, h4, h5, h6, p, span, div, a, li, ul, ol, dl, dt, dd,
+table, thead, tbody, tr, td, th, b, strong, em, i, small, sub, sup,
+blockquote, figure, figcaption, article, section, header, footer, nav, aside, main,
+.gb-content, .gb-reply-content, .article-body, .comment-body, .content {
   font-weight: 700;
 }
-body, p, li, td, th, input, textarea, label, small,
-.article-body p, .content p, .comment-body, .gb-content, .gb-reply-content,
-.gb-time, .comment-time, .gb-reply-time, .note, .status, .empty, .article-meta {
-  font-family: 'Google Sans', "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, sans-serif;
-  font-weight: 400;
+
+/* 少数需要轻一点的地方（避免整页太闷） */
+input::placeholder, textarea::placeholder {
+  font-weight: 700;
+  opacity: .55;
 }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

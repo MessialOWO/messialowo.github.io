@@ -5,8 +5,10 @@
   --sidebar-w: 232px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
+/* 字体在这里只做兜底；真正的统一规则见 liquid-glass.css */
 body {
-  font-family: "Georgia", "Songti SC", "SimSun", serif;
+  font-family: 'Google Sans', -apple-system, "PingFang SC", "HarmonyOS Sans SC",
+               "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
   background: var(--bg); color: var(--text); line-height: 1.8;
 }
 img { max-width: 100%; }

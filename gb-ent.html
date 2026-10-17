@@ -7,8 +7,8 @@
 <title>留言板 · 内娱 | 达高中墙Board</title>
 <style>
   .avatar-circle { display:flex; align-items:center; justify-content:center; color:#fff; border-radius:50%; overflow:hidden; flex-shrink:0; line-height:1; user-select:none; }
-  .avatar-circle.big { width:48px; height:48px; font-size:1.4rem; }
-  .avatar-circle.small { width:28px; height:28px; font-size:.95rem; }
+  .avatar-circle.big { width:40px; height:40px; font-size:1.2rem; }
+  .avatar-circle.small { width:26px; height:26px; font-size:.88rem; }
   .avatar-circle img { width:100%; height:100%; object-fit:cover; display:block; border-radius:50%; }
   #avatar-preview { width:64px; height:64px; border-radius:50%; background:#f0f0f0; display:flex; align-items:center; justify-content:center; overflow:hidden; border:2px solid var(--border); flex-shrink:0; }
   #avatar-preview .avatar-circle, #avatar-preview .avatar-circle img { width:64px; height:64px; }
@@ -41,7 +41,7 @@
   .gb-fold-btn { font-family:inherit; font-size:.85rem; cursor:pointer; padding:6px 14px; border-radius:16px; border:1px dashed var(--accent); background:none; color:var(--accent); }
   .gb-fold-btn:hover { background:var(--accent-light); }
   .gb-sub-replies { margin-top:8px; padding-left:12px; border-left:2px solid var(--border); display:flex; flex-direction:column; gap:8px; }
-  .gb-sub-reply { background:rgba(255,255,255,.55); border-radius:8px; padding:8px 10px; font-size:.85rem; }
+  .gb-sub-reply { background:rgba(255,255,255,.55); border-radius:8px; padding:7px 9px; font-size:.78rem; }
   .gb-sub-reply .gb-reply-content { margin-top:2px; }
   .gb-sub-more { font-family:inherit; font-size:.78rem; color:var(--accent); background:none; border:none; border-bottom:1px dashed rgba(192,57,43,.4); cursor:pointer; padding:2px 0; text-align:left; align-self:flex-start; }
   .gb-flash { animation: gbflash 2.4s ease; }
@@ -59,30 +59,30 @@
   .gb-sec-chip.on { background:linear-gradient(160deg,#c0392b,#962820) !important; color:#fff !important; font-weight:700; }
   .gb-sec-chip.add { border-style:dashed; color:var(--accent); }
   .gb-sec-chip.del { border-color:#e0b4b0; color:var(--accent); }
-  .gb-sec-tag { font-size:.72rem; color:var(--muted); background:rgba(0,0,0,.05); padding:1px 8px; border-radius:8px; }
+  .gb-sec-tag { font-size:.66rem; color:var(--muted); background:rgba(0,0,0,.05); padding:1px 7px; border-radius:8px; }
   .gb-tag { color:var(--accent); text-decoration:none; border-bottom:1px dashed rgba(192,57,43,.4); }
   .gb-tag:hover { background:var(--accent-light); }
-  .gb-item { display:flex; gap:16px; background:rgba(255,255,255,.55); border:1px solid var(--glass-brd); border-radius:14px; padding:18px; margin-bottom:14px; position:relative; }
+  .gb-item { display:flex; gap:14px; background:rgba(255,255,255,.55); border:1px solid var(--glass-brd); border-radius:14px; padding:15px 16px; margin-bottom:12px; position:relative; }
   .gb-item.pinned { border-left:5px solid var(--accent); background:#fffdfb; }
   .gb-body { flex:1; min-width:0; }
-  .gb-header { display:flex; align-items:baseline; gap:10px; margin-bottom:6px; flex-wrap:wrap; }
-  .gb-name { font-weight:700; overflow-wrap:anywhere; }
-  .gb-time { font-size:.8rem; color:var(--muted); }
+  .gb-header { display:flex; align-items:baseline; gap:8px; margin-bottom:5px; flex-wrap:wrap; }
+  .gb-name { font-weight:700; overflow-wrap:anywhere; font-size:.88rem; }
+  .gb-time { font-size:.72rem; color:var(--muted); }
   .gb-pin-badge { background:var(--accent); color:#fff; font-size:.72rem; padding:2px 8px; border-radius:10px; font-weight:700; }
-  .gb-content { white-space:pre-wrap; word-break:break-word; }
-  .gb-actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
-  .gb-action-btn { background:none; border:1px solid transparent; padding:6px 12px; cursor:pointer; color:var(--muted); font-size:1.15rem; font-family:inherit; border-radius:8px; }
+  .gb-content { white-space:pre-wrap; word-break:break-word; font-size:.88rem; line-height:1.75; }
+  .gb-actions { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+  .gb-action-btn { background:none; border:1px solid transparent; padding:4px 9px; cursor:pointer; color:var(--muted); font-size:1rem; font-family:inherit; border-radius:8px; }
   .gb-action-btn:hover { background:var(--accent-light); color:var(--accent); }
   .gb-action-btn.liked { color:var(--accent); background:var(--accent-light); }
   .gb-action-btn.danger { border-color:#e0b4b0; color:var(--accent); }
   .gb-action-btn.pinned-on { background:var(--accent-light); border-color:var(--accent); }
-  .gb-replies { margin-top:12px; padding-top:12px; border-top:1px dashed var(--border); display:flex; flex-direction:column; gap:10px; }
+  .gb-replies { margin-top:10px; padding-top:10px; border-top:1px dashed var(--border); display:flex; flex-direction:column; gap:8px; }
   .gb-reply { display:flex; gap:10px; align-items:flex-start; background:rgba(255,255,255,.6); border-radius:8px; padding:10px 12px; }
-  .gb-reply-body { flex:1; min-width:0; font-size:.9rem; }
+  .gb-reply-body { flex:1; min-width:0; font-size:.82rem; }
   .gb-reply-name { font-weight:600; margin-right:8px; }
   .gb-reply-to { font-size:.78rem; color:var(--accent); background:var(--accent-light); padding:1px 7px; border-radius:8px; margin-left:8px; }
   .gb-reply-time { font-size:.75rem; color:var(--muted); }
-  .gb-reply-content { white-space:pre-wrap; word-break:break-word; margin-top:4px; }
+  .gb-reply-content { white-space:pre-wrap; word-break:break-word; margin-top:3px; font-size:.82rem; line-height:1.65; }
   .gb-reply-actions { margin-top:4px; display:flex; gap:6px; }
   .gb-reply-actions .gb-action-btn { padding:2px 8px; font-size:.9rem; }
   .reply-form { margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; }
