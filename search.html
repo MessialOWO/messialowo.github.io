@@ -1673,22 +1673,46 @@ var GB = (function () {
       var k = String(u).replace(/^@+/, '').toLowerCase();
       if (k && keys.indexOf(k) < 0) keys.push(k);
     });
-    if (!keys.length) return Promise.resolve();
-    return sb.rpc('get_profiles', { p_usernames: keys }).then(function (r) {
-      if (r.error) return;
-      var arr = r.data;
-      if (typeof arr === 'string') { try { arr = JSON.parse(arr); } catch (e) { arr = []; } }
-      (arr || []).forEach(function (p) {
-        var k = String(p.username).replace(/^@+/, '').toLowerCase();
-        if (k) profileMap[k] = p;
-      });
-    }).catch(function () {});
+    // 名字列表（用于查不到用户名时兜底）
+    var names = [];
+    list.forEach(function (m) {
+      var n = m && m.name ? btrimName(m.name) : '';
+      if (n && names.indexOf(n.toLowerCase()) < 0) names.push(n);
+    });
+
+    var jobs = [];
+    if (keys.length) {
+      jobs.push(sb.rpc('get_profiles', { p_usernames: keys }).then(function (r) {
+        if (r.error) return;
+        var arr = r.data;
+        if (typeof arr === 'string') { try { arr = JSON.parse(arr); } catch (e) { arr = []; } }
+        (arr || []).forEach(function (p) {
+          var k = String(p.username).replace(/^@+/, '').toLowerCase();
+          if (k) profileMap[k] = p;
+        });
+      }).catch(function () {}));
+    }
+    // 按显示名逐个查（昵称兜底），最多查 20 个避免请求过多
+    names.slice(0, 20).forEach(function (n) {
+      jobs.push(sb.rpc('get_profile', { p_username: n }).then(function (r) {
+        if (r.error || !r.data) return;
+        var p = r.data;
+        if (typeof p === 'string') { try { p = JSON.parse(p); } catch (e) { return; } }
+        if (!p) return;
+        profileMap['#name:' + n.toLowerCase()] = p;
+      }).catch(function () {}));
+    });
+    return Promise.all(jobs);
   }
 
   /* 取一条内容最终该显示的头像和名字 */
   function effective(m) {
     var u = m && m.author_username;
     var p = u ? profileMap[String(u).replace(/^@+/, '').toLowerCase()] : null;
+    // 账户里没有这个用户名（比如改名后旧数据没同步）→ 用显示名再试一次
+    if (!p && m && m.name) {
+      p = profileMap['#name:' + btrimName(m.name).toLowerCase()] || null;
+    }
     if (!p) {
       return {
         color: m.avatar_color, emoji: m.avatar_emoji,
