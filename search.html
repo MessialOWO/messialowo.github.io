@@ -321,8 +321,10 @@
 </div>
 
 <div class="card-box" id="s-tagcloud" style="margin-bottom:20px" hidden>
-  <div style="font-weight:700;color:var(--accent);margin-bottom:10px">热门标签</div>
-  <div id="s-tags" class="gb-sections"></div>
+  <div style="font-weight:700;color:var(--accent);margin-bottom:10px">热门标签 <span style="font-weight:400;font-size:.72rem;color:var(--muted)">（前 5）</span></div>
+  <div class="gb-scroll">
+    <div id="s-tags" class="gb-sections"></div>
+  </div>
 </div>
 
 <div class="status" id="gb-status" hidden></div>
@@ -2243,11 +2245,11 @@ var GB = (function () {
   }
 
   function loadTags() {
-    return JW.sb.rpc('top_tags', { p_limit: 40 }).then(function (r) {
+    return JW.sb.rpc('top_tags', { p_limit: 5 }).then(function (r) {
       if (r.error || !r.data || !r.data.length) return;
       $('s-tagcloud').hidden = false;
       var box = $('s-tags'); box.textContent = '';
-      r.data.forEach(function (t) {
+      r.data.slice(0, 5).forEach(function (t) {
         var b = document.createElement('button'); b.type='button'; b.className='gb-sec-chip';
         b.textContent = '#' + (t.tag || t[0]) + ' ' + (t.cnt || t[1]);
         b.onclick = function () { $('s-tag').value = (t.tag || t[0]); $('s-kw').value = ''; $('s-main').value=''; doSearch(); };
