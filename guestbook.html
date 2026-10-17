@@ -64,7 +64,8 @@
   .gb-tag:hover { background:var(--accent-light); }
   /* ===== 底部发帖条 ===== */
   .gb-composer-trigger {
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    /* 桌面端让出左侧边栏宽度，避免压到/被盖住 */
+    position: fixed; left: var(--sidebar-w, 232px); right: 0; bottom: 0; z-index: 45;
     display: flex; align-items: center; gap: 10px;
     padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
     background: rgba(255,255,255,.82);
@@ -83,7 +84,12 @@
     overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   }
 
-  .gb-composer { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; justify-content: flex-end; }
+  .gb-composer { position: fixed; inset: 0; z-index: 80; display: flex; flex-direction: column; justify-content: flex-end; }
+  /* 桌面端：弹层让出侧边栏，且限制最大宽度居中 */
+  @media (min-width: 861px) {
+    .gb-composer { left: var(--sidebar-w, 232px); }
+    .gb-composer-inner { border-radius: 18px 18px 0 0; max-width: 720px; margin: 0 auto; width: 100%; }
+  }
   .gb-composer[hidden] { display: none; }
   .gb-composer-mask { position: absolute; inset: 0; background: rgba(20,16,14,.42); }
   .gb-composer-inner {
@@ -167,6 +173,7 @@
 
   /* 给底部栏留空间，避免挡住最后一条 */
   .container { padding-bottom: 96px !important; }
+  @media (min-width: 861px) { .container { padding-bottom: 104px !important; } }
 
   .gb-loading {
     display: flex; align-items: center; justify-content: center; gap: 10px;
