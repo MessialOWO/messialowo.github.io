@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>登录 / 注册 | 达高中墙Board</title>
+<style>
+  .au-tabs { display:flex; gap:8px; margin-bottom:20px; }
+  .au-tab {
+    flex:1; padding:11px; text-align:center; cursor:pointer;
+    border:1px solid var(--glass-brd); border-radius:10px;
+    background:rgba(255,255,255,.55); color:var(--muted);
+    font-family:inherit; font-size:.92rem; transition:all .16s;
+  }
+  .au-tab.on { background:linear-gradient(160deg,#c0392b,#962820); color:#fff; border-color:rgba(255,255,255,.4); }
+  .au-label { display:block; font-size:.84rem; color:var(--muted); margin-bottom:6px; }
+  .au-input {
+    width:100%; padding:11px 13px; border:1px solid var(--glass-brd);
+    border-radius:9px; font-family:inherit; font-size:1rem;
+    background:rgba(255,255,255,.75); color:var(--text); margin-bottom:6px;
+  }
+  .au-input:focus { outline:none; border-color:rgba(192,57,43,.55); box-shadow:0 0 0 3px rgba(192,57,43,.12); }
+  .au-hint { font-size:.76rem; color:var(--muted); margin-bottom:16px; min-height:1.2em; line-height:1.5; }
+  .au-at { color:var(--accent); font-weight:700; }
+  .au-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .au-row .au-at-prefix {
+    flex-shrink:0; font-size:1rem; color:var(--accent);
+    padding:11px 0 11px 13px; margin-right:-13px; z-index:1;
+  }
+  .au-row .au-input { padding-left:26px; }
+  .au-rules {
+    font-size:.78rem; color:var(--muted); line-height:1.9;
+    background:rgba(255,255,255,.45); border-radius:8px;
+    padding:10px 14px; margin-bottom:16px;
+  }
+  .au-rules b { color:var(--accent); }
+</style>
+<link rel="icon" href="./img/logo.png">
+<link rel="stylesheet" href="./assets/site.css">
+<link rel="stylesheet" href="./assets/liquid-glass.css">
+</head>
+<body>
+<div class="main">
+<div class="container">
+<div class="page-head">
+  <h1>登录 / 注册</h1>
+  <div class="en">Sign in</div>
+  <p>用户名只能用英文，密码可以不填（默认 123456），之后随时能改。</p>
+</div>
+
+<div class="status" id="au-status" hidden></div>
+
+<div class="card-box" id="au-logged" hidden style="margin-bottom:18px">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:6px">你已登录</div>
+  <div id="au-logged-name" style="font-size:1.1rem;font-weight:700;margin-bottom:14px"></div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <button class="btn-main" id="au-go" type="button">进入账户设置</button>
+    <button class="btn-ghost" id="au-logout" type="button">退出登录</button>
+  </div>
+</div>
+
+<div class="au-tabs">
+  <button class="au-tab on" data-tab="login" type="button">登录</button>
+  <button class="au-tab" data-tab="register" type="button">注册</button>
+</div>
+
+<!-- 登录 -->
+<div id="au-login">
+  <div class="card-box" style="margin-bottom:18px">
+    <label class="au-label">用户名</label>
+    <div class="au-row">
+      <span class="au-at-prefix">@</span>
+      <input class="au-input" type="text" id="lg-user" placeholder="英文用户名" autocomplete="username" autocapitalize="off" spellcheck="false">
+    </div>
+    <div class="au-hint" id="lg-user-hint"></div>
+    <label class="au-label">密码</label>
+    <input class="au-input" type="password" id="lg-pass" placeholder="密码" autocomplete="current-password">
+    <div class="au-hint" id="lg-pass-hint"></div>
+    <button class="btn-main" id="lg-btn" type="button" style="width:100%">登录</button>
+  </div>
+</div>
+
+<!-- 注册 -->
+<div id="au-register" hidden>
+  <div class="card-box" style="margin-bottom:18px">
+    <div class="au-rules">
+      用户名规则：<b>以英文字母开头</b>，只能用<b>英文字母、数字、下划线</b>，长度 <b>3~20</b> 个字符。<br>
+      前面会自动加 <b>@</b>，注册后它就是你的账户名。
+    </div>
+    <label class="au-label">用户名</label>
+    <div class="au-row">
+      <span class="au-at-prefix">@</span>
+      <input class="au-input" type="text" id="rg-user" placeholder="例如 Kevin2025" autocomplete="username" autocapitalize="off" spellcheck="false" maxlength="20">
+    </div>
+    <div class="au-hint" id="rg-user-hint"></div>
+    <label class="au-label">密码（可不填）</label>
+    <input class="au-input" type="password" id="rg-pass" placeholder="不填则默认 123456" autocomplete="new-password">
+    <div class="au-hint" id="rg-pass-hint">不填则默认 123456</div>
+    <button class="btn-main" id="rg-btn" type="button" style="width:100%">注册</button>
+  </div>
+</div>
+</div>
+</div>
+<script src="./vendor/supabase.js"></script>
+<script>
+/* ===== 班级期刊 · 全站共享脚本（侧边栏 + 云端连接） ===== */
+var SITE = {
+  name: '达高中墙Board',
+  school: '达州市高级中学',
+  pages: [
+    { href: './',                  label: '首页',       en: 'Home',      key: 'home' },
+    { href: './gallery.html',      label: '画廊',       en: 'Gallery',   key: 'gallery' },
+    { href: './guestbook.html',    label: '留言板',     en: 'Guestbook', key: 'guestbook' },
+    { href: './journal.html',      label: '期刊投稿',   en: 'Journal',   key: 'journal' },
+    { href: './user.html',         label: '用户中心',   en: 'Account',   key: 'user' },
+    { href: './auth.html',         label: '登录 / 注册', en: 'Sign in',   key: 'auth' }
+  ],
+  /* 「关于」折叠组 */
+  aboutPages: [
+    { href: './about-school.html', label: '关于学校',   en: 'About School', key: 'school' },
+    { href: './about-site.html',   label: '关于本站',   en: 'About Site',   key: 'site' },
+    { href: './changelog.html',    label: '更新日志',   en: 'Changelog',    key: 'changelog' }
+  ]
+};
+
+/* 生成侧边栏 + 顶栏（每个页面只需调用 SITE.shell('key')） */
+SITE.shell = function (activeKey) {
+  var links = SITE.pages.map(function (p) {
+    return '<a href="' + p.href + '"' + (p.key === activeKey ? ' class="on"' : '') + '>'
+      + p.label + '<small>' + p.en + '</small></a>';
+  }).join('');
+
+  // 「关于」折叠组：关于学校 / 关于本站
+  var aboutOpen = SITE.aboutPages.some(function (p) { return p.key === activeKey; });
+  var aboutLinks = SITE.aboutPages.map(function (p) {
+    return '<a class="sub-link" href="' + p.href + '"' + (p.key === activeKey ? ' class="on"' : '') + '>'
+      + p.label + '</a>';
+  }).join('');
+  links += '<div class="nav-group' + (aboutOpen ? ' open' : '') + '" id="nav-about">'
+    + '<button type="button" class="nav-group-btn' + (aboutOpen ? ' on' : '') + '" id="nav-about-btn">'
+    + '关于<small>About</small><i class="caret">▾</i></button>'
+    + '<div class="nav-group-body">' + aboutLinks + '</div>'
+    + '</div>';
+
+  var bar = document.createElement('div');
+  bar.className = 'topbar';
+  bar.innerHTML = '<button id="nav-toggle" aria-label="菜单">☰</button>'
+    + '<span class="title">' + SITE.name + '</span>';
+
+  var mask = document.createElement('div');
+  mask.className = 'mask';
+  mask.id = 'nav-mask';
+  mask.hidden = true;
+
+  var aside = document.createElement('aside');
+  aside.className = 'sidebar';
+  aside.innerHTML =
+    '<div class="brand">'
+    + '<img src="./img/logo.png" alt="校徽">'
+    + '<div class="name">' + SITE.name + '</div>'
+    + '<div class="sub">Unofficial</div>'
+    + '</div>'
+    + '<nav>' + links + '</nav>'
+    ;
+
+  document.body.insertBefore(aside, document.body.firstChild);
+  document.body.insertBefore(mask, document.body.firstChild);
+  document.body.insertBefore(bar, document.body.firstChild);
+
+  var aboutBtn = aside.querySelector('#nav-about-btn');
+  if (aboutBtn) {
+    aboutBtn.onclick = function () {
+      var g = aside.querySelector('#nav-about');
+      var open = g.classList.toggle('open');
+      try { localStorage.setItem('jw_about_open', open ? '1' : '0'); } catch (e) {}
+    };
+    // 记住上次展开状态（只要不是当前页在关于里）
+    if (!aboutOpen) {
+      try {
+        if (localStorage.getItem('jw_about_open') === '1') aside.querySelector('#nav-about').classList.add('open');
+      } catch (e) {}
+    }
+  }
+
+  bar.querySelector('#nav-toggle').onclick = function () {
+    document.body.classList.toggle('nav-open');
+    mask.hidden = !document.body.classList.contains('nav-open');
+  };
+  mask.onclick = function () {
+    document.body.classList.remove('nav-open');
+    mask.hidden = true;
+  };
+};
+
+/* 页脚 */
+SITE.footer = function (host) {
+  var el = host || document.querySelector('.main') || document.body;
+  var f = document.createElement('footer');
+  f.className = 'site-footer';
+  f.innerHTML =
+    '<p class="contact-line">联系方式</p>'
+    + '<p class="contact-list">'
+    + '<span>微信：<b>MessialOWO</b></span>'
+    + '<span>QQ：<a href="https://qm.qq.com/cgi-bin/qm/qr?k=&amp;uin=2961001891" target="_blank" rel="noopener">2961001891</a></span>'
+    + '<span>邮箱：<a href="mailto:equalacorn28027@outlook.com">equalacorn28027@outlook.com</a></span>'
+    + '</p>'
+    + '<p><a href="./about-site.html">关于本站</a> · <a href="./about-school.html">关于学校</a> · 非官方网站</p>';
+  el.appendChild(f);
+};
+
+</script>
+<script>
+/* ===== 班级期刊 · 云端连接（所有页面共用） ===== */
+var JW = {
+  url: 'https://wvqrnkgjwnlhjhfuonts.supabase.co',
+  key: 'sb_publishable_cGy9MFHh3-t2i0kEnbHeeg_A1-rUMaF',
+  bucket: 'avatars',
+  timeoutMs: 10000,
+  proxy: ['https://arid-bluejay-4932.messialowo.deno.net'],
+  sb: null, uid: '', deviceId: '', ready: false, error: null, _waiters: [],
+  whenReady: function (cb) { if (JW.ready) cb(JW.error); else JW._waiters.push(cb); },
+  _settle: function (err) {
+    JW.error = err || null; JW.ready = true;
+    JW._waiters.splice(0).forEach(function (cb) { try { cb(JW.error); } catch (e) { console.error(e); } });
+    try { document.dispatchEvent(new Event('jw:ready')); } catch (e) {}
+  },
+  withTimeout: function (p, ms, what) {
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      var t = setTimeout(function () {
+        if (done) return; done = true;
+        reject(new Error('连接超时：' + (what || '请求') + '（' + Math.round(ms / 1000) + ' 秒无响应）'));
+      }, ms);
+      Promise.resolve(p).then(function (v) { if (done) return; done = true; clearTimeout(t); resolve(v); },
+        function (e) { if (done) return; done = true; clearTimeout(t); reject(e); });
+    });
+  },
+  retry: function (fn, times) {
+    times = times === undefined ? 2 : times;
+    var n = 0;
+    var run = function () {
+      n++;
+      return Promise.resolve().then(fn).catch(function (e) {
+        if (n >= times) throw e;
+        return new Promise(function (r) { setTimeout(r, 1200); }).then(run);
+      });
+    };
+    return run();
+  },
+  makeFetch: function () {
+    var BASE = JW.url;
+    return function (input, init) {
+      var url = (typeof input === 'string') ? input : (input && input.url) || '';
+      var rel = null;
+      try {
+        var u = new URL(url, BASE);
+        if (u.origin === BASE) rel = u.pathname + u.search;
+      } catch (e) {}
+      if (!rel || !JW.proxy || !JW.proxy.length) return fetch(input, init);
+      var list = JW.proxy.slice();
+      function attempt(i) {
+        if (i >= list.length) return fetch(url, init);
+        var clean = String(list[i]).replace(/\/$/, '');
+        return fetch(clean + rel, init).then(function (res) {
+          if (!res || res.status >= 500) throw new Error('中转 ' + clean + ' 返回 ' + (res && res.status));
+          return res;
+        }).catch(function (e) {
+          console.warn('中转失败，换下一个：' + clean, e && e.message);
+          return attempt(i + 1);
+        });
+      }
+      return attempt(0);
+    };
+  }
+};
+JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
+
+(function () {
+  function newDeviceId() {
+    if (window.crypto && window.crypto.randomUUID) return 'gb-' + window.crypto.randomUUID();
+    return 'gb-' + Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  }
+  JW.deviceId = localStorage.getItem('jiangwan_gb_device') || '';
+  if (!JW.deviceId || JW.deviceId.length < 8 || JW.deviceId.length > 64) {
+    JW.deviceId = newDeviceId();
+    try { localStorage.setItem('jiangwan_gb_device', JW.deviceId); } catch (e) {}
+  }
+  function boot() {
+    if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
+      JW._settle(new Error('云端组件没加载到（vendor/supabase.js）'));
+      return;
+    }
+    try {
+      JW.sb = window.supabase.createClient(JW.url, JW.key, {
+        auth: { persistSession: true, autoRefreshToken: true },
+        global: JW.proxy && JW.proxy.length ? { fetch: JW.makeFetch() } : undefined
+      });
+    } catch (e) { JW._settle(e); return; }
+    JW.sb.auth.getSession().then(function (r) {
+      var u = r && r.data && r.data.session && r.data.session.user;
+      if (u && u.id) JW.uid = u.id;
+      return null;
+    }).catch(function () { return null; })
+      .then(function () {
+        if (JW.uid) return null;
+        return JW.retry(function () {
+          return JW.withTimeout(JW.sb.auth.signInAnonymously(), JW.timeoutMs, '登录匿名身份');
+        }, 2).then(function (res) {
+          if (res && res.error) throw new Error(res.error.message || '匿名登录被拒绝');
+          if (res && res.data && res.data.user) JW.uid = res.data.user.id || '';
+          return null;
+        });
+      })
+      .then(function () { JW._settle(null); })
+      .catch(function (e) { JW._settle(e); });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+</script>
+<script>
+
+/* ===== 登录 / 注册 ===== */
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var ACC_KEY = 'jw_account';       // {username, nickname, avatarMode, avatarPath, avatarColor, avatarEmoji}
+  var PW_KEY  = 'jw_account_pw';    // 登录态用的密码（本机保存，用于改资料/看消息）
+
+  function status(t, kind) {
+    var el = $('au-status');
+    if (!el) return;
+    if (!t) { el.hidden = true; el.textContent = ''; return; }
+    el.hidden = false; el.className = 'status' + (kind ? ' ' + kind : ''); el.textContent = t;
+  }
+
+  /* 用户名规则（与数据库完全一致）：3~20 位，字母开头，只含字母数字下划线 */
+  function checkUser(v) {
+    v = (v || '').replace(/^@+/, '').trim();
+    if (!v) return { ok: false, msg: '请填用户名' };
+    if (v.length < 3) return { ok: false, msg: '至少 3 个字符' };
+    if (v.length > 20) return { ok: false, msg: '最多 20 个字符' };
+    if (!/^[A-Za-z]/.test(v)) return { ok: false, msg: '必须以英文字母开头' };
+    if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(v)) return { ok: false, msg: '只能用英文字母、数字、下划线' };
+    return { ok: true, msg: '可以用', value: v };
+  }
+
+  function hint(el, text, ok) {
+    if (!el) return;
+    el.textContent = text || '';
+    el.style.color = ok ? '#27ae60' : (text ? '#c0392b' : '#6b6b6b');
+  }
+
+  function saveLogin(data, password) {
+    try {
+      localStorage.setItem(ACC_KEY, JSON.stringify({
+        username: data.username, nickname: data.nickname || '',
+        avatarMode: data.avatar_mode || 'emoji',
+        avatarPath: data.avatar_path || '',
+        avatarColor: data.avatar_color || '#c0392b',
+        avatarEmoji: data.avatar_emoji || '🙂'
+      }));
+      localStorage.setItem(PW_KEY, password);
+      // 兼容旧逻辑：留言/发作品读的是这两个键
+      localStorage.setItem('jiangwan_gb_name', data.nickname || data.username.replace(/^@/, ''));
+      localStorage.setItem('jiangwan_gb_look', JSON.stringify({
+        mode: data.avatar_mode || 'emoji',
+        emoji: data.avatar_emoji || '🙂',
+        color: data.avatar_color || '#c0392b',
+        image: '', imagePath: data.avatar_path || ''
+      }));
+    } catch (e) {}
+  }
+
+  function goNext() {
+    var back = new URLSearchParams(location.search).get('next');
+    location.href = back ? decodeURIComponent(back) : './user.html';
+  }
+
+  function bindTabs() {
+    var tabs = document.querySelectorAll('.au-tab');
+    Array.prototype.forEach.call(tabs, function (t) {
+      t.onclick = function () {
+        Array.prototype.forEach.call(tabs, function (x) { x.classList.remove('on'); });
+        t.classList.add('on');
+        var isLogin = t.dataset.tab === 'login';
+        $('au-login').hidden = !isLogin;
+        $('au-register').hidden = isLogin;
+        status('');
+      };
+    });
+  }
+
+  /* ---- 注册 ---- */
+  function doRegister() {
+    var u = $('rg-user').value;
+    var chk = checkUser(u);
+    if (!chk.ok) { hint($('rg-user-hint'), chk.msg, false); $('rg-user').focus(); return; }
+    var pw = $('rg-pass').value.trim();
+    if (pw && pw.length < 6) { hint($('rg-pass-hint'), '密码至少 6 位（不填则默认 123456）', false); return; }
+    var btn = $('rg-btn');
+    btn.disabled = true; btn.textContent = '注册中…';
+    status('正在注册……');
+    JW.sb.rpc('register_account', {
+      p_username: chk.value, p_password: pw || null, p_device: JW.deviceId
+    }).then(function (r) {
+      if (r.error) throw r.error;
+      var d = r.data; if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) {} }
+      saveLogin(d, pw || '123456');
+      status('注册成功，正在进入……', 'ok');
+      setTimeout(goNext, 600);
+    }).catch(function (e) {
+      var m = (e && e.message) || String(e);
+      status(/username taken/i.test(m) ? '这个用户名已经有人用了。'
+        : (/bad username/i.test(m) ? '用户名不符合规则。' : ('注册失败：' + m)), 'err');
+    }).then(function () { btn.disabled = false; btn.textContent = '注册'; });
+  }
+
+  /* ---- 登录 ---- */
+  function doLogin() {
+    var chk = checkUser($('lg-user').value);
+    if (!chk.ok) { hint($('lg-user-hint'), chk.msg, false); return; }
+    var pw = $('lg-pass').value;
+    if (!pw) { hint($('lg-pass-hint'), '请填密码', false); return; }
+    var btn = $('lg-btn');
+    btn.disabled = true; btn.textContent = '登录中…';
+    status('正在登录……');
+    JW.sb.rpc('login_account', {
+      p_username: chk.value, p_password: pw, p_device: JW.deviceId
+    }).then(function (r) {
+      if (r.error) throw r.error;
+      var d = r.data; if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) {} }
+      saveLogin(d, pw);
+      status('登录成功，正在进入……', 'ok');
+      setTimeout(goNext, 500);
+    }).catch(function (e) {
+      var m = (e && e.message) || String(e);
+      status(/no such account/i.test(m) ? '没有这个用户，先去注册吧。'
+        : (/bad password/i.test(m) ? '密码不对。' : ('登录失败：' + m)), 'err');
+    }).then(function () { btn.disabled = false; btn.textContent = '登录'; });
+  }
+
+  function boot() {
+    bindTabs();
+    // 已登录就直接跳走
+    var acc = null;
+    try { acc = JSON.parse(localStorage.getItem(ACC_KEY) || 'null'); } catch (e) {}
+    if (acc && acc.username) {
+      var box = $('au-logged');
+      var info = $('au-logged-name');
+      if (box) box.hidden = false;
+      if (info) info.textContent = acc.username + (acc.nickname ? '（' + acc.nickname + '）' : '');
+      var go = $('au-go');
+      if (go) go.onclick = goNext;
+      var out = $('au-logout');
+      if (out) out.onclick = function () {
+        try { localStorage.removeItem(ACC_KEY); localStorage.removeItem(PW_KEY); } catch (e) {}
+        location.reload();
+      };
+    }
+
+    $('rg-user').oninput = function () {
+      var chk = checkUser(this.value);
+      hint($('rg-user-hint'), chk.ok ? '可以用' : chk.msg, chk.ok);
+      this.value = this.value.replace(/[^A-Za-z0-9_@]/g, '');
+      if (this.value.charAt(0) === '@') this.value = this.value.replace(/^@+/, '');
+    };
+    $('rg-pass').oninput = function () {
+      var v = this.value.trim();
+      hint($('rg-pass-hint'), v ? (v.length < 6 ? '密码至少 6 位' : '可以') : '不填则默认 123456', !v || v.length >= 6);
+    };
+    $('rg-btn').onclick = doRegister;
+    $('lg-btn').onclick = doLogin;
+    $('lg-pass').addEventListener('keydown', function (e) { if (e.key === 'Enter') doLogin(); });
+    $('rg-pass').addEventListener('keydown', function (e) { if (e.key === 'Enter') doRegister(); });
+
+    JW.whenReady(function (e) {
+      if (e) status('连不上服务器，暂时没法登录注册：' + (e.message || e), 'err');
+    });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+</script>
+
+<script>
+SITE.shell('auth');
+SITE.footer(document.querySelector('.container'));
+
+</script>
+</body>
+</html>

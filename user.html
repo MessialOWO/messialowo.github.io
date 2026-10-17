@@ -26,6 +26,44 @@
   .my-post:hover { background:rgba(255,255,255,.85); }
   .my-post-text { font-size:.92rem; margin-bottom:6px; }
   .my-post-meta { font-size:.76rem; color:var(--muted); }
+
+  /* 折叠面板 */
+  .acc-fold {
+    border: 1px solid var(--glass-brd); border-radius: 14px;
+    background: rgba(255,255,255,.5); margin-bottom: 14px; overflow: hidden;
+  }
+  .acc-fold-head {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 18px; background: none; border: none; cursor: pointer;
+    font-family: inherit; font-size: 1rem; font-weight: 700; color: var(--text);
+    text-align: left;
+  }
+  .acc-fold-head:hover { background: rgba(255,255,255,.55); }
+  .acc-fold-head > span { display: flex; align-items: center; gap: 8px; }
+  .acc-caret { font-style: normal; font-size: .78rem; color: var(--muted); transition: transform .2s; }
+  .acc-fold.open .acc-caret { transform: rotate(180deg); }
+  .acc-fold-body { display: none; padding: 0 18px 18px; }
+  .acc-fold.open .acc-fold-body { display: block; }
+  .acc-badge {
+    display: inline-block; min-width: 18px; height: 18px; line-height: 18px;
+    padding: 0 5px; border-radius: 9px; background: var(--accent); color: #fff;
+    font-size: .68rem; text-align: center; font-weight: 700;
+  }
+
+  /* 消息条 */
+  .msg-item {
+    display: block; text-decoration: none; color: inherit;
+    background: rgba(255,255,255,.6); border: 1px solid var(--glass-brd);
+    border-left: 3px solid transparent; border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 8px;
+  }
+  .msg-item.unread { border-left-color: var(--accent); background: #fffdfb; }
+  .msg-item:hover { background: rgba(255,255,255,.9); }
+  .msg-tt { font-size: .88rem; font-weight: 700; margin-bottom: 3px; }
+  .msg-bd { font-size: .8rem; color: var(--muted); line-height: 1.6; }
+  .msg-tm { font-size: .7rem; color: var(--muted); opacity: .75; margin-top: 5px; }
+  .msg-tools { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .msg-tools button { font-size: .78rem; padding: 6px 12px; }
 </style>
 <link rel="icon" href="./img/logo.png">
 <link rel="stylesheet" href="./assets/site.css">
@@ -37,12 +75,46 @@
 <div class="page-head">
   <h1>用户中心</h1>
   <div class="en">Account</div>
-  <p>在这里设好名字和头像，之后留言、发作品会自动使用。</p>
+  <p>账户资料、消息和发言身份都在这里。</p>
 </div>
 
 <div class="status" id="u-status" hidden></div>
 
-<div class="card-box" style="margin-bottom:20px">
+<!-- 账户信息卡 -->
+<div class="card-box" id="u-acct-card" style="margin-bottom:16px">
+  <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    <div id="u-acct-avatar" style="width:52px;height:52px;flex-shrink:0"></div>
+    <div style="flex:1;min-width:0">
+      <div id="u-acct-name" style="font-size:1.05rem;font-weight:700">未登录</div>
+      <div id="u-acct-sub" style="font-size:.76rem;color:var(--muted);margin-top:3px">登录后才能改密码、看消息</div>
+    </div>
+    <a id="u-acct-go" href="./auth.html" class="btn-main" style="text-decoration:none;padding:8px 16px;font-size:.85rem;white-space:nowrap">登录 / 注册</a>
+  </div>
+</div>
+
+<!-- 折叠 1：消息中心 -->
+<div class="acc-fold" id="fold-msg">
+  <button class="acc-fold-head" type="button" data-fold="msg">
+    <span>消息中心<span id="msg-badge" class="acc-badge" hidden>0</span></span>
+    <i class="acc-caret">▾</i>
+  </button>
+  <div class="acc-fold-body">
+    <div id="msg-list"><div class="empty">登录后查看消息。</div></div>
+  </div>
+</div>
+
+<!-- 折叠 2：账户设置 -->
+<div class="acc-fold" id="fold-settings">
+  <button class="acc-fold-head" type="button" data-fold="settings">
+    <span>账户设置</span>
+    <i class="acc-caret">▾</i>
+  </button>
+  <div class="acc-fold-body">
+    <div id="u-login-warn" class="empty" hidden>还没登录。先去 <a href="./auth.html">登录 / 注册</a>，然后才能改名字、头像和密码。</div>
+    <div id="u-settings-inner">
+
+
+<div class="card-box" style="margin-bottom:18px">
   <div class="user-head">
     <div id="avatar-preview"></div>
     <div>
@@ -75,9 +147,25 @@
     <button class="btn-main" id="u-save" type="button">保存</button>
     <button class="btn-ghost" id="u-reset" type="button">清空本机资料</button>
   </div>
+
+  <div style="border-top:1px dashed var(--border);margin-top:18px;padding-top:16px">
+    <div style="font-size:.9rem;font-weight:700;margin-bottom:10px">修改密码</div>
+    <label style="display:block;font-size:.82rem;color:var(--muted);margin-bottom:5px">当前密码</label>
+    <input type="password" id="u-pw-old" placeholder="注册时设的密码（没设过就是 123456）"
+      style="width:100%;padding:10px 12px;border:1px solid var(--glass-brd);border-radius:8px;font-family:inherit;font-size:1rem;margin-bottom:10px">
+    <label style="display:block;font-size:.82rem;color:var(--muted);margin-bottom:5px">新密码（至少 6 位）</label>
+    <input type="password" id="u-pw-new" placeholder="新密码"
+      style="width:100%;padding:10px 12px;border:1px solid var(--glass-brd);border-radius:8px;font-family:inherit;font-size:1rem;margin-bottom:12px">
+    <button class="btn-main" id="u-pw-save" type="button">修改密码</button>
+  </div>
 </div>
 
-<div class="card-box" style="margin-bottom:20px">
+    </div>
+  </div>
+</div>
+
+<!-- 我的足迹（不折叠） -->
+<div class="card-box" style="margin:16px 0">
   <h3 style="font-size:1.05rem;margin-bottom:4px">我的足迹</h3>
   <div class="stat-row">
     <div class="stat-card"><div class="stat-num" id="stat-msg">—</div><div class="stat-label">留言</div></div>
@@ -86,6 +174,7 @@
   </div>
 </div>
 
+<!-- 我发过的帖子 -->
 <div class="card-box">
   <h3 style="font-size:1.05rem;margin-bottom:12px">我发过的帖子</h3>
   <div id="my-posts"></div>
@@ -103,7 +192,8 @@ var SITE = {
     { href: './gallery.html',      label: '画廊',       en: 'Gallery',   key: 'gallery' },
     { href: './guestbook.html',    label: '留言板',     en: 'Guestbook', key: 'guestbook' },
     { href: './journal.html',      label: '期刊投稿',   en: 'Journal',   key: 'journal' },
-    { href: './user.html',         label: '用户中心',   en: 'Account',   key: 'user' }
+    { href: './user.html',         label: '用户中心',   en: 'Account',   key: 'user' },
+    { href: './auth.html',         label: '登录 / 注册', en: 'Sign in',   key: 'auth' }
   ],
   /* 「关于」折叠组 */
   aboutPages: [
@@ -516,10 +606,196 @@ JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
       });
   }
 
+  /* ================= 账户系统 ================= */
+  var ACC_KEY = 'jw_account', PW_KEY = 'jw_account_pw';
+  var account = null, accountPw = '';
+
+  function readAccount() {
+    try { account = JSON.parse(localStorage.getItem(ACC_KEY) || 'null'); } catch (e) { account = null; }
+    try { accountPw = localStorage.getItem(PW_KEY) || ''; } catch (e) { accountPw = ''; }
+  }
+  function isLogged() { return !!(account && account.username); }
+
+  function renderAccountCard() {
+    var av = $('u-acct-avatar'), nm = $('u-acct-name'), sub = $('u-acct-sub'), go = $('u-acct-go');
+    if (!av) return;
+    av.textContent = '';
+    if (isLogged()) {
+      var el = document.createElement('div');
+      el.className = 'avatar-circle big';
+      el.style.cssText = 'width:52px;height:52px;font-size:1.5rem';
+      if (account.avatarMode === 'image' && account.avatarPath) {
+        var im = document.createElement('img');
+        im.src = (window.JW && JW.storagePublic || '') + account.avatarPath;
+        im.alt = '';
+        im.onerror = function () { el.textContent = account.avatarEmoji || '🙂'; el.style.background = account.avatarColor || '#c0392b'; };
+        el.appendChild(im);
+      } else {
+        el.textContent = account.avatarEmoji || '🙂';
+        el.style.background = account.avatarColor || '#c0392b';
+      }
+      av.appendChild(el);
+      nm.textContent = account.username;
+      sub.textContent = account.nickname ? ('显示名：' + account.nickname) : '还没设显示名';
+      go.textContent = '退出';
+      go.href = '#';
+      go.onclick = function (e) {
+        e.preventDefault();
+        if (!confirm('退出登录？（本机记住的资料会清掉）')) return;
+        try {
+          localStorage.removeItem(ACC_KEY); localStorage.removeItem(PW_KEY);
+          localStorage.removeItem('jiangwan_gb_name'); localStorage.removeItem('jiangwan_gb_look');
+        } catch (er) {}
+        location.reload();
+      };
+    } else {
+      av.innerHTML = '<div class="avatar-circle big" style="width:52px;height:52px;font-size:1.5rem;background:#ddd">?</div>';
+      nm.textContent = '未登录';
+      sub.textContent = '登录后才能改密码、看消息';
+      go.textContent = '登录 / 注册';
+      go.href = './auth.html?next=' + encodeURIComponent('./user.html');
+      go.onclick = null;
+    }
+  }
+
+  /* 改密码 */
+  function bindPassword() {
+    var btn = $('u-pw-save');
+    if (!btn) return;
+    btn.onclick = function () {
+      if (!isLogged()) { status('先登录。', 'err'); return; }
+      var oldPw = $('u-pw-old').value, newPw = $('u-pw-new').value.trim();
+      if (!oldPw) { status('请填当前密码。', 'err'); return; }
+      if (newPw.length < 6) { status('新密码至少 6 位。', 'err'); return; }
+      btn.disabled = true; btn.textContent = '提交中…';
+      JW.sb.rpc('change_password', {
+        p_username: account.username, p_old: oldPw, p_new: newPw
+      }).then(function (r) {
+        if (r.error) throw r.error;
+        try { localStorage.setItem(PW_KEY, newPw); } catch (e) {}
+        $('u-pw-old').value = ''; $('u-pw-new').value = '';
+        status('密码已修改 ✅', 'ok');
+      }).catch(function (e) {
+        var m = (e && e.message) || String(e);
+        status(/bad password/i.test(m) ? '当前密码不对。' : ('修改失败：' + m), 'err');
+      }).then(function () { btn.disabled = false; btn.textContent = '修改密码'; });
+    };
+  }
+
+  /* 消息中心 */
+  function loadMessages() {
+    var box = $('msg-list'), badge = $('msg-badge');
+    if (!box) return;
+    if (!isLogged()) {
+      box.innerHTML = '<div class="empty">登录后查看消息。</div>';
+      if (badge) badge.hidden = true;
+      return;
+    }
+    box.innerHTML = '<div class="empty">加载中……</div>';
+    JW.sb.rpc('list_notifications', {
+      p_username: account.username, p_password: accountPw, p_limit: 30
+    }).then(function (r) {
+      if (r.error) throw r.error;
+      var d = r.data; if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) {} }
+      var items = (d && d.items) || [];
+      var unread = (d && d.unread) || 0;
+      if (badge) { badge.hidden = unread === 0; badge.textContent = unread; }
+      box.textContent = '';
+      if (!items.length) {
+        var e = document.createElement('div');
+        e.className = 'empty';
+        e.textContent = '还没有消息。有人回复你的帖子时会出现在这里。';
+        box.appendChild(e);
+        return;
+      }
+      var tools = document.createElement('div');
+      tools.className = 'msg-tools';
+      var allRead = document.createElement('button');
+      allRead.type = 'button'; allRead.className = 'btn-ghost'; allRead.textContent = '全部标为已读';
+      allRead.onclick = function () { markRead(null); };
+      tools.appendChild(allRead);
+      box.appendChild(tools);
+
+      items.forEach(function (n) {
+        var a = document.createElement('a');
+        a.className = 'msg-item' + (n.is_read ? '' : ' unread');
+        a.href = n.link ? ('./' + n.link) : '#';
+        var tt = document.createElement('div'); tt.className = 'msg-tt'; tt.textContent = n.title || '通知';
+        var bd = document.createElement('div'); bd.className = 'msg-bd'; bd.textContent = n.body || '';
+        var tm = document.createElement('div'); tm.className = 'msg-tm'; tm.textContent = fmt(n.created_at);
+        a.appendChild(tt); a.appendChild(bd); a.appendChild(tm);
+        a.onclick = function () { if (!n.is_read) markRead(n.id, true); };
+        box.appendChild(a);
+      });
+    }).catch(function (e) {
+      box.textContent = '';
+      var d = document.createElement('div');
+      d.className = 'empty';
+      var m = (e && e.message) || String(e);
+      d.textContent = /bad password/i.test(m) ? '登录状态已失效，请重新登录。' : ('读取消息失败：' + m);
+      box.appendChild(d);
+    });
+  }
+
+  function markRead(id, silent) {
+    JW.sb.rpc('mark_notifications_read', {
+      p_username: account.username, p_password: accountPw, p_id: id
+    }).then(function (r) {
+      if (r.error) throw r.error;
+      if (!silent) loadMessages();
+      else {
+        // 单条：只把红点数量减一
+        var badge = $('msg-badge');
+        if (badge && !badge.hidden) {
+          var n = parseInt(badge.textContent, 10) || 0;
+          if (n > 1) badge.textContent = n - 1; else badge.hidden = true;
+        }
+      }
+    }).catch(function () {});
+  }
+
+  /* 折叠面板 */
+  function bindFolds() {
+    var heads = document.querySelectorAll('.acc-fold-head');
+    Array.prototype.forEach.call(heads, function (h) {
+      h.onclick = function () {
+        var fold = h.parentNode;
+        var open = fold.classList.toggle('open');
+        try { localStorage.setItem('jw_fold_' + h.dataset.fold, open ? '1' : '0'); } catch (e) {}
+        if (open && h.dataset.fold === 'msg') loadMessages();
+      };
+      // 恢复上次状态
+      try {
+        if (localStorage.getItem('jw_fold_' + h.dataset.fold) === '1') h.parentNode.classList.add('open');
+      } catch (e) {}
+    });
+  }
+
   function boot() {
+    readAccount();
+    renderAccountCard();
+    bindFolds();
+    bindPassword();
+
+    // 未登录时把设置区隐藏，醒目提示
+    var inner = $('u-settings-inner'), warn = $('u-login-warn');
+    if (!isLogged()) {
+      if (inner) inner.hidden = true;
+      if (warn) warn.hidden = false;
+    }
+
     loadLocal();
+    // 已登录时，名字/头像以账户为准
+    if (isLogged()) {
+      name = account.nickname || account.username.replace(/^@/, '');
+      if (account.avatarMode) mode = account.avatarMode;
+      if (account.avatarEmoji) emoji = account.avatarEmoji;
+      if (account.avatarColor) color = account.avatarColor;
+      if (account.avatarPath) { imagePath = account.avatarPath; image = avatarUrl(imagePath); }
+    }
     $('u-name').value = name;
     renderAll();
+    if (isLogged()) loadMessages();
 
     $('u-name').oninput = function () { name = $('u-name').value; renderPreview(); };
     $('u-save').onclick = function () {
@@ -527,6 +803,23 @@ JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
       if (!name) { status('名字不能空着。', 'err'); return; }
       saveLocal();
       renderPreview();
+      // 已登录：把昵称和头像写进账户
+      if (isLogged() && accountPw) {
+        JW.sb.rpc('update_account_profile', {
+          p_username: account.username, p_password: accountPw,
+          p_nickname: name, p_avatar_mode: mode, p_avatar_path: imagePath || null,
+          p_avatar_color: color, p_avatar_emoji: emoji
+        }).then(function (r) {
+          if (r.error) throw r.error;
+          account.nickname = name;
+          account.avatarMode = mode; account.avatarPath = imagePath;
+          account.avatarColor = color; account.avatarEmoji = emoji;
+          try { localStorage.setItem(ACC_KEY, JSON.stringify(account)); } catch (e) {}
+          renderAccountCard();
+        }).catch(function (e) {
+          status('账户资料同步失败：' + ((e && e.message) || e), 'err');
+        });
+      }
       status('已保存 ✅ 之后留言、发作品会自动用这个名字和头像。', 'ok');
       setTimeout(function () { if (/已保存/.test($('u-status').textContent)) status(''); }, 3500);
     };

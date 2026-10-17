@@ -188,7 +188,8 @@ var SITE = {
     { href: './gallery.html',      label: '画廊',       en: 'Gallery',   key: 'gallery' },
     { href: './guestbook.html',    label: '留言板',     en: 'Guestbook', key: 'guestbook' },
     { href: './journal.html',      label: '期刊投稿',   en: 'Journal',   key: 'journal' },
-    { href: './user.html',         label: '用户中心',   en: 'Account',   key: 'user' }
+    { href: './user.html',         label: '用户中心',   en: 'Account',   key: 'user' },
+    { href: './auth.html',         label: '登录 / 注册', en: 'Sign in',   key: 'auth' }
   ],
   /* 「关于」折叠组 */
   aboutPages: [
@@ -806,6 +807,7 @@ var GB = (function () {
       sb.from('replies').insert({
         message_id: msg.id, device_id: deviceId, name: name.slice(0,20), content: text.slice(0,300),
         reply_to_id: replyTo ? replyTo.id : null, reply_to_name: replyTo ? replyTo.name : null,
+        author_username: currentUsername() || null,
         avatar_mode: av.avatar_mode, avatar_path: av.avatar_path, avatar_color: av.avatar_color, avatar_emoji: av.avatar_emoji
       }).then(function (r) { if (r.error) throw r.error; box.remove(); return loadAll().then(render); })
         .catch(function (e) { status('回复失败：' + ((e&&e.message)||e), 'err'); })
@@ -941,6 +943,15 @@ var GB = (function () {
     } catch (e) {}
   }
 
+  /* 当前登录账户的用户名（不带 @），没登录返回空 */
+  function currentUsername() {
+    try {
+      var a = JSON.parse(localStorage.getItem('jw_account') || 'null');
+      if (a && a.username) return String(a.username).replace(/^@+/, '');
+    } catch (e) {}
+    return '';
+  }
+
   function btrimName(x) { return String(x == null ? '' : x).replace(/^\s+|\s+$/g, ''); }
 
   function loadAll() {
@@ -996,6 +1007,7 @@ var GB = (function () {
       main_section: curMain || '未分区',
       sub_section_id: curSub || null,
       tags: tags,
+      author_username: currentUsername() || null,
       avatar_mode: av.avatar_mode, avatar_path: av.avatar_path,
       avatar_color: av.avatar_color, avatar_emoji: av.avatar_emoji
     }).select('id').then(function (r) {

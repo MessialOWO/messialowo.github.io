@@ -7,7 +7,8 @@ var SITE = {
     { href: './gallery.html',      label: '画廊',       en: 'Gallery',   key: 'gallery' },
     { href: './guestbook.html',    label: '留言板',     en: 'Guestbook', key: 'guestbook' },
     { href: './journal.html',      label: '期刊投稿',   en: 'Journal',   key: 'journal' },
-    { href: './user.html',         label: '用户中心',   en: 'Account',   key: 'user' }
+    { href: './user.html',         label: '用户中心',   en: 'Account',   key: 'user' },
+    { href: './auth.html',         label: '登录 / 注册', en: 'Sign in',   key: 'auth' }
   ],
   /* 「关于」折叠组 */
   aboutPages: [
