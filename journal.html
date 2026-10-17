@@ -358,7 +358,16 @@ var JW = {
   key: 'sb_publishable_cGy9MFHh3-t2i0kEnbHeeg_A1-rUMaF',
   bucket: 'avatars',
   timeoutMs: 10000,
-  proxy: ['https://arid-bluejay-4932.messialowo.deno.net'],
+  /* 中转线路列表（按顺序尝试）
+     - Deno Deploy：原来的主力
+     - Cloudflare Pages：部署后把地址填进来（xxx.pages.dev）
+     注意：不要填 workers.dev，那个在国内被墙。 */
+  proxy: [
+    'https://arid-bluejay-4932.messialowo.deno.net'
+    /* 部署 Cloudflare Pages 后，在上面这行后面加英文逗号，再填你的地址，例如：
+       , 'https://jw-relay.pages.dev'
+    */
+  ],
   /* 中转健康状态：连续失败就暂时跳过，直接连主库，避免每次白等超时 */
   _proxyFail: {}, _proxySkipUntil: 0,
   _directOK: null, _directFailCount: 0, _directSkipUntil: 0,
