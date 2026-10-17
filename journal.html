@@ -542,6 +542,17 @@ JW.storagePublic = (JW.proxy && JW.proxy.length ? String(JW.proxy[0]).replace(/\
   var curIssue = '', curSection = 'essay';
   var busy = false;
 
+  /* 加载中占位 */
+  function showLoading(text) {
+    var panel = $('panel');
+    if (!panel) return;
+    panel.textContent = '';
+    var box = document.createElement('div');
+    box.className = 'jr-loading';
+    box.innerHTML = '<span class="jr-spin"></span><span>' + (text || '加载中，服务器在国外，请耐心等待www') + '</span>';
+    panel.appendChild(box);
+  }
+
   function status(t, kind) {
     var el = $('status');
     if (!el) return;
@@ -884,12 +895,34 @@ JW.storagePublic = (JW.proxy && JW.proxy.length ? String(JW.proxy[0]).replace(/\
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();
   function start() {
+    showLoading();                       // 一进页面就显示"加载中"
     JW.whenReady(function (err) {
-      if (err) { status('连不上云端：' + (err.message || err), 'err'); return; }
+      if (err) {
+        var p = $('panel');
+        if (p) {
+          p.textContent = '';
+          var d = document.createElement('div');
+          d.className = 'empty';
+          d.textContent = '连不上服务器：' + (err.message || err);
+          p.appendChild(d);
+        }
+        status('连不上云端：' + (err.message || err), 'err');
+        return;
+      }
       sb = JW.sb;
-      JW.retry(function () { return JW.withTimeout(loadAll(), 20000, '加载期刊'); }, 2)
+      JW.retry(function () { return JW.withTimeout(loadAll(), 25000, '加载期刊'); }, 2)
         .then(function () { connected = true; refresh(); status(''); })
-        .catch(function (e) { status('加载失败：' + (e.message || e), 'err'); });
+        .catch(function (e) {
+          var p2 = $('panel');
+          if (p2 && !p2.querySelector('.jr-loading') === false) {
+            p2.textContent = '';
+            var d2 = document.createElement('div');
+            d2.className = 'empty';
+            d2.textContent = '加载失败，请刷新页面重试。';
+            p2.appendChild(d2);
+          }
+          status('加载失败：' + (e.message || e), 'err');
+        });
     });
   }
 })();

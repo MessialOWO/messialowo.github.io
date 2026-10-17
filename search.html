@@ -1664,7 +1664,7 @@ var GB = (function () {
       this.style.height = Math.min(this.scrollHeight, Math.round(window.innerHeight * 0.4)) + 'px';
     });
 
-    showLoading('正在加载留言……');
+    showLoading('加载中，服务器在国外，请耐心等待www');
     loadSections().then(loadAll).then(function () {
       connected = true;
       renderSortBar(); renderSubBar(); render();
@@ -1928,7 +1928,7 @@ var GB = (function () {
     listEl.textContent = '';
     var box = document.createElement('div');
     box.className = 'gb-loading';
-    box.innerHTML = '<span class="gb-spin"></span><span>' + (t || '正在搜索……') + '</span>';
+    box.innerHTML = '<span class="gb-spin"></span><span>' + (t || '加载中，服务器在国外，请耐心等待www') + '</span>';
     listEl.appendChild(box);
   }
 
@@ -1937,7 +1937,7 @@ var GB = (function () {
     var q = new URLSearchParams(location.search);
     if (q.get('tag')) $('s-tag').value = q.get('tag');
     if (q.get('q')) $('s-kw').value = q.get('q');
-    if ($('s-tag').value || $('s-kw').value) showLoading('正在搜索……');
+    if ($('s-tag').value || $('s-kw').value) showLoading('加载中，服务器在国外，请耐心等待www');
     loadTags().then(function () { if ($('s-tag').value || $('s-kw').value) doSearch(); else $('gb-status').hidden = true; });
   });
 })();

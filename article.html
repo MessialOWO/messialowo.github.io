@@ -29,6 +29,20 @@
   .comment-form { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
   .comment-form input { flex:1 1 120px; min-width:0; padding:9px 12px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:16px; background:var(--bg); color:var(--text); }
   .comment-form input.grow { flex:3 1 200px; }
+
+  /* 加载中 */
+  .jr-loading {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 48px 20px; color: var(--muted); font-size: .88rem;
+    background: rgba(255,255,255,.5); border: 1px solid var(--glass-brd);
+    border-radius: 14px;
+  }
+  .jr-spin {
+    width: 17px; height: 17px; border-radius: 50%;
+    border: 2px solid rgba(192,57,43,.2); border-top-color: var(--accent);
+    animation: jrspin .7s linear infinite; display: inline-block; flex-shrink: 0;
+  }
+  @keyframes jrspin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
