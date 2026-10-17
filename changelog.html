@@ -655,6 +655,12 @@ var JW = {
   bucket: 'avatars',
   timeoutMs: 10000,
   proxy: ['https://arid-bluejay-4932.messialowo.deno.net'],
+  /* 中转健康状态：连续失败就暂时跳过，直接连主库，避免每次白等超时 */
+  _proxyFail: {}, _proxySkipUntil: 0,
+  _directOK: null, _directFailCount: 0, _directSkipUntil: 0,
+  /* 用户手动选择：'direct' 只直连 / 'relay' 走中转 / null 未选（先试直连） */
+  lineMode: null, _asking: false,      // null=默认(直连优先+5秒询问) / 'direct' / 'relay'
+  LINE_KEY: 'jw_line_mode',
   sb: null, uid: '', deviceId: '', ready: false, error: null, _waiters: [],
   whenReady: function (cb) { if (JW.ready) cb(JW.error); else JW._waiters.push(cb); },
   _settle: function (err) {
@@ -695,25 +701,106 @@ var JW = {
         if (u.origin === BASE) rel = u.pathname + u.search;
       } catch (e) {}
       if (!rel || !JW.proxy || !JW.proxy.length) return fetch(input, init);
-      var list = JW.proxy.slice();
-      function attempt(i) {
-        if (i >= list.length) return fetch(url, init);
-        var clean = String(list[i]).replace(/\/$/, '');
-        return fetch(clean + rel, init).then(function (res) {
-          if (!res || res.status >= 500) throw new Error('中转 ' + clean + ' 返回 ' + (res && res.status));
-          return res;
-        }).catch(function (e) {
-          console.warn('中转失败，换下一个：' + clean, e && e.message);
-          return attempt(i + 1);
+
+      /* 文件存储（上传/下载/删除）不走中转：
+         Storage 本身就是对象存储 CDN，国内访问比数据库 API 稳；
+         而且大文件经中转转发会占用大量"内存×时间"额度，把免费额度耗尽。
+         所以 storage 直连，失败再退回中转。 */
+      if (rel.indexOf('/storage/v1/') === 0) {
+        return fetch(url, init).catch(function (e) {
+          console.warn('Storage 直连失败，改走中转', e && e.message);
+          var list0 = JW.proxy.slice();
+          function tryRelay(i) {
+            if (i >= list0.length) throw e;
+            var clean = String(list0[i]).replace(/\/$/, '');
+            return fetch(clean + rel, init).then(function (res) {
+              if (!res || res.status >= 500) throw new Error('中转 ' + clean + ' 返回 ' + (res && res.status));
+              return res;
+            }).catch(function () { return tryRelay(i + 1); });
+          }
+          return tryRelay(0);
         });
       }
-      return attempt(0);
+      /* ===== 连接策略 =====
+         默认（自动）：直连优先，5 秒没响应或失败 → 自动切中转，不打扰用户
+         手动：用户可在「用户中心 → 连接线路」里指定「只直连」或「只中转」
+         文件存储（storage）已在上面单独处理，不走这里 */
+      var DIRECT_TIMEOUT = 5000;
+      var cleanList = JW.proxy.map(function (x) { return String(x).replace(/\/$/, ''); });
+
+      function viaRelay() {
+        if (!cleanList.length) return fetch(url, init);
+        function attempt(i) {
+          if (i >= cleanList.length) return fetch(url, init);
+          var clean = cleanList[i];
+          return fetch(clean + rel, init).then(function (res) {
+            if (!res || res.status >= 500) throw new Error('中转返回 ' + (res && res.status));
+            return res;
+          }).catch(function (e) {
+            console.warn('中转失败：' + clean, e && e.message);
+            return attempt(i + 1);
+          });
+        }
+        return attempt(0);
+      }
+
+      if (JW.lineMode === 'relay') return viaRelay();     // 用户选了只走中转
+      if (JW.lineMode === 'direct') return fetch(url, init);  // 用户选了只直连
+
+      // 自动：先直连，超时就自动切中转
+      return new Promise(function (resolve) {
+        var done = false;
+        var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+        var merged = init ? Object.assign({}, init) : {};
+        if (ctl) merged.signal = ctl.signal;
+
+        var timer = setTimeout(function () {
+          if (done) return;
+          done = true;
+          if (ctl) { try { ctl.abort(); } catch (e) {} }
+          console.warn('直连超过 ' + (DIRECT_TIMEOUT / 1000) + ' 秒，自动切换中转');
+          JW._directOK = false;
+          resolve(viaRelay());
+        }, DIRECT_TIMEOUT);
+
+        fetch(url, merged).then(function (res) {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          JW._directOK = true;
+          resolve(res);
+        }).catch(function (e) {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          console.warn('直连失败，自动切换中转：', e && e.message);
+          JW._directOK = false;
+          resolve(viaRelay());
+        });
+      });
     };
   }
 };
 JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
 
 (function () {
+  /* ---- 连接线路：读用户手动选择；不选就是「自动」 ---- */
+  try {
+    var lm = localStorage.getItem(JW.LINE_KEY);
+    if (lm === 'direct' || lm === 'relay') JW.lineMode = lm;
+  } catch (e) {}
+
+  JW.setLine = function (mode) {
+    JW.lineMode = (mode === 'direct' || mode === 'relay') ? mode : null;
+    try {
+      if (JW.lineMode) localStorage.setItem(JW.LINE_KEY, JW.lineMode);
+      else localStorage.removeItem(JW.LINE_KEY);
+    } catch (e) {}
+    return JW.lineMode;
+  };
+  JW.getLine = function () { return JW.lineMode; };
+  JW.proxyList = function () { return JW.proxy.slice(); };
+
   function newDeviceId() {
     if (window.crypto && window.crypto.randomUUID) return 'gb-' + window.crypto.randomUUID();
     return 'gb-' + Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);

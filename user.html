@@ -27,6 +27,35 @@
   .my-post-text { font-size:.92rem; margin-bottom:6px; }
   .my-post-meta { font-size:.76rem; color:var(--muted); }
 
+  /* 连接线路 */
+  function bindLine() {
+    var radios = document.querySelectorAll('input[name="line-mode"]');
+    if (!radios.length || !window.JW || !JW.setLine) return;
+    var cur = (JW.getLine && JW.getLine()) || 'auto';
+    Array.prototype.forEach.call(radios, function (r) {
+      if (r.value === cur) r.checked = true;
+      r.onchange = function () {
+        if (!this.checked) return;
+        var mode = this.value === 'auto' ? null : this.value;
+        JW.setLine(mode);
+        var note = $('line-note');
+        if (note) {
+          note.textContent = this.value === 'auto'
+            ? '已切回自动。刷新页面后生效。'
+            : (this.value === 'relay' ? '已设为只用中转。刷新页面后生效。' : '已设为只连官方。刷新页面后生效。');
+        }
+        status('已保存线路设置，刷新页面后生效。', 'ok');
+        setTimeout(function () { if (/线路设置/.test(($('u-status')||{}).textContent||'')) status(''); }, 3000);
+      };
+    });
+    var note = $('line-note');
+    if (note) {
+      note.textContent = cur === 'auto'
+        ? '当前：自动（直连优先，失败切中转）'
+        : (cur === 'relay' ? '当前：只用中转' : '当前：只连官方');
+    }
+  }
+
   /* 折叠面板 */
   .acc-fold {
     border: 1px solid var(--glass-brd); border-radius: 14px;
@@ -64,6 +93,19 @@
   .msg-tm { font-size: .7rem; color: var(--muted); opacity: .75; margin-top: 5px; }
   .msg-tools { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
   .msg-tools button { font-size: .78rem; padding: 6px 12px; }
+
+  /* 连接线路选项 */
+  .line-opts { display: flex; flex-direction: column; gap: 10px; }
+  .line-opt {
+    display: flex; align-items: flex-start; gap: 12px; cursor: pointer;
+    padding: 12px 14px; border-radius: 10px;
+    border: 1px solid var(--glass-brd); background: rgba(255,255,255,.55);
+  }
+  .line-opt:has(input:checked) { border-color: var(--accent); background: var(--accent-light); }
+  .line-opt input { margin-top: 3px; accent-color: var(--accent); flex-shrink: 0; }
+  .line-body { flex: 1; min-width: 0; }
+  .line-body b { display: block; font-size: .88rem; margin-bottom: 3px; }
+  .line-body small { font-size: .76rem; color: var(--muted); line-height: 1.65; }
 </style>
 <link rel="icon" href="./img/logo.png">
 <link rel="stylesheet" href="./assets/site.css">
@@ -139,6 +181,45 @@
     <div style="font-size:.76rem;color:var(--muted);line-height:1.7">
       图片会压到最长边 1600 像素再保存，避免占满浏览器空间。
     </div>
+  </div>
+</div>
+
+<!-- 折叠：连接线路 -->
+<div class="acc-fold" id="fold-line">
+  <button class="acc-fold-head" type="button" data-fold="line">
+    <span>连接线路</span>
+    <i class="acc-caret">▾</i>
+  </button>
+  <div class="acc-fold-body">
+    <div style="font-size:.8rem;color:var(--muted);line-height:1.8;margin-bottom:14px">
+      如果页面加载很慢或者一直转圈，可以在这里换一条线路试试。记住的选择只保存在这台设备上。
+    </div>
+
+    <div class="line-opts">
+      <label class="line-opt">
+        <input type="radio" name="line-mode" value="auto" checked>
+        <span class="line-body">
+          <b>自动（推荐）</b>
+          <small>先直连官方服务器，5 秒没响应就自动切到中转线路。一般不用改。</small>
+        </span>
+      </label>
+      <label class="line-opt">
+        <input type="radio" name="line-mode" value="relay">
+        <span class="line-body">
+          <b>只用中转</b>
+          <small>不尝试直连，直接走中转。直连明显不通时选这个。</small>
+        </span>
+      </label>
+      <label class="line-opt">
+        <input type="radio" name="line-mode" value="direct">
+        <span class="line-body">
+          <b>只连官方</b>
+          <small>完全不走中转。中转不可用、或想省中转额度时选这个。</small>
+        </span>
+      </label>
+    </div>
+
+    <div id="line-note" style="font-size:.76rem;color:var(--muted);margin-top:10px;line-height:1.7"></div>
   </div>
 </div>
 
@@ -552,6 +633,12 @@ var JW = {
   bucket: 'avatars',
   timeoutMs: 10000,
   proxy: ['https://arid-bluejay-4932.messialowo.deno.net'],
+  /* 中转健康状态：连续失败就暂时跳过，直接连主库，避免每次白等超时 */
+  _proxyFail: {}, _proxySkipUntil: 0,
+  _directOK: null, _directFailCount: 0, _directSkipUntil: 0,
+  /* 用户手动选择：'direct' 只直连 / 'relay' 走中转 / null 未选（先试直连） */
+  lineMode: null, _asking: false,      // null=默认(直连优先+5秒询问) / 'direct' / 'relay'
+  LINE_KEY: 'jw_line_mode',
   sb: null, uid: '', deviceId: '', ready: false, error: null, _waiters: [],
   whenReady: function (cb) { if (JW.ready) cb(JW.error); else JW._waiters.push(cb); },
   _settle: function (err) {
@@ -592,25 +679,106 @@ var JW = {
         if (u.origin === BASE) rel = u.pathname + u.search;
       } catch (e) {}
       if (!rel || !JW.proxy || !JW.proxy.length) return fetch(input, init);
-      var list = JW.proxy.slice();
-      function attempt(i) {
-        if (i >= list.length) return fetch(url, init);
-        var clean = String(list[i]).replace(/\/$/, '');
-        return fetch(clean + rel, init).then(function (res) {
-          if (!res || res.status >= 500) throw new Error('中转 ' + clean + ' 返回 ' + (res && res.status));
-          return res;
-        }).catch(function (e) {
-          console.warn('中转失败，换下一个：' + clean, e && e.message);
-          return attempt(i + 1);
+
+      /* 文件存储（上传/下载/删除）不走中转：
+         Storage 本身就是对象存储 CDN，国内访问比数据库 API 稳；
+         而且大文件经中转转发会占用大量"内存×时间"额度，把免费额度耗尽。
+         所以 storage 直连，失败再退回中转。 */
+      if (rel.indexOf('/storage/v1/') === 0) {
+        return fetch(url, init).catch(function (e) {
+          console.warn('Storage 直连失败，改走中转', e && e.message);
+          var list0 = JW.proxy.slice();
+          function tryRelay(i) {
+            if (i >= list0.length) throw e;
+            var clean = String(list0[i]).replace(/\/$/, '');
+            return fetch(clean + rel, init).then(function (res) {
+              if (!res || res.status >= 500) throw new Error('中转 ' + clean + ' 返回 ' + (res && res.status));
+              return res;
+            }).catch(function () { return tryRelay(i + 1); });
+          }
+          return tryRelay(0);
         });
       }
-      return attempt(0);
+      /* ===== 连接策略 =====
+         默认（自动）：直连优先，5 秒没响应或失败 → 自动切中转，不打扰用户
+         手动：用户可在「用户中心 → 连接线路」里指定「只直连」或「只中转」
+         文件存储（storage）已在上面单独处理，不走这里 */
+      var DIRECT_TIMEOUT = 5000;
+      var cleanList = JW.proxy.map(function (x) { return String(x).replace(/\/$/, ''); });
+
+      function viaRelay() {
+        if (!cleanList.length) return fetch(url, init);
+        function attempt(i) {
+          if (i >= cleanList.length) return fetch(url, init);
+          var clean = cleanList[i];
+          return fetch(clean + rel, init).then(function (res) {
+            if (!res || res.status >= 500) throw new Error('中转返回 ' + (res && res.status));
+            return res;
+          }).catch(function (e) {
+            console.warn('中转失败：' + clean, e && e.message);
+            return attempt(i + 1);
+          });
+        }
+        return attempt(0);
+      }
+
+      if (JW.lineMode === 'relay') return viaRelay();     // 用户选了只走中转
+      if (JW.lineMode === 'direct') return fetch(url, init);  // 用户选了只直连
+
+      // 自动：先直连，超时就自动切中转
+      return new Promise(function (resolve) {
+        var done = false;
+        var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+        var merged = init ? Object.assign({}, init) : {};
+        if (ctl) merged.signal = ctl.signal;
+
+        var timer = setTimeout(function () {
+          if (done) return;
+          done = true;
+          if (ctl) { try { ctl.abort(); } catch (e) {} }
+          console.warn('直连超过 ' + (DIRECT_TIMEOUT / 1000) + ' 秒，自动切换中转');
+          JW._directOK = false;
+          resolve(viaRelay());
+        }, DIRECT_TIMEOUT);
+
+        fetch(url, merged).then(function (res) {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          JW._directOK = true;
+          resolve(res);
+        }).catch(function (e) {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          console.warn('直连失败，自动切换中转：', e && e.message);
+          JW._directOK = false;
+          resolve(viaRelay());
+        });
+      });
     };
   }
 };
 JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
 
 (function () {
+  /* ---- 连接线路：读用户手动选择；不选就是「自动」 ---- */
+  try {
+    var lm = localStorage.getItem(JW.LINE_KEY);
+    if (lm === 'direct' || lm === 'relay') JW.lineMode = lm;
+  } catch (e) {}
+
+  JW.setLine = function (mode) {
+    JW.lineMode = (mode === 'direct' || mode === 'relay') ? mode : null;
+    try {
+      if (JW.lineMode) localStorage.setItem(JW.LINE_KEY, JW.lineMode);
+      else localStorage.removeItem(JW.LINE_KEY);
+    } catch (e) {}
+    return JW.lineMode;
+  };
+  JW.getLine = function () { return JW.lineMode; };
+  JW.proxyList = function () { return JW.proxy.slice(); };
+
   function newDeviceId() {
     if (window.crypto && window.crypto.randomUUID) return 'gb-' + window.crypto.randomUUID();
     return 'gb-' + Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
@@ -1168,6 +1336,35 @@ JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
     };
   }
 
+  /* 连接线路 */
+  function bindLine() {
+    var radios = document.querySelectorAll('input[name="line-mode"]');
+    if (!radios.length || !window.JW || !JW.setLine) return;
+    var cur = (JW.getLine && JW.getLine()) || 'auto';
+    Array.prototype.forEach.call(radios, function (r) {
+      if (r.value === cur) r.checked = true;
+      r.onchange = function () {
+        if (!this.checked) return;
+        var mode = this.value === 'auto' ? null : this.value;
+        JW.setLine(mode);
+        var note = $('line-note');
+        if (note) {
+          note.textContent = this.value === 'auto'
+            ? '已切回自动。刷新页面后生效。'
+            : (this.value === 'relay' ? '已设为只用中转。刷新页面后生效。' : '已设为只连官方。刷新页面后生效。');
+        }
+        status('已保存线路设置，刷新页面后生效。', 'ok');
+        setTimeout(function () { if (/线路设置/.test(($('u-status')||{}).textContent||'')) status(''); }, 3000);
+      };
+    });
+    var note = $('line-note');
+    if (note) {
+      note.textContent = cur === 'auto'
+        ? '当前：自动（直连优先，失败切中转）'
+        : (cur === 'relay' ? '当前：只用中转' : '当前：只连官方');
+    }
+  }
+
   /* 折叠面板 */
   var FOLD_IDS = { msg: 'fold-msg', settings: 'fold-settings', bg: 'fold-bg' };
   function openFold(name) {
@@ -1217,6 +1414,7 @@ JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
     bindPassword();
     bindUsername();
     bindBackground();
+    bindLine();
 
     // 未登录时把设置区隐藏，醒目提示
     var inner = $('u-settings-inner'), warn = $('u-login-warn');
