@@ -149,6 +149,24 @@
   </div>
 
   <div style="border-top:1px dashed var(--border);margin-top:18px;padding-top:16px">
+    <div style="font-size:.9rem;font-weight:700;margin-bottom:10px">修改用户名</div>
+    <label style="display:block;font-size:.82rem;color:var(--muted);margin-bottom:5px">当前用户名</label>
+    <input type="text" id="u-uname-view" readonly
+      style="width:100%;padding:10px 12px;border:1px solid var(--glass-brd);border-radius:8px;font-family:inherit;font-size:1rem;margin-bottom:10px;background:rgba(0,0,0,.03);color:var(--muted)">
+    <label style="display:block;font-size:.82rem;color:var(--muted);margin-bottom:5px">新用户名（字母开头，字母数字下划线，3~20 位）</label>
+    <div style="display:flex;align-items:center;gap:0;margin-bottom:4px">
+      <span style="padding:10px 0 10px 12px;color:var(--accent);font-weight:700">@</span>
+      <input type="text" id="u-uname-new" placeholder="新用户名"
+        style="flex:1;padding:10px 12px;border:1px solid var(--glass-brd);border-radius:8px;font-family:inherit;font-size:1rem;margin-left:-20px;padding-left:26px">
+    </div>
+    <div id="u-uname-hint" style="font-size:.76rem;color:var(--muted);margin-bottom:10px;min-height:1.2em"></div>
+    <label style="display:block;font-size:.82rem;color:var(--muted);margin-bottom:5px">密码（确认是你本人）</label>
+    <input type="password" id="u-uname-pw" placeholder="当前密码"
+      style="width:100%;padding:10px 12px;border:1px solid var(--glass-brd);border-radius:8px;font-family:inherit;font-size:1rem;margin-bottom:12px">
+    <button class="btn-main" id="u-uname-save" type="button">修改用户名</button>
+  </div>
+
+  <div style="border-top:1px dashed var(--border);margin-top:18px;padding-top:16px">
     <div style="font-size:.9rem;font-weight:700;margin-bottom:10px">修改密码</div>
     <label style="display:block;font-size:.82rem;color:var(--muted);margin-bottom:5px">当前密码</label>
     <input type="password" id="u-pw-old" placeholder="注册时设的密码（没设过就是 123456）"
@@ -658,6 +676,64 @@ JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
     }
   }
 
+  /* 改用户名 */
+  function bindUsername() {
+    var view = $('u-uname-view');
+    if (view && isLogged()) view.value = account.username;
+
+    var inp = $('u-uname-new');
+    if (inp) {
+      inp.oninput = function () {
+        var v = this.value.replace(/[^A-Za-z0-9_]/g, '');
+        if (v.charAt(0) === '@') v = v.replace(/^@+/, '');
+        this.value = v;
+        var h = $('u-uname-hint');
+        if (!v) { h.textContent = ''; h.style.color = ''; return; }
+        var msg = '', ok = false;
+        if (v.length < 3) msg = '至少 3 个字符';
+        else if (v.length > 20) msg = '最多 20 个字符';
+        else if (!/^[A-Za-z]/.test(v)) msg = '必须以英文字母开头';
+        else if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(v)) msg = '只能用英文字母、数字、下划线';
+        else if (isLogged() && v.toLowerCase() === account.username.replace(/^@/, '').toLowerCase()) msg = '和当前用户名一样';
+        else { msg = '可以用'; ok = true; }
+        h.textContent = msg;
+        h.style.color = ok ? '#27ae60' : '#c0392b';
+      };
+    }
+
+    var btn = $('u-uname-save');
+    if (!btn) return;
+    btn.onclick = function () {
+      if (!isLogged()) { status('先登录。', 'err'); return; }
+      var nv = ($('u-uname-new').value || '').trim();
+      var pw = $('u-uname-pw').value;
+      if (!nv) { status('请填新用户名。', 'err'); return; }
+      if (!pw) { status('请输入密码确认。', 'err'); return; }
+      if (!confirm('确定把用户名改成 @' + nv + ' 吗？\n（之前发过的内容不受影响）')) return;
+      btn.disabled = true; btn.textContent = '提交中…';
+      JW.sb.rpc('change_username', {
+        p_old_username: account.username, p_password: pw, p_new_username: nv
+      }).then(function (r) {
+        if (r.error) throw r.error;
+        var d = r.data; if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) {} }
+        account.username = d.username || ('@' + nv);
+        if (d.nickname) account.nickname = d.nickname;
+        try { localStorage.setItem(ACC_KEY, JSON.stringify(account)); } catch (e) {}
+        $('u-uname-view').value = account.username;
+        $('u-uname-new').value = '';
+        $('u-uname-pw').value = '';
+        $('u-uname-hint').textContent = '';
+        renderAccountCard();
+        status('用户名已改为 ' + account.username + ' ✅', 'ok');
+      }).catch(function (e) {
+        var m = (e && e.message) || String(e);
+        status(/username taken/i.test(m) ? '这个用户名已经有人用了。'
+          : (/bad password/i.test(m) ? '密码不对。'
+          : (/bad username/i.test(m) ? '新用户名不符合规则。' : ('修改失败：' + m))), 'err');
+      }).then(function () { btn.disabled = false; btn.textContent = '修改用户名'; });
+    };
+  }
+
   /* 改密码 */
   function bindPassword() {
     var btn = $('u-pw-save');
@@ -776,6 +852,7 @@ JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
     renderAccountCard();
     bindFolds();
     bindPassword();
+    bindUsername();
 
     // 未登录时把设置区隐藏，醒目提示
     var inner = $('u-settings-inner'), warn = $('u-login-warn');
