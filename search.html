@@ -972,6 +972,7 @@ var GB = (function () {
 
   var sb = null, uid = '', deviceId = '', connected = false, busy = false;
   var sections = [], subs = [], messages = [], msgImages = {}, repliesByMsg = {}, likedSet = {};
+  var profileMap = {};      // 小写用户名 -> 账户最新资料（用于覆盖帖子里的旧资料）
   var curMain = '', curSub = '';
   var sortMode = 'default';      // default | time | hot
   var REPLY_FOLD = 1;            // 默认只显示 1 条评论
@@ -1181,7 +1182,8 @@ var GB = (function () {
     var item = document.createElement('div');
     item.className = 'gb-item' + (msg.is_pinned ? ' pinned' : '');
     item.id = 'p-' + msg.id;                      // 供搜索页跳转定位
-    item.appendChild(avatarNode(msg.avatar_color, msg.avatar_emoji, msg.avatar_path, 'big', msg.author_username || msg.name));
+    var ef = effective(msg);
+    item.appendChild(avatarNode(ef.color, ef.emoji, ef.path, 'big', ef.username || msg.name));
 
     var body = document.createElement('div');
     body.className = 'gb-body';
@@ -1193,13 +1195,14 @@ var GB = (function () {
     }
     var nmWrap = document.createElement('span');
     nmWrap.className = 'gb-name-wrap';
-    var nm = document.createElement('span'); nm.className = 'gb-name'; nm.textContent = msg.name;
+    var nm = document.createElement('span'); nm.className = 'gb-name'; nm.textContent = ef.name;
     nmWrap.appendChild(nm);
-    if (msg.author_username) {
+    var uname = ef.username || msg.author_username;
+    if (uname) {
       var uid = document.createElement('span');
       uid.className = 'gb-uid';
-      uid.textContent = '@' + String(msg.author_username).replace(/^@+/, '');
-      uid.setAttribute('data-profile', String(msg.author_username).replace(/^@+/, ''));
+      uid.textContent = '@' + String(uname).replace(/^@+/, '');
+      uid.setAttribute('data-profile', String(uname).replace(/^@+/, ''));
       uid.style.cursor = 'pointer';
       nmWrap.appendChild(uid);
     }
@@ -1383,16 +1386,18 @@ var GB = (function () {
   /* 单条回复（可带"回评折叠"：展开后才有子回复） */
   function replyEl(msg, r, host) {
     var el = document.createElement('div'); el.className = 'gb-reply';
-    el.appendChild(avatarNode(r.avatar_color, r.avatar_emoji, r.avatar_path, 'small', r.author_username || r.name));
+    var ref = effective(r);
+    el.appendChild(avatarNode(ref.color, ref.emoji, ref.path, 'small', ref.username || r.name));
     var b = document.createElement('div'); b.className = 'gb-reply-body';
     var h = document.createElement('div');
     var nWrap = document.createElement('span'); nWrap.className = 'gb-name-wrap';
-    var n = document.createElement('span'); n.className = 'gb-reply-name'; n.textContent = r.name;
+    var n = document.createElement('span'); n.className = 'gb-reply-name'; n.textContent = ref.name;
     nWrap.appendChild(n);
-    if (r.author_username) {
+    var runame = ref.username || r.author_username;
+    if (runame) {
       var ru = document.createElement('span'); ru.className = 'gb-uid';
-      ru.textContent = '@' + String(r.author_username).replace(/^@+/, '');
-      ru.setAttribute('data-profile', String(r.author_username).replace(/^@+/, ''));
+      ru.textContent = '@' + String(runame).replace(/^@+/, '');
+      ru.setAttribute('data-profile', String(runame).replace(/^@+/, ''));
       ru.style.cursor = 'pointer';
       nWrap.appendChild(ru);
     }
@@ -1595,9 +1600,49 @@ var GB = (function () {
 
   function btrimName(x) { return String(x == null ? '' : x).replace(/^\s+|\s+$/g, ''); }
 
+  /* 拉取这批帖子的账户资料，用于覆盖显示（头像/昵称跟账户保持一致） */
+  function loadProfiles(list) {
+    var keys = [];
+    list.forEach(function (m) {
+      var u = m && m.author_username;
+      if (!u) return;
+      var k = String(u).replace(/^@+/, '').toLowerCase();
+      if (k && keys.indexOf(k) < 0) keys.push(k);
+    });
+    if (!keys.length) return Promise.resolve();
+    return sb.rpc('get_profiles', { p_usernames: keys }).then(function (r) {
+      if (r.error) return;
+      var arr = r.data;
+      if (typeof arr === 'string') { try { arr = JSON.parse(arr); } catch (e) { arr = []; } }
+      (arr || []).forEach(function (p) {
+        var k = String(p.username).replace(/^@+/, '').toLowerCase();
+        if (k) profileMap[k] = p;
+      });
+    }).catch(function () {});
+  }
+
+  /* 取一条内容最终该显示的头像和名字 */
+  function effective(m) {
+    var u = m && m.author_username;
+    var p = u ? profileMap[String(u).replace(/^@+/, '').toLowerCase()] : null;
+    if (!p) {
+      return {
+        color: m.avatar_color, emoji: m.avatar_emoji,
+        path: (m.avatar_mode === 'image' ? m.avatar_path : null),
+        name: m.name, username: u || null
+      };
+    }
+    return {
+      color: p.avatar_color, emoji: p.avatar_emoji,
+      path: (p.avatar_mode === 'image' ? p.avatar_path : null),
+      name: p.nickname || m.name,
+      username: p.username || u
+    };
+  }
+
   function loadAll() {
     return sb.from('messages')
-      .select('id,created_at,name,content,avatar_color,avatar_emoji,avatar_path,avatar_mode,like_count,reply_count,is_pinned,pinned_at,main_section,sub_section_id,tags')
+      .select('id,created_at,name,content,avatar_color,avatar_emoji,avatar_path,avatar_mode,like_count,reply_count,is_pinned,pinned_at,main_section,sub_section_id,tags,author_username')
       .eq('hidden', false)
       .order('is_pinned', { ascending: false })
       .order('created_at', { ascending: false })
@@ -1615,8 +1660,10 @@ var GB = (function () {
               .in('message_id', ids).order('created_at', { ascending: true }).limit(600);
           }).then(function (r3) {
             repliesByMsg = {};
-            if (r3 && !r3.error) (r3.data || []).forEach(function (x) { (repliesByMsg[x.message_id] = repliesByMsg[x.message_id] || []).push(x); });
-            return null;
+            var allReplies = [];
+            if (r3 && !r3.error) (r3.data || []).forEach(function (x) { (repliesByMsg[x.message_id] = repliesByMsg[x.message_id] || []).push(x); allReplies.push(x); });
+            // 帖子和回复的账户资料一起拉
+            return loadProfiles(messages.concat(allReplies));
           });
       });
   }
