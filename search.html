@@ -38,9 +38,9 @@
   .gb-sort-label { font-size:.85rem; color:var(--muted); }
   .gb-sort-tip { font-size:.78rem; color:var(--muted); margin-left:4px; }
   .gb-fold-bar { margin-top:8px; }
-  .gb-fold-btn { font-family:inherit; font-size:.85rem; cursor:pointer; padding:6px 14px; border-radius:16px; border:1px dashed var(--accent); background:none; color:var(--accent); }
+  .gb-fold-btn { font-family:inherit; font-size:.74rem; cursor:pointer; padding:4px 11px; border-radius:14px; border:1px dashed var(--accent); background:none; color:var(--accent); }
   .gb-fold-btn:hover { background:var(--accent-light); }
-  .gb-sub-replies { margin-top:8px; padding-left:12px; border-left:2px solid var(--border); display:flex; flex-direction:column; gap:8px; }
+  .gb-sub-replies { margin-top:6px; padding-left:10px; border-left:2px solid var(--border); display:flex; flex-direction:column; gap:6px; }
   .gb-sub-reply { background:rgba(255,255,255,.55); border-radius:8px; padding:7px 9px; font-size:.78rem; }
   .gb-sub-reply .gb-reply-content { margin-top:2px; }
   .gb-sub-more { font-family:inherit; font-size:.78rem; color:var(--accent); background:none; border:none; border-bottom:1px dashed rgba(192,57,43,.4); cursor:pointer; padding:2px 0; text-align:left; align-self:flex-start; }
@@ -238,12 +238,12 @@
   .gb-pin-badge { background:var(--accent); color:#fff; font-size:.72rem; padding:2px 8px; border-radius:10px; font-weight:700; }
   .gb-content { white-space:pre-wrap; word-break:break-word; font-size:.88rem; line-height:1.75; }
   .gb-actions { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
-  .gb-action-btn { background:none; border:1px solid transparent; padding:4px 9px; cursor:pointer; color:var(--muted); font-size:1rem; font-family:inherit; border-radius:8px; }
+  .gb-action-btn { background:none; border:1px solid transparent; padding:2px 6px; cursor:pointer; color:var(--muted); font-size:.8rem; font-family:inherit; border-radius:7px; line-height:1.4; }
   .gb-action-btn:hover { background:var(--accent-light); color:var(--accent); }
   .gb-action-btn.liked { color:var(--accent); background:var(--accent-light); }
   .gb-action-btn.danger { border-color:#e0b4b0; color:var(--accent); }
   .gb-action-btn.pinned-on { background:var(--accent-light); border-color:var(--accent); }
-  .gb-replies { margin-top:10px; padding-top:10px; border-top:1px dashed var(--border); display:flex; flex-direction:column; gap:8px; }
+  .gb-replies { margin-top:9px; padding-top:9px; border-top:1px dashed var(--border); display:flex; flex-direction:column; gap:7px; }
   .gb-reply { display:flex; gap:10px; align-items:flex-start; background:rgba(255,255,255,.6); border-radius:8px; padding:10px 12px; }
   .gb-reply-body { flex:1; min-width:0; font-size:.82rem; }
   .gb-reply-name { font-weight:600; margin-right:8px; }
@@ -251,7 +251,7 @@
   .gb-reply-time { font-size:.75rem; color:var(--muted); }
   .gb-reply-content { white-space:pre-wrap; word-break:break-word; margin-top:3px; font-size:.82rem; line-height:1.65; }
   .gb-reply-actions { margin-top:4px; display:flex; gap:6px; }
-  .gb-reply-actions .gb-action-btn { padding:2px 8px; font-size:.9rem; }
+  .gb-reply-actions .gb-action-btn { padding:1px 5px; font-size:.72rem; }
   .reply-form { margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; }
   .reply-form input { flex:1 1 140px; min-width:0; padding:9px 12px; border:1px solid var(--glass-brd); border-radius:8px; font-family:inherit; font-size:16px; background:rgba(255,255,255,.75); color:var(--text); }
   .gb-msg-images { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
@@ -973,7 +973,9 @@ var GB = (function () {
   var sections = [], subs = [], messages = [], msgImages = {}, repliesByMsg = {}, likedSet = {};
   var curMain = '', curSub = '';
   var sortMode = 'default';      // default | time | hot
-  var REPLY_FOLD = 3;            // 评论超过几条就折叠
+  var REPLY_FOLD = 1;            // 默认只显示 1 条评论
+  var REPLY_STEP = 5;            // 每次展开再多显示 5 条
+  var replyShown = {};           // msgId -> 当前显示的顶层评论条数
   var expandedPost = '';         // 当前展开了评论的帖子（只允许一个展开）
   var openSubReply = '';         // 当前展开了子回评的那条评论
   var selEmoji = '🙂', selColor = COLORS[0], avatarMode = 'emoji', selImage = '', selImagePath = '';
@@ -1331,49 +1333,58 @@ var GB = (function () {
   }
 
   function renderReplies(host, msg) {
-    var list = repliesByMsg[msg.id] || [];
-    if (!list.length) return;
+    var all = repliesByMsg[msg.id] || [];
+    if (!all.length) return;
 
-    var isExpanded = (expandedPost === msg.id);
+    /* 顶层评论 = 不是"回复某条回复"的那些
+       子回评只在它所属的那条评论下面显示，避免同一条内容出现两次 */
+    var tops = all.filter(function (r) { return !r.reply_to_id; });
+    if (!tops.length) return;
+
+    var limit = replyShown[msg.id] || REPLY_FOLD;
+    var shown = tops.slice(0, limit);
+
     var box = document.createElement('div');
     box.className = 'gb-replies';
 
-    // 要显示哪几条
-    var shown = isExpanded ? list : list.slice(0, REPLY_FOLD);
-
-    shown.forEach(function (r, idx) {
-      // 展开状态下：每条回评本来也带自己的"回评"？这里用嵌套深度控制：
-      // 列表里第 4 条及以后在折叠时根本不显示；展开后全显示
-      box.appendChild(replyEl(msg, r, host, isExpanded));
+    shown.forEach(function (r) {
+      box.appendChild(replyEl(msg, r, host));
     });
 
-    // 折叠/展开按钮
-    if (list.length > REPLY_FOLD || isExpanded) {
-      var bar = document.createElement('div');
-      bar.className = 'gb-fold-bar';
+    // 折叠 / 展开按钮
+    var bar = document.createElement('div');
+    bar.className = 'gb-fold-bar';
+
+    if (tops.length > limit) {
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'gb-fold-btn';
-      if (!isExpanded) {
-        btn.textContent = '展开全部 ' + list.length + ' 条评论 ▾';
-      } else {
-        btn.textContent = '收起评论 ▴';
-      }
+      btn.textContent = '展开更多（还有 ' + (tops.length - limit) + ' 条）▾';
       btn.onclick = function () {
-        // 只允许一个帖子处于展开状态，其他自动收回
-        expandedPost = isExpanded ? '' : msg.id;
-        openSubReply = '';
+        replyShown[msg.id] = limit + REPLY_STEP;
         render();
         scrollToEl(document.getElementById('p-' + msg.id));
       };
       bar.appendChild(btn);
-      box.appendChild(bar);
+    } else if (limit > REPLY_FOLD) {
+      var btn2 = document.createElement('button');
+      btn2.type = 'button';
+      btn2.className = 'gb-fold-btn';
+      btn2.textContent = '收起评论 ▴';
+      btn2.onclick = function () {
+        replyShown[msg.id] = REPLY_FOLD;
+        render();
+        scrollToEl(document.getElementById('p-' + msg.id));
+      };
+      bar.appendChild(btn2);
     }
+
+    if (bar.childNodes.length) box.appendChild(bar);
     host.appendChild(box);
   }
 
   /* 单条回复（可带"回评折叠"：展开后才有子回复） */
-  function replyEl(msg, r, host, showSubReplies) {
+  function replyEl(msg, r, host) {
     var el = document.createElement('div'); el.className = 'gb-reply';
     el.appendChild(avatarNode(r.avatar_color, r.avatar_emoji, r.avatar_path, 'small', r.author_username));
     var b = document.createElement('div'); b.className = 'gb-reply-body';
@@ -1406,7 +1417,7 @@ var GB = (function () {
     //   帖子折叠时 → 完全不显示
     //   帖子展开后 → 先显示 1 条，剩下的要再点「展开」才看得到
     var children = (repliesByMsg[msg.id] || []).filter(function (x) { return x.reply_to_id === r.id; });
-    if (children.length && showSubReplies) {
+    if (children.length) {
       var sub = document.createElement('div');
       sub.className = 'gb-sub-replies';
       var allOpen = (openSubReply === r.id);
