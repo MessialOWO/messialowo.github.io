@@ -1470,30 +1470,81 @@ var GB = (function () {
     }).catch(function (e) { status(badPw(e) ? '密码不对。' : ('置顶失败：' + ((e&&e.message)||e)), 'err'); });
   }
   function deleteMessage(msg) {
-    if (!confirm('删除这条帖子？回复和配图会一起删掉。')) return;
-    var pw = prompt('删除需要管理密码：');
-    if (pw === null || !pw.trim()) return;
-    sha(PW_SALT + '|' + pw.trim()).then(function (h) {
+    var mine = isMine(msg);
+    var tip = mine
+      ? '删除自己发布的这条帖子？\n回复和配图会一起删掉，不可恢复。'
+      : '删除别人发布的这条帖子？\n需要管理密码，回复和配图会一起删掉。';
+    if (!confirm(tip)) return;
+
+    if (mine) {
+      var pw = accountPw();
+      if (!pw) { status('本机没有登录密码记录，请重新登录后再删。', 'err'); return; }
+      status('正在删除……');
+      sha(PW_SALT + '|' + pw).then(function (h) {
+        return sb.rpc('delete_own_message', {
+          p_message_id: msg.id, p_username: currentUsername(), p_pw_hash: h
+        });
+      }).then(function (r) {
+        if (r.error) throw r.error;
+        var o = r.data; if (typeof o === 'string') { try { o = JSON.parse(o); } catch (e) {} }
+        if (!o || o.deleted !== true) throw new Error('failed');
+        status('已删除 ✅', 'ok');
+        return loadAll().then(render);
+      }).catch(function (e) {
+        var m = (e && e.message) || String(e);
+        status(/bad password/i.test(m) ? '登录状态已失效，请重新登录。'
+          : (/not yours/i.test(m) ? '这条不是你发的，删除需要管理密码。' : ('删除失败：' + m)), 'err');
+      });
+      return;
+    }
+
+    var pw2 = prompt('这是别人的帖子，删除需要管理密码：');
+    if (pw2 === null || !pw2.trim()) return;
+    sha(PW_SALT + '|' + pw2.trim()).then(function (h) {
       return sb.rpc('delete_message', { p_message_id: msg.id, p_pw_hash: h });
     }).then(function (r) {
       if (r.error) throw r.error;
       var o = r.data; if (typeof o === 'string') { try { o = JSON.parse(o); } catch (e) {} }
       if (!o || o.deleted !== true) throw new Error('bad password');
       status('已删除 ✅', 'ok'); return loadAll().then(render);
-    }).catch(function (e) { status(badPw(e) ? '密码不对，没有删除。' : ('删除失败：' + ((e&&e.message)||e)), 'err'); });
+    }).catch(function (e) { status(badPw(e) ? '密码不对，没有删除。' : ('删除失败：' + ((e && e.message) || e)), 'err'); });
   }
+
   function deleteReply(r) {
-    if (!confirm('删除这条回复？')) return;
-    var pw = prompt('删除需要管理密码：');
-    if (pw === null || !pw.trim()) return;
-    sha(PW_SALT + '|' + pw.trim()).then(function (h) {
+    var mine = isMine(r);
+    if (!confirm(mine ? '删除自己的这条回复？' : '删除别人的回复？需要管理密码。')) return;
+
+    if (mine) {
+      var pw = accountPw();
+      if (!pw) { status('本机没有登录密码记录，请重新登录后再删。', 'err'); return; }
+      sha(PW_SALT + '|' + pw).then(function (h) {
+        return sb.rpc('delete_own_reply', {
+          p_reply_id: r.id, p_username: currentUsername(), p_pw_hash: h
+        });
+      }).then(function (res) {
+        if (res.error) throw res.error;
+        var o = res.data; if (typeof o === 'string') { try { o = JSON.parse(o); } catch (e) {} }
+        if (!o || o.deleted !== true) throw new Error('failed');
+        status('已删除 ✅', 'ok');
+        return loadAll().then(render);
+      }).catch(function (e) {
+        var m = (e && e.message) || String(e);
+        status(/bad password/i.test(m) ? '登录状态已失效，请重新登录。'
+          : (/not yours/i.test(m) ? '这条不是你发的，删除需要管理密码。' : ('删除失败：' + m)), 'err');
+      });
+      return;
+    }
+
+    var pw2 = prompt('这是别人的回复，删除需要管理密码：');
+    if (pw2 === null || !pw2.trim()) return;
+    sha(PW_SALT + '|' + pw2.trim()).then(function (h) {
       return sb.rpc('delete_reply', { p_reply_id: r.id, p_pw_hash: h });
     }).then(function (res) {
       if (res.error) throw res.error;
       var o = res.data; if (typeof o === 'string') { try { o = JSON.parse(o); } catch (e) {} }
       if (!o || o.deleted !== true) throw new Error('bad password');
       status('已删除 ✅', 'ok'); return loadAll().then(render);
-    }).catch(function (e) { status(badPw(e) ? '密码不对。' : ('删除失败：' + ((e&&e.message)||e)), 'err'); });
+    }).catch(function (e) { status(badPw(e) ? '密码不对。' : ('删除失败：' + ((e && e.message) || e)), 'err'); });
   }
 
   /* ---------- 小分区增删 ---------- */
@@ -1596,6 +1647,19 @@ var GB = (function () {
       if (a && a.username) return String(a.username).replace(/^@+/, '');
     } catch (e) {}
     return '';
+  }
+
+  /* 这条内容是不是当前登录账户发的 */
+  function isMine(item) {
+    var me = currentUsername();
+    var owner = item && item.author_username;
+    if (!me || !owner) return false;
+    return String(owner).replace(/^@+/, '').toLowerCase() === String(me).toLowerCase();
+  }
+
+  /* 当前账户的密码（登录时存在本地） */
+  function accountPw() {
+    try { return localStorage.getItem('jw_account_pw') || ''; } catch (e) { return ''; }
   }
 
   function btrimName(x) { return String(x == null ? '' : x).replace(/^\s+|\s+$/g, ''); }
