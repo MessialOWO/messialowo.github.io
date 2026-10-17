@@ -230,7 +230,8 @@
   .pc-meta span:first-child::before { content: ''; }
 
   .gb-item { display:flex; gap:14px; background:rgba(255,255,255,.55); border:1px solid var(--glass-brd); border-radius:14px; padding:15px 16px; margin-bottom:12px; position:relative; }
-  .gb-item.pinned { border-left:5px solid var(--accent); background:#fffdfb; }
+  /* 置顶帖：只用左侧红边标示，背景保持与其他帖子一致的半透明 */
+  .gb-item.pinned { border-left: 4px solid var(--accent); background: rgba(255,255,255,.62); }
   .gb-body { flex:1; min-width:0; }
   .gb-header { display:flex; align-items:baseline; gap:8px; margin-bottom:5px; flex-wrap:wrap; }
   .gb-name { font-weight:700; overflow-wrap:anywhere; font-size:.88rem; }
