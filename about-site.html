@@ -81,6 +81,17 @@ var SITE = {
   ]
 };
 
+/* 是否已登录 */
+SITE.loggedIn = function () {
+  try {
+    var a = JSON.parse(localStorage.getItem('jw_account') || 'null');
+    return !!(a && a.username);
+  } catch (e) { return false; }
+};
+SITE.account = function () {
+  try { return JSON.parse(localStorage.getItem('jw_account') || 'null'); } catch (e) { return null; }
+};
+
 /* 生成侧边栏 + 顶栏（每个页面只需调用 SITE.shell('key')） */
 SITE.shell = function (activeKey) {
   var links = SITE.pages.map(function (p) {
@@ -89,16 +100,23 @@ SITE.shell = function (activeKey) {
   }).join('');
 
   // 「用户中心」折叠组
-  var userOpen = SITE.userPages.some(function (p) { return p.key === activeKey; })
+  var logged = SITE.loggedIn();
+  // 已登录后不再显示「登录 / 注册」
+  var userItems = SITE.userPages.filter(function (p) {
+    return !(logged && p.key === 'auth');
+  });
+  var userOpen = userItems.some(function (p) { return p.key === activeKey; })
                  || ['auth','user','user-settings','user-bg'].indexOf(activeKey) >= 0;
-  var userLinks = SITE.userPages.map(function (p) {
-    var on = (p.key === activeKey) || (p.key === activeKey + '') && false;
+  var userLinks = userItems.map(function (p) {
     return '<a class="sub-link" href="' + p.href + '"' + (p.key === activeKey ? ' class="on"' : '') + '>'
       + p.label + '<small>' + p.en + '</small></a>';
   }).join('');
   links += '<div class="nav-group' + (userOpen ? ' open' : '') + '" id="nav-user">'
     + '<button type="button" class="nav-group-btn' + (userOpen ? ' on' : '') + '" id="nav-user-btn">'
-    + '用户中心<small>Account</small><i class="caret">▾</i></button>'
+    + (logged && SITE.account() && SITE.account().username
+        ? SITE.account().username.replace(/^@/, '') + '<small>已登录</small>'
+        : '用户中心<small>Account</small>')
+    + '<i class="caret">▾</i></button>'
     + '<div class="nav-group-body">' + userLinks + '</div>'
     + '</div>';
 

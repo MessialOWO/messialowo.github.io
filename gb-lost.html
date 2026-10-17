@@ -62,6 +62,19 @@
   .gb-sec-tag { font-size:.66rem; color:var(--muted); background:rgba(0,0,0,.05); padding:1px 7px; border-radius:8px; }
   .gb-tag { color:var(--accent); text-decoration:none; border-bottom:1px dashed rgba(192,57,43,.4); }
   .gb-tag:hover { background:var(--accent-light); }
+  .gb-loading {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 44px 20px; color: var(--muted); font-size: .88rem;
+  }
+  .gb-spin {
+    width: 17px; height: 17px; border-radius: 50%;
+    border: 2px solid rgba(192,57,43,.2);
+    border-top-color: var(--accent);
+    animation: gbspin .7s linear infinite;
+    display: inline-block; flex-shrink: 0;
+  }
+  @keyframes gbspin { to { transform: rotate(360deg); } }
+
   .gb-item { display:flex; gap:14px; background:rgba(255,255,255,.55); border:1px solid var(--glass-brd); border-radius:14px; padding:15px 16px; margin-bottom:12px; position:relative; }
   .gb-item.pinned { border-left:5px solid var(--accent); background:#fffdfb; }
   .gb-body { flex:1; min-width:0; }
@@ -212,6 +225,17 @@ var SITE = {
   ]
 };
 
+/* 是否已登录 */
+SITE.loggedIn = function () {
+  try {
+    var a = JSON.parse(localStorage.getItem('jw_account') || 'null');
+    return !!(a && a.username);
+  } catch (e) { return false; }
+};
+SITE.account = function () {
+  try { return JSON.parse(localStorage.getItem('jw_account') || 'null'); } catch (e) { return null; }
+};
+
 /* 生成侧边栏 + 顶栏（每个页面只需调用 SITE.shell('key')） */
 SITE.shell = function (activeKey) {
   var links = SITE.pages.map(function (p) {
@@ -220,16 +244,23 @@ SITE.shell = function (activeKey) {
   }).join('');
 
   // 「用户中心」折叠组
-  var userOpen = SITE.userPages.some(function (p) { return p.key === activeKey; })
+  var logged = SITE.loggedIn();
+  // 已登录后不再显示「登录 / 注册」
+  var userItems = SITE.userPages.filter(function (p) {
+    return !(logged && p.key === 'auth');
+  });
+  var userOpen = userItems.some(function (p) { return p.key === activeKey; })
                  || ['auth','user','user-settings','user-bg'].indexOf(activeKey) >= 0;
-  var userLinks = SITE.userPages.map(function (p) {
-    var on = (p.key === activeKey) || (p.key === activeKey + '') && false;
+  var userLinks = userItems.map(function (p) {
     return '<a class="sub-link" href="' + p.href + '"' + (p.key === activeKey ? ' class="on"' : '') + '>'
       + p.label + '<small>' + p.en + '</small></a>';
   }).join('');
   links += '<div class="nav-group' + (userOpen ? ' open' : '') + '" id="nav-user">'
     + '<button type="button" class="nav-group-btn' + (userOpen ? ' on' : '') + '" id="nav-user-btn">'
-    + '用户中心<small>Account</small><i class="caret">▾</i></button>'
+    + (logged && SITE.account() && SITE.account().username
+        ? SITE.account().username.replace(/^@/, '') + '<small>已登录</small>'
+        : '用户中心<small>Account</small>')
+    + '<i class="caret">▾</i></button>'
     + '<div class="nav-group-body">' + userLinks + '</div>'
     + '</div>';
 
@@ -745,6 +776,17 @@ var GB = (function () {
     box.appendChild(add);
   }
 
+  /* 加载中的占位 */
+  function showLoading(text) {
+    var listEl = $('gb-list');
+    if (!listEl) return;
+    listEl.textContent = '';
+    var box = document.createElement('div');
+    box.className = 'gb-loading';
+    box.innerHTML = '<span class="gb-spin"></span><span>' + (text || '正在加载留言……') + '</span>';
+    listEl.appendChild(box);
+  }
+
   function render() {
     renderSortBar();
     var listEl = $('gb-list');
@@ -774,7 +816,8 @@ var GB = (function () {
     if (!show.length) {
       var e = document.createElement('div');
       e.className = 'empty';
-      e.textContent = connected ? '这里还没有帖子。' : '加载中……';
+      if (!connected) { showLoading(); return; }
+      e.textContent = curSub ? '这个小分区还没有帖子，你可以发第一条。' : '这里还没有帖子。';
       listEl.appendChild(e);
       return;
     }
@@ -1316,6 +1359,7 @@ var GB = (function () {
     var sub = $('gb-submit');
     if (sub) sub.onclick = submit;
 
+    showLoading('正在加载留言……');
     loadSections().then(loadAll).then(function () {
       connected = true;
       renderSortBar(); renderSubBar(); render();
@@ -1332,7 +1376,17 @@ var GB = (function () {
           }
         }, 200);
       }
-    }).catch(function (e) { status('加载失败：' + ((e&&e.message)||e), 'err'); });
+    }).catch(function (e) {
+      status('加载失败：' + ((e && e.message) || e), 'err');
+      var listEl = $('gb-list');
+      if (listEl) {
+        listEl.textContent = '';
+        var box = document.createElement('div');
+        box.className = 'empty';
+        box.textContent = '加载失败，请检查网络后刷新页面。';
+        listEl.appendChild(box);
+      }
+    });
   }
 
   /* ---------- 头像：emoji 或 上传图片 ---------- */
