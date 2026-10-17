@@ -126,6 +126,32 @@ footer.site-footer .contact-list { display: flex; flex-wrap: wrap; justify-conte
 .nav-group-body a.sub-link.on {
   background: var(--accent-light); color: var(--accent); font-weight: 700;
 }
+
+/* 「一个孤零零的开发者想说的话」：更小、更淡，不抢眼 */
+.nav-group-body a.sub-link.sub-link-faint {
+  font-size: .72rem;
+  opacity: .5;
+  color: var(--muted);
+  line-height: 1.6;
+  padding-top: 7px;
+  padding-bottom: 7px;
+  transition: opacity .2s, color .2s;
+}
+.nav-group-body a.sub-link.sub-link-faint::before {
+  width: 3px; height: 3px;
+  opacity: .7;
+}
+.nav-group-body a.sub-link.sub-link-faint:hover {
+  opacity: .95;
+  color: var(--accent);
+  background: transparent;
+}
+.nav-group-body a.sub-link.sub-link-faint.on {
+  opacity: 1;
+  color: var(--accent);
+  background: transparent;
+  font-weight: 400;
+}
 .nav-group-body a.sub-link small {
   display: block; font-size: .64rem; opacity: .6; letter-spacing: 1px;
   font-weight: 400;

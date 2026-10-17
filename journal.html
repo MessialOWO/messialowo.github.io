@@ -68,7 +68,8 @@ var SITE = {
   aboutPages: [
     { href: './about-school.html', label: '关于学校',   en: 'About School', key: 'school' },
     { href: './about-site.html',   label: '关于本站',   en: 'About Site',   key: 'site' },
-    { href: './changelog.html',    label: '更新日志',   en: 'Changelog',    key: 'changelog' }
+    { href: './changelog.html',    label: '更新日志',   en: 'Changelog',    key: 'changelog' },
+    { href: './developer.html',    label: '一个孤零零的开发者想说的话', en: '', key: 'developer', faint: true }
   ]
 };
 
@@ -114,8 +115,9 @@ SITE.shell = function (activeKey) {
   // 「关于」折叠组：关于学校 / 关于本站
   var aboutOpen = SITE.aboutPages.some(function (p) { return p.key === activeKey; });
   var aboutLinks = SITE.aboutPages.map(function (p) {
-    return '<a class="sub-link" href="' + p.href + '"' + (p.key === activeKey ? ' class="on"' : '') + '>'
-      + p.label + '</a>';
+    var cls = 'sub-link' + (p.faint ? ' sub-link-faint' : '') + (p.key === activeKey ? ' on' : '');
+    var small = p.en ? '' : '';
+    return '<a class="' + cls + '" href="' + p.href + '">' + p.label + small + '</a>';
   }).join('');
   links += '<div class="nav-group' + (aboutOpen ? ' open' : '') + '" id="nav-about">'
     + '<button type="button" class="nav-group-btn' + (aboutOpen ? ' on' : '') + '" id="nav-about-btn">'
