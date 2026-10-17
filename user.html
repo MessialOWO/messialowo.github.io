@@ -958,7 +958,7 @@ JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
       var pw = $('u-uname-pw').value;
       if (!nv) { status('请填新用户名。', 'err'); return; }
       if (!pw) { status('请输入密码确认。', 'err'); return; }
-      if (!confirm('确定把用户名改成 @' + nv + ' 吗？\n（之前发过的内容不受影响）')) return;
+      if (!confirm('确定把用户名改成 @' + nv + ' 吗？\n\n你之前发过的帖子和回复会自动转到这个新用户名下。\n旧用户名会被释放，别人以后可以注册。')) return;
       btn.disabled = true; btn.textContent = '提交中…';
       hashPw(pw).then(function (h) {
         return JW.sb.rpc('change_username', {
@@ -975,7 +975,16 @@ JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
         $('u-uname-pw').value = '';
         $('u-uname-hint').textContent = '';
         renderAccountCard();
-        status('用户名已改为 ' + account.username + ' ✅', 'ok');
+        var np = (d && d.synced_posts) || 0;
+        var nr = (d && d.synced_replies) || 0;
+        var extra = '';
+        if (np || nr) {
+          var bits = [];
+          if (np) bits.push(np + ' 条帖子');
+          if (nr) bits.push(nr + ' 条回复');
+          extra = '，已同步 ' + bits.join('、');
+        }
+        status('用户名已改为 ' + account.username + ' ✅' + extra, 'ok');
       }).catch(function (e) {
         var m = (e && e.message) || String(e);
         status(/username taken/i.test(m) ? '这个用户名已经有人用了。'

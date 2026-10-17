@@ -678,11 +678,22 @@ JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
       };
     }
 
+    var takenTimer = null;
     $('rg-user').oninput = function () {
-      var chk = checkUser(this.value);
-      hint($('rg-user-hint'), chk.ok ? '可以用' : chk.msg, chk.ok);
       this.value = this.value.replace(/[^A-Za-z0-9_@]/g, '');
       if (this.value.charAt(0) === '@') this.value = this.value.replace(/^@+/, '');
+      var chk = checkUser(this.value);
+      hint($('rg-user-hint'), chk.ok ? '检查是否被占用……' : chk.msg, chk.ok);
+      if (!chk.ok) return;
+      // 实时查重（输入停下 450ms 后查）
+      clearTimeout(takenTimer);
+      takenTimer = setTimeout(function () {
+        JW.sb.rpc('username_taken', { p_username: chk.value }).then(function (r) {
+          if (r.error) { hint($('rg-user-hint'), '可以用', true); return; }
+          var taken = r.data === true || r.data === 'true';
+          hint($('rg-user-hint'), taken ? '这个用户名已经有人用了' : '可以用', !taken);
+        }).catch(function () { hint($('rg-user-hint'), '可以用', true); });
+      }, 450);
     };
     $('rg-pass').oninput = function () {
       var v = this.value.trim();
