@@ -108,7 +108,8 @@ var SITE = {
   /* 「关于」折叠组 */
   aboutPages: [
     { href: './about-school.html', label: '关于学校',   en: 'About School', key: 'school' },
-    { href: './about-site.html',   label: '关于本站',   en: 'About Site',   key: 'site' }
+    { href: './about-site.html',   label: '关于本站',   en: 'About Site',   key: 'site' },
+    { href: './changelog.html',    label: '更新日志',   en: 'Changelog',    key: 'changelog' }
   ]
 };
 
@@ -127,7 +128,7 @@ SITE.shell = function (activeKey) {
   }).join('');
   links += '<div class="nav-group' + (aboutOpen ? ' open' : '') + '" id="nav-about">'
     + '<button type="button" class="nav-group-btn' + (aboutOpen ? ' on' : '') + '" id="nav-about-btn">'
-    + '<span>关于<small>About</small></span><i class="caret">▾</i></button>'
+    + '关于<small>About</small><i class="caret">▾</i></button>'
     + '<div class="nav-group-body">' + aboutLinks + '</div>'
     + '</div>';
 

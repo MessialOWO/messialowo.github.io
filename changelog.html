@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>更新日志 | 达高中墙Board</title>
+<style>
+  .log-day { display: flex; gap: 22px; margin-bottom: 34px; }
+  .log-date {
+    flex: 0 0 96px; text-align: right; position: relative;
+    padding-top: 2px;
+  }
+  .log-day-num {
+    display: block; font-size: .82rem; font-weight: 700;
+    color: var(--accent); letter-spacing: .5px; line-height: 1.4;
+  }
+  .log-count { display: block; font-size: .7rem; color: var(--muted); opacity: .8; margin-top: 3px; }
+  .log-date::after {
+    content: ''; position: absolute; right: -14px; top: 8px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 0 3px rgba(192,57,43,.15);
+  }
+  .log-items {
+    flex: 1; min-width: 0; position: relative; padding-left: 4px;
+    border-left: 2px solid var(--border); padding-bottom: 4px;
+  }
+  .log-item {
+    background: rgba(255,255,255,.5);
+    border: 1px solid var(--glass-brd);
+    border-radius: 10px; padding: 12px 16px; margin-bottom: 8px;
+  }
+  .log-title { font-size: .92rem; font-weight: 700; margin-bottom: 3px; }
+  .log-desc { font-size: .8rem; color: var(--muted); line-height: 1.7; }
+
+  @media (max-width: 620px) {
+    .log-day { gap: 14px; margin-bottom: 26px; }
+    .log-date { flex: 0 0 58px; }
+    .log-day-num { font-size: .72rem; }
+    .log-date::after { right: -9px; width: 6px; height: 6px; }
+    .log-items { border-left-width: 1.5px; }
+    .log-item { padding: 10px 13px; }
+    .log-title { font-size: .86rem; }
+    .log-desc { font-size: .76rem; }
+  }
+</style>
+<link rel="icon" href="./img/logo.png">
+<link rel="stylesheet" href="./assets/site.css">
+<link rel="stylesheet" href="./assets/liquid-glass.css">
+</head>
+<body>
+<div class="main">
+<div class="container">
+<div class="page-head">
+  <h1>更新日志</h1>
+  <div class="en">Changelog</div>
+  <p>这个网站从上线到现在改过的所有东西，按日期倒序不好找，所以按时间从早到晚排。共 53 条。</p>
+</div>
+
+<div class="log-day">
+  <div class="log-date"><span class="log-day-num">2026-10-06</span><span class="log-count">10 项</span></div>
+  <div class="log-items">
+    <div class="log-item">
+      <div class="log-title">网站上线</div>
+      <div class="log-desc">首页做成独立页面，样式、配色、版式一次定下来。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">留言板接入云端数据库</div>
+      <div class="log-desc">留言不再只存在浏览器里，换设备也能看到。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">依赖改为站内加载</div>
+      <div class="log-desc">把数据库客户端放到站点自己的目录里，不再走外部 CDN（手机浏览器会拦）。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">卷首语随机显示</div>
+      <div class="log-desc">每次打开随机抽一条，加「换一条」按钮。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">头像两种模式</div>
+      <div class="log-desc">可以选 emoji，也可以上传自己的图片。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">画廊改为云端存储</div>
+      <div class="log-desc">作品图片存到云端，换设备也能看。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">期刊文章页上线</div>
+      <div class="log-desc">结构定为：期刊期号 → 专区 → 板块 → 一篇文章。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">随机抽文章</div>
+      <div class="log-desc">文章页有「随便看一篇」，避免连续抽到同一篇。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">连接更稳</div>
+      <div class="log-desc">加了超时、重试，失败时直接说清原因，不再一直转圈。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">新增「学习与知识」专区</div>
+      <div class="log-desc">把已有的学习类文章都归进去。</div>
+    </div>
+  </div>
+</div>
+<div class="log-day">
+  <div class="log-date"><span class="log-day-num">2026-10-07</span><span class="log-count">9 项</span></div>
+  <div class="log-items">
+    <div class="log-item">
+      <div class="log-title">定时保活</div>
+      <div class="log-desc">加了定时任务，防止免费数据库因长期无访问被暂停。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">心跳任务</div>
+      <div class="log-desc">每月自动提交一次，防止定时任务被平台停用。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">留言支持回复</div>
+      <div class="log-desc">可以在别人的留言下面接着聊。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">置顶功能</div>
+      <div class="log-desc">重要留言可置顶，需要密码。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">断网自动恢复</div>
+      <div class="log-desc">网络恢复后自动重连，不用手动刷新。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">留言与回复可删除</div>
+      <div class="log-desc">需要密码，删错了没法找回，所以有二次确认。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">画廊存原图</div>
+      <div class="log-desc">上传不再压缩，点开看的是原图，可以下载。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">画廊缩略图</div>
+      <div class="log-desc">列表里用现场压缩的小图，点开才是原图——省流量也更快。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">按钮改纯图标</div>
+      <div class="log-desc">点赞、回复、复制、置顶、删除都换成 emoji，界面上少了一堆字。</div>
+    </div>
+  </div>
+</div>
+<div class="log-day">
+  <div class="log-date"><span class="log-day-num">2026-10-10</span><span class="log-count">8 项</span></div>
+  <div class="log-items">
+    <div class="log-item">
+      <div class="log-title">加入中转站</div>
+      <div class="log-desc">国内直连数据库经常被干扰，改走自己搭的中转，内容才稳定加载得出来。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">中转主备双路</div>
+      <div class="log-desc">主线路不通自动切备用，不用你手动点什么。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">整站重构</div>
+      <div class="log-desc">从单页拆成多个独立页面，加了左侧边栏：首页 / 画廊 / 留言板 / 期刊投稿 / 关于。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">玻璃质感界面</div>
+      <div class="log-desc">卡片、侧边栏做成半透明玻璃，加了边缘高光和浮动阴影。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">全站换字体</div>
+      <div class="log-desc">西文和数字统一用 Google Sans。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">留言可以发图</div>
+      <div class="log-desc">一条留言最多配 4 张图。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">文章有独立网址</div>
+      <div class="log-desc">一篇文章一个地址，可以直接发给别人。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">界面性能调整</div>
+      <div class="log-desc">去掉了开销太大的滤镜，滚动不再卡。</div>
+    </div>
+  </div>
+</div>
+<div class="log-day">
+  <div class="log-date"><span class="log-day-num">2026-10-11</span><span class="log-count">26 项</span></div>
+  <div class="log-items">
+    <div class="log-item">
+      <div class="log-title">修正页面入口</div>
+      <div class="log-desc">期刊页的链接写错了，点了会 404，已修。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">文案精简</div>
+      <div class="log-desc">去掉官腔和重复的说明文字，只留必要信息。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">期刊标注班级</div>
+      <div class="log-desc">明确是「高2025级1班」的班级期刊。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">侧边栏去重</div>
+      <div class="log-desc">删掉了重复出现的入口。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">作品删除要密码</div>
+      <div class="log-desc">之前谁都能删，现在必须输管理密码。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">去掉导出代码按钮</div>
+      <div class="log-desc">那个功能没用，删了。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">期刊恢复写作</div>
+      <div class="log-desc">写文章、改文章、删文章、新建板块都回来了。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">关于本站补开源清单</div>
+      <div class="log-desc">把用到的开源项目列清楚。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">留言板分区</div>
+      <div class="log-desc">留言开始分门别类，不再是混在一起的一大坨。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">修正留言排序</div>
+      <div class="log-desc">新发的帖子排在最上面（置顶除外），之前排反了。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">发言提醒</div>
+      <div class="log-desc">第一次进留言板会看到一条提醒，可以关掉，之后不再自动弹。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">两级分区</div>
+      <div class="log-desc">11 个大分区，每个大分区是独立网页；每个大分区下面可以再建小分区。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">#标签</div>
+      <div class="log-desc">正文里写 #标签 会自动识别，点标签直接搜。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">搜索页</div>
+      <div class="log-desc">可以按关键词、标签、大分区搜索。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">修复新建小分区</div>
+      <div class="log-desc">没有小分区时「新建」按钮不显示，导致建不出第一个——已修。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">恢复头像与画廊上传</div>
+      <div class="log-desc">整理页面时把这两处弄丢了，已补回。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">排序功能</div>
+      <div class="log-desc">默认 / 时间 / 热度三种排法。选时间或热度时，置顶不再排最前（但保留标签）。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">评论折叠</div>
+      <div class="log-desc">评论超过 3 条自动折叠，可以展开也可以收回；同时只展开一个帖子。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">回评逐条展开</div>
+      <div class="log-desc">回复的回复先显示 1 条，其余的点了才看得到。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">搜索跳原帖</div>
+      <div class="log-desc">搜索结果可以直接点进原帖并定位到那一条。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">搜索补回配图</div>
+      <div class="log-desc">之前搜索结果里看不到图，已修。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">用户中心</div>
+      <div class="log-desc">名字和头像从留言板搬到独立页面统一管理，还能看到自己发过的东西。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">分区改横向滑动</div>
+      <div class="log-desc">大分区一排、小分区紧跟其下，都能左右滑，按钮缩小。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">修复分区点击</div>
+      <div class="log-desc">点已选中的小分区会跳回「全部」，已修。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">全站字体统一</div>
+      <div class="log-desc">之前有几处还是宋体，现在统一了。</div>
+    </div>
+    <div class="log-item">
+      <div class="log-title">帖子字号缩小</div>
+      <div class="log-desc">留言和评论的字小了一号，一屏能多看几条。</div>
+    </div>
+  </div>
+</div>
+
+</div>
+</div>
+<script src="./vendor/supabase.js"></script>
+<script>
+/* ===== 班级期刊 · 全站共享脚本（侧边栏 + 云端连接） ===== */
+var SITE = {
+  name: '达高中墙Board',
+  school: '达州市高级中学',
+  pages: [
+    { href: './',                  label: '首页',       en: 'Home',      key: 'home' },
+    { href: './gallery.html',      label: '画廊',       en: 'Gallery',   key: 'gallery' },
+    { href: './guestbook.html',    label: '留言板',     en: 'Guestbook', key: 'guestbook' },
+    { href: './journal.html',      label: '期刊投稿',   en: 'Journal',   key: 'journal' },
+    { href: './user.html',         label: '用户中心',   en: 'Account',   key: 'user' }
+  ],
+  /* 「关于」折叠组 */
+  aboutPages: [
+    { href: './about-school.html', label: '关于学校',   en: 'About School', key: 'school' },
+    { href: './about-site.html',   label: '关于本站',   en: 'About Site',   key: 'site' },
+    { href: './changelog.html',    label: '更新日志',   en: 'Changelog',    key: 'changelog' }
+  ]
+};
+
+/* 生成侧边栏 + 顶栏（每个页面只需调用 SITE.shell('key')） */
+SITE.shell = function (activeKey) {
+  var links = SITE.pages.map(function (p) {
+    return '<a href="' + p.href + '"' + (p.key === activeKey ? ' class="on"' : '') + '>'
+      + p.label + '<small>' + p.en + '</small></a>';
+  }).join('');
+
+  // 「关于」折叠组：关于学校 / 关于本站
+  var aboutOpen = SITE.aboutPages.some(function (p) { return p.key === activeKey; });
+  var aboutLinks = SITE.aboutPages.map(function (p) {
+    return '<a class="sub-link" href="' + p.href + '"' + (p.key === activeKey ? ' class="on"' : '') + '>'
+      + p.label + '</a>';
+  }).join('');
+  links += '<div class="nav-group' + (aboutOpen ? ' open' : '') + '" id="nav-about">'
+    + '<button type="button" class="nav-group-btn' + (aboutOpen ? ' on' : '') + '" id="nav-about-btn">'
+    + '关于<small>About</small><i class="caret">▾</i></button>'
+    + '<div class="nav-group-body">' + aboutLinks + '</div>'
+    + '</div>';
+
+  var bar = document.createElement('div');
+  bar.className = 'topbar';
+  bar.innerHTML = '<button id="nav-toggle" aria-label="菜单">☰</button>'
+    + '<span class="title">' + SITE.name + '</span>';
+
+  var mask = document.createElement('div');
+  mask.className = 'mask';
+  mask.id = 'nav-mask';
+  mask.hidden = true;
+
+  var aside = document.createElement('aside');
+  aside.className = 'sidebar';
+  aside.innerHTML =
+    '<div class="brand">'
+    + '<img src="./img/logo.png" alt="校徽">'
+    + '<div class="name">' + SITE.name + '</div>'
+    + '<div class="sub">Unofficial</div>'
+    + '</div>'
+    + '<nav>' + links + '</nav>'
+    ;
+
+  document.body.insertBefore(aside, document.body.firstChild);
+  document.body.insertBefore(mask, document.body.firstChild);
+  document.body.insertBefore(bar, document.body.firstChild);
+
+  var aboutBtn = aside.querySelector('#nav-about-btn');
+  if (aboutBtn) {
+    aboutBtn.onclick = function () {
+      var g = aside.querySelector('#nav-about');
+      var open = g.classList.toggle('open');
+      try { localStorage.setItem('jw_about_open', open ? '1' : '0'); } catch (e) {}
+    };
+    // 记住上次展开状态（只要不是当前页在关于里）
+    if (!aboutOpen) {
+      try {
+        if (localStorage.getItem('jw_about_open') === '1') aside.querySelector('#nav-about').classList.add('open');
+      } catch (e) {}
+    }
+  }
+
+  bar.querySelector('#nav-toggle').onclick = function () {
+    document.body.classList.toggle('nav-open');
+    mask.hidden = !document.body.classList.contains('nav-open');
+  };
+  mask.onclick = function () {
+    document.body.classList.remove('nav-open');
+    mask.hidden = true;
+  };
+};
+
+/* 页脚 */
+SITE.footer = function (host) {
+  var el = host || document.querySelector('.main') || document.body;
+  var f = document.createElement('footer');
+  f.className = 'site-footer';
+  f.innerHTML =
+    '<p class="contact-line">联系方式</p>'
+    + '<p class="contact-list">'
+    + '<span>微信：<b>MessialOWO</b></span>'
+    + '<span>QQ：<a href="https://qm.qq.com/cgi-bin/qm/qr?k=&amp;uin=2961001891" target="_blank" rel="noopener">2961001891</a></span>'
+    + '<span>邮箱：<a href="mailto:equalacorn28027@outlook.com">equalacorn28027@outlook.com</a></span>'
+    + '</p>'
+    + '<p><a href="./about-site.html">关于本站</a> · <a href="./about-school.html">关于学校</a> · 非官方网站</p>';
+  el.appendChild(f);
+};
+
+</script>
+<script>
+/* ===== 班级期刊 · 云端连接（所有页面共用） ===== */
+var JW = {
+  url: 'https://wvqrnkgjwnlhjhfuonts.supabase.co',
+  key: 'sb_publishable_cGy9MFHh3-t2i0kEnbHeeg_A1-rUMaF',
+  bucket: 'avatars',
+  timeoutMs: 10000,
+  proxy: ['https://arid-bluejay-4932.messialowo.deno.net'],
+  sb: null, uid: '', deviceId: '', ready: false, error: null, _waiters: [],
+  whenReady: function (cb) { if (JW.ready) cb(JW.error); else JW._waiters.push(cb); },
+  _settle: function (err) {
+    JW.error = err || null; JW.ready = true;
+    JW._waiters.splice(0).forEach(function (cb) { try { cb(JW.error); } catch (e) { console.error(e); } });
+    try { document.dispatchEvent(new Event('jw:ready')); } catch (e) {}
+  },
+  withTimeout: function (p, ms, what) {
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      var t = setTimeout(function () {
+        if (done) return; done = true;
+        reject(new Error('连接超时：' + (what || '请求') + '（' + Math.round(ms / 1000) + ' 秒无响应）'));
+      }, ms);
+      Promise.resolve(p).then(function (v) { if (done) return; done = true; clearTimeout(t); resolve(v); },
+        function (e) { if (done) return; done = true; clearTimeout(t); reject(e); });
+    });
+  },
+  retry: function (fn, times) {
+    times = times === undefined ? 2 : times;
+    var n = 0;
+    var run = function () {
+      n++;
+      return Promise.resolve().then(fn).catch(function (e) {
+        if (n >= times) throw e;
+        return new Promise(function (r) { setTimeout(r, 1200); }).then(run);
+      });
+    };
+    return run();
+  },
+  makeFetch: function () {
+    var BASE = JW.url;
+    return function (input, init) {
+      var url = (typeof input === 'string') ? input : (input && input.url) || '';
+      var rel = null;
+      try {
+        var u = new URL(url, BASE);
+        if (u.origin === BASE) rel = u.pathname + u.search;
+      } catch (e) {}
+      if (!rel || !JW.proxy || !JW.proxy.length) return fetch(input, init);
+      var list = JW.proxy.slice();
+      function attempt(i) {
+        if (i >= list.length) return fetch(url, init);
+        var clean = String(list[i]).replace(/\/$/, '');
+        return fetch(clean + rel, init).then(function (res) {
+          if (!res || res.status >= 500) throw new Error('中转 ' + clean + ' 返回 ' + (res && res.status));
+          return res;
+        }).catch(function (e) {
+          console.warn('中转失败，换下一个：' + clean, e && e.message);
+          return attempt(i + 1);
+        });
+      }
+      return attempt(0);
+    };
+  }
+};
+JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
+
+(function () {
+  function newDeviceId() {
+    if (window.crypto && window.crypto.randomUUID) return 'gb-' + window.crypto.randomUUID();
+    return 'gb-' + Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  }
+  JW.deviceId = localStorage.getItem('jiangwan_gb_device') || '';
+  if (!JW.deviceId || JW.deviceId.length < 8 || JW.deviceId.length > 64) {
+    JW.deviceId = newDeviceId();
+    try { localStorage.setItem('jiangwan_gb_device', JW.deviceId); } catch (e) {}
+  }
+  function boot() {
+    if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
+      JW._settle(new Error('云端组件没加载到（vendor/supabase.js）'));
+      return;
+    }
+    try {
+      JW.sb = window.supabase.createClient(JW.url, JW.key, {
+        auth: { persistSession: true, autoRefreshToken: true },
+        global: JW.proxy && JW.proxy.length ? { fetch: JW.makeFetch() } : undefined
+      });
+    } catch (e) { JW._settle(e); return; }
+    JW.sb.auth.getSession().then(function (r) {
+      var u = r && r.data && r.data.session && r.data.session.user;
+      if (u && u.id) JW.uid = u.id;
+      return null;
+    }).catch(function () { return null; })
+      .then(function () {
+        if (JW.uid) return null;
+        return JW.retry(function () {
+          return JW.withTimeout(JW.sb.auth.signInAnonymously(), JW.timeoutMs, '登录匿名身份');
+        }, 2).then(function (res) {
+          if (res && res.error) throw new Error(res.error.message || '匿名登录被拒绝');
+          if (res && res.data && res.data.user) JW.uid = res.data.user.id || '';
+          return null;
+        });
+      })
+      .then(function () { JW._settle(null); })
+      .catch(function (e) { JW._settle(e); });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+</script>
+
+<script>
+SITE.shell('changelog');
+SITE.footer(document.querySelector('.container'));
+
+</script>
+</body>
+</html>
