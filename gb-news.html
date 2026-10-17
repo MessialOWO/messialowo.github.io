@@ -1012,7 +1012,6 @@ var GB = (function () {
   var REPLY_STEP = 5;            // 每次展开再多显示 5 条
   var replyShown = {};           // msgId -> 当前显示的顶层评论条数
   var expandedPost = '';         // 当前展开了评论的帖子（只允许一个展开）
-  var openSubReply = '';         // 当前展开了子回评的那条评论
   var selEmoji = '🙂', selColor = COLORS[0], avatarMode = 'emoji', selImage = '', selImagePath = '';
   var uploadingAvatar = false;
   var pendingFiles = [], MAX_FILES = 4;   // 图片/音频/视频，共最多 4 个
@@ -1095,7 +1094,7 @@ var GB = (function () {
       b.onclick = function () {
         if (sortMode === o[0]) return;
         sortMode = o[0];
-        var exp = expandedPost; expandedPost = ''; openSubReply = '';
+        var exp = expandedPost; expandedPost = '';
         renderSortBar(); render();
         if (exp) setTimeout(function(){ scrollToEl(document.getElementById('p-'+exp)); }, 60);
       };
@@ -1371,13 +1370,11 @@ var GB = (function () {
     var all = repliesByMsg[msg.id] || [];
     if (!all.length) return;
 
-    /* 顶层评论 = 不是"回复某条回复"的那些
-       子回评只在它所属的那条评论下面显示，避免同一条内容出现两次 */
-    var tops = all.filter(function (r) { return !r.reply_to_id; });
-    if (!tops.length) return;
-
+    /* 全部回复平铺显示（不再分层）。
+       原来的嵌套结构在"回复的回复"很长的链上会把后面的内容吞掉，
+       这里统一按时间平铺，用「回复 XX」标签表达对象关系。 */
     var limit = replyShown[msg.id] || REPLY_FOLD;
-    var shown = tops.slice(0, limit);
+    var shown = all.slice(0, limit);
 
     var box = document.createElement('div');
     box.className = 'gb-replies';
@@ -1386,15 +1383,14 @@ var GB = (function () {
       box.appendChild(replyEl(msg, r, host));
     });
 
-    // 折叠 / 展开按钮
     var bar = document.createElement('div');
     bar.className = 'gb-fold-bar';
 
-    if (tops.length > limit) {
+    if (all.length > limit) {
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'gb-fold-btn';
-      btn.textContent = '展开更多（还有 ' + (tops.length - limit) + ' 条）▾';
+      btn.textContent = '展开更多（还有 ' + (all.length - limit) + ' 条）▾';
       btn.onclick = function () {
         replyShown[msg.id] = limit + REPLY_STEP;
         render();
@@ -1447,48 +1443,6 @@ var GB = (function () {
     var db = document.createElement('button'); db.type='button'; db.className='gb-action-btn'; db.textContent='🗑'; db.title='删除';
     db.onclick = function () { deleteReply(r); };
     ra.appendChild(rb); ra.appendChild(db); b.appendChild(ra);
-
-    // 子回评（回复这条回复的）：
-    //   帖子折叠时 → 完全不显示
-    //   帖子展开后 → 先显示 1 条，剩下的要再点「展开」才看得到
-    var children = (repliesByMsg[msg.id] || []).filter(function (x) { return x.reply_to_id === r.id; });
-    if (children.length) {
-      var sub = document.createElement('div');
-      sub.className = 'gb-sub-replies';
-      var allOpen = (openSubReply === r.id);
-      var showN = allOpen ? children.length : 1;
-      children.slice(0, showN).forEach(function (ch) {
-        var ce = document.createElement('div'); ce.className = 'gb-sub-reply';
-        var cw = document.createElement('span'); cw.className = 'gb-name-wrap';
-        var cn = document.createElement('span'); cn.className = 'gb-reply-name'; cn.textContent = ch.name;
-        cw.appendChild(cn);
-        if (ch.author_username) {
-          var cu2 = document.createElement('span'); cu2.className = 'gb-uid';
-          cu2.textContent = '@' + String(ch.author_username).replace(/^@+/, '');
-          cu2.setAttribute('data-profile', String(ch.author_username).replace(/^@+/, ''));
-          cu2.style.cursor = 'pointer';
-          cw.appendChild(cu2);
-        }
-        var ct = document.createElement('span'); ct.className = 'gb-reply-time'; ct.textContent = fmt(ch.created_at);
-        var cc = document.createElement('div'); cc.className = 'gb-reply-content';
-        renderContent(cc, ch.content);
-        ce.appendChild(cw); ce.appendChild(ct); ce.appendChild(cc);
-        sub.appendChild(ce);
-      });
-      if (children.length > 1) {
-        var more = document.createElement('button');
-        more.type = 'button';
-        more.className = 'gb-sub-more';
-        more.textContent = allOpen ? '收起回评 ▴' : ('还有 ' + (children.length - 1) + ' 条回评，展开 ▾');
-        more.onclick = function () {
-          openSubReply = allOpen ? '' : r.id;
-          render();
-          scrollToEl(document.getElementById('p-' + msg.id));
-        };
-        sub.appendChild(more);
-      }
-      b.appendChild(sub);
-    }
 
     el.appendChild(b);
     return el;
