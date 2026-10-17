@@ -1181,7 +1181,7 @@ var GB = (function () {
     var item = document.createElement('div');
     item.className = 'gb-item' + (msg.is_pinned ? ' pinned' : '');
     item.id = 'p-' + msg.id;                      // 供搜索页跳转定位
-    item.appendChild(avatarNode(msg.avatar_color, msg.avatar_emoji, msg.avatar_path, 'big', msg.author_username));
+    item.appendChild(avatarNode(msg.avatar_color, msg.avatar_emoji, msg.avatar_path, 'big', msg.author_username || msg.name));
 
     var body = document.createElement('div');
     body.className = 'gb-body';
@@ -1226,7 +1226,7 @@ var GB = (function () {
     if (username) {
       el.setAttribute('data-profile', String(username).replace(/^@+/, ''));
       el.style.cursor = 'pointer';
-      el.title = '查看 @' + String(username).replace(/^@+/, '') + ' 的资料';
+      el.title = '查看「' + String(username).replace(/^@+/, '') + '」的资料';
     }
     var url = avatarUrl(path);
     if (url) {
@@ -1383,7 +1383,7 @@ var GB = (function () {
   /* 单条回复（可带"回评折叠"：展开后才有子回复） */
   function replyEl(msg, r, host) {
     var el = document.createElement('div'); el.className = 'gb-reply';
-    el.appendChild(avatarNode(r.avatar_color, r.avatar_emoji, r.avatar_path, 'small', r.author_username));
+    el.appendChild(avatarNode(r.avatar_color, r.avatar_emoji, r.avatar_path, 'small', r.author_username || r.name));
     var b = document.createElement('div'); b.className = 'gb-reply-body';
     var h = document.createElement('div');
     var nWrap = document.createElement('span'); nWrap.className = 'gb-name-wrap';
