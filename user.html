@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>用户中心 | 达高中（非官网）</title>
+<style>
+  .avatar-circle { display:flex; align-items:center; justify-content:center; color:#fff; border-radius:50%; overflow:hidden; flex-shrink:0; line-height:1; user-select:none; }
+  .avatar-circle.big { width:72px; height:72px; font-size:2rem; }
+  .avatar-circle.small { width:36px; height:36px; font-size:1.1rem; }
+  .avatar-circle img { width:100%; height:100%; object-fit:cover; display:block; }
+  #avatar-preview { width:72px; height:72px; flex-shrink:0; }
+  .emoji-pick { width:44px; height:44px; font-size:1.3rem; border-radius:50%; border:2px solid var(--glass-brd); background:rgba(255,255,255,.6); cursor:pointer; padding:0; display:flex; align-items:center; justify-content:center; }
+  .emoji-pick.on { border-color:var(--accent); background:var(--accent-light); }
+  .color-pick { width:36px; height:36px; border-radius:50%; cursor:pointer; padding:0; border:2px solid transparent; box-shadow:0 0 0 1px var(--border) inset; }
+  .color-pick.on { border-color:#2c2c2c; }
+  .gb-sec-chip { font-family:inherit; font-size:.88rem; cursor:pointer; padding:8px 14px; border:1px solid var(--glass-brd); border-radius:20px; background:rgba(255,255,255,.6); color:var(--text); }
+  .gb-sec-chip.on { background:linear-gradient(160deg,#c0392b,#962820) !important; color:#fff !important; font-weight:700; }
+  .user-head { display:flex; align-items:center; gap:16px; margin-bottom:22px; }
+  .stat-row { display:flex; gap:12px; flex-wrap:wrap; margin:16px 0 22px; }
+  .stat-card { flex:1 1 100px; background:rgba(255,255,255,.6); border:1px solid var(--glass-brd); border-radius:12px; padding:14px; text-align:center; }
+  .stat-num { font-size:1.6rem; font-weight:700; color:var(--accent); line-height:1.2; }
+  .stat-label { font-size:.78rem; color:var(--muted); margin-top:4px; }
+  .my-post { display:block; text-decoration:none; color:inherit; background:rgba(255,255,255,.55); border:1px solid var(--glass-brd); border-radius:10px; padding:12px 14px; margin-bottom:10px; }
+  .my-post:hover { background:rgba(255,255,255,.85); }
+  .my-post-text { font-size:.92rem; margin-bottom:6px; }
+  .my-post-meta { font-size:.76rem; color:var(--muted); }
+</style>
+<link rel="icon" href="./img/logo.png">
+<link rel="stylesheet" href="./assets/site.css">
+<link rel="stylesheet" href="./assets/liquid-glass.css">
+</head>
+<body>
+<div class="main">
+<div class="container">
+<div class="page-head">
+  <h1>用户中心</h1>
+  <div class="en">Account</div>
+  <p>在这里设好名字和头像，之后留言、发作品会自动使用。</p>
+</div>
+
+<div class="status" id="u-status" hidden></div>
+
+<div class="card-box" style="margin-bottom:20px">
+  <div class="user-head">
+    <div id="avatar-preview"></div>
+    <div>
+      <div style="font-size:1.05rem;font-weight:700" id="top-name">还没设名字</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:4px">本机标识：<span id="u-device">—</span></div>
+    </div>
+  </div>
+
+  <label style="display:block;font-size:.85rem;color:var(--muted);margin-bottom:6px">显示名字</label>
+  <input type="text" id="u-name" maxlength="20" placeholder="输入名字或昵称"
+    style="width:100%;padding:10px 12px;border:1px solid var(--glass-brd);border-radius:8px;font-family:inherit;font-size:1rem;margin-bottom:16px">
+
+  <label style="display:block;font-size:.85rem;color:var(--muted);margin-bottom:8px">头像</label>
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+    <button class="gb-sec-chip" id="mode-emoji" type="button" style="flex:1 1 120px">😀 emoji 头像</button>
+    <button class="gb-sec-chip" id="mode-image" type="button" style="flex:1 1 120px">🖼 上传图片</button>
+  </div>
+  <div id="panel-emoji" style="margin-bottom:16px">
+    <div id="emoji-row" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px"></div>
+    <div id="color-row" style="display:flex;flex-wrap:wrap;gap:10px"></div>
+  </div>
+  <div id="panel-image" hidden style="margin-bottom:16px">
+    <label for="u-avatar-file" style="display:inline-block;padding:9px 16px;background:rgba(255,255,255,.7);border:1px solid var(--glass-brd);border-radius:8px;cursor:pointer;font-size:.9rem">选择图片</label>
+    <input type="file" id="u-avatar-file" accept="image/*" style="display:none">
+    <button class="btn-ghost" id="btn-avatar-clear" type="button" hidden style="margin-left:8px">清除</button>
+    <div style="font-size:.78rem;color:var(--muted);margin-top:8px">上传时自动压缩到 256 像素</div>
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <button class="btn-main" id="u-save" type="button">保存</button>
+    <button class="btn-ghost" id="u-reset" type="button">清空本机资料</button>
+  </div>
+</div>
+
+<div class="card-box" style="margin-bottom:20px">
+  <h3 style="font-size:1.05rem;margin-bottom:4px">我的足迹</h3>
+  <div class="stat-row">
+    <div class="stat-card"><div class="stat-num" id="stat-msg">—</div><div class="stat-label">留言</div></div>
+    <div class="stat-card"><div class="stat-num" id="stat-work">—</div><div class="stat-label">作品</div></div>
+    <div class="stat-card"><div class="stat-num" id="stat-art">—</div><div class="stat-label">文章</div></div>
+  </div>
+</div>
+
+<div class="card-box">
+  <h3 style="font-size:1.05rem;margin-bottom:12px">我发过的帖子</h3>
+  <div id="my-posts"></div>
+</div>
+</div>
+</div>
+<script src="./vendor/supabase.js"></script>
+<script>
+/* ===== 班级期刊 · 全站共享脚本（侧边栏 + 云端连接） ===== */
+var SITE = {
+  name: '达高中（非官网）',
+  school: '达州市高级中学',
+  pages: [
+    { href: './',                  label: '首页',       en: 'Home',      key: 'home' },
+    { href: './gallery.html',      label: '画廊',       en: 'Gallery',   key: 'gallery' },
+    { href: './guestbook.html',    label: '留言板',     en: 'Guestbook', key: 'guestbook' },
+    { href: './journal.html',      label: '期刊投稿',   en: 'Journal',   key: 'journal' },
+    { href: './user.html',         label: '用户中心',   en: 'Account',   key: 'user' }
+  ],
+  /* 「关于」折叠组 */
+  aboutPages: [
+    { href: './about-school.html', label: '关于学校',   en: 'About School', key: 'school' },
+    { href: './about-site.html',   label: '关于本站',   en: 'About Site',   key: 'site' }
+  ]
+};
+
+/* 生成侧边栏 + 顶栏（每个页面只需调用 SITE.shell('key')） */
+SITE.shell = function (activeKey) {
+  var links = SITE.pages.map(function (p) {
+    return '<a href="' + p.href + '"' + (p.key === activeKey ? ' class="on"' : '') + '>'
+      + p.label + '<small>' + p.en + '</small></a>';
+  }).join('');
+
+  // 「关于」折叠组：关于学校 / 关于本站
+  var aboutOpen = SITE.aboutPages.some(function (p) { return p.key === activeKey; });
+  var aboutLinks = SITE.aboutPages.map(function (p) {
+    return '<a class="sub-link" href="' + p.href + '"' + (p.key === activeKey ? ' class="on"' : '') + '>'
+      + p.label + '</a>';
+  }).join('');
+  links += '<div class="nav-group' + (aboutOpen ? ' open' : '') + '" id="nav-about">'
+    + '<button type="button" class="nav-group-btn' + (aboutOpen ? ' on' : '') + '" id="nav-about-btn">'
+    + '<span>关于<small>About</small></span><i class="caret">▾</i></button>'
+    + '<div class="nav-group-body">' + aboutLinks + '</div>'
+    + '</div>';
+
+  var bar = document.createElement('div');
+  bar.className = 'topbar';
+  bar.innerHTML = '<button id="nav-toggle" aria-label="菜单">☰</button>'
+    + '<span class="title">' + SITE.name + '</span>';
+
+  var mask = document.createElement('div');
+  mask.className = 'mask';
+  mask.id = 'nav-mask';
+  mask.hidden = true;
+
+  var aside = document.createElement('aside');
+  aside.className = 'sidebar';
+  aside.innerHTML =
+    '<div class="brand">'
+    + '<img src="./img/logo.png" alt="校徽">'
+    + '<div class="name">' + SITE.name + '</div>'
+    + '<div class="sub">Unofficial</div>'
+    + '</div>'
+    + '<nav>' + links + '</nav>'
+    ;
+
+  document.body.insertBefore(aside, document.body.firstChild);
+  document.body.insertBefore(mask, document.body.firstChild);
+  document.body.insertBefore(bar, document.body.firstChild);
+
+  var aboutBtn = aside.querySelector('#nav-about-btn');
+  if (aboutBtn) {
+    aboutBtn.onclick = function () {
+      var g = aside.querySelector('#nav-about');
+      var open = g.classList.toggle('open');
+      try { localStorage.setItem('jw_about_open', open ? '1' : '0'); } catch (e) {}
+    };
+    // 记住上次展开状态（只要不是当前页在关于里）
+    if (!aboutOpen) {
+      try {
+        if (localStorage.getItem('jw_about_open') === '1') aside.querySelector('#nav-about').classList.add('open');
+      } catch (e) {}
+    }
+  }
+
+  bar.querySelector('#nav-toggle').onclick = function () {
+    document.body.classList.toggle('nav-open');
+    mask.hidden = !document.body.classList.contains('nav-open');
+  };
+  mask.onclick = function () {
+    document.body.classList.remove('nav-open');
+    mask.hidden = true;
+  };
+};
+
+/* 页脚 */
+SITE.footer = function (host) {
+  var el = host || document.querySelector('.main') || document.body;
+  var f = document.createElement('footer');
+  f.className = 'site-footer';
+  f.innerHTML =
+    '<p class="contact-line">联系方式</p>'
+    + '<p class="contact-list">'
+    + '<span>微信：<b>MessialOWO</b></span>'
+    + '<span>QQ：<a href="https://qm.qq.com/cgi-bin/qm/qr?k=&amp;uin=2961001891" target="_blank" rel="noopener">2961001891</a></span>'
+    + '<span>邮箱：<a href="mailto:equalacorn28027@outlook.com">equalacorn28027@outlook.com</a></span>'
+    + '</p>'
+    + '<p><a href="./about-site.html">关于本站</a> · <a href="./about-school.html">关于学校</a> · 非官方网站</p>';
+  el.appendChild(f);
+};
+
+</script>
+<script>
+/* ===== 班级期刊 · 云端连接（所有页面共用） ===== */
+var JW = {
+  url: 'https://wvqrnkgjwnlhjhfuonts.supabase.co',
+  key: 'sb_publishable_cGy9MFHh3-t2i0kEnbHeeg_A1-rUMaF',
+  bucket: 'avatars',
+  timeoutMs: 10000,
+  proxy: ['https://arid-bluejay-4932.messialowo.deno.net'],
+  sb: null, uid: '', deviceId: '', ready: false, error: null, _waiters: [],
+  whenReady: function (cb) { if (JW.ready) cb(JW.error); else JW._waiters.push(cb); },
+  _settle: function (err) {
+    JW.error = err || null; JW.ready = true;
+    JW._waiters.splice(0).forEach(function (cb) { try { cb(JW.error); } catch (e) { console.error(e); } });
+    try { document.dispatchEvent(new Event('jw:ready')); } catch (e) {}
+  },
+  withTimeout: function (p, ms, what) {
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      var t = setTimeout(function () {
+        if (done) return; done = true;
+        reject(new Error('连接超时：' + (what || '请求') + '（' + Math.round(ms / 1000) + ' 秒无响应）'));
+      }, ms);
+      Promise.resolve(p).then(function (v) { if (done) return; done = true; clearTimeout(t); resolve(v); },
+        function (e) { if (done) return; done = true; clearTimeout(t); reject(e); });
+    });
+  },
+  retry: function (fn, times) {
+    times = times === undefined ? 2 : times;
+    var n = 0;
+    var run = function () {
+      n++;
+      return Promise.resolve().then(fn).catch(function (e) {
+        if (n >= times) throw e;
+        return new Promise(function (r) { setTimeout(r, 1200); }).then(run);
+      });
+    };
+    return run();
+  },
+  makeFetch: function () {
+    var BASE = JW.url;
+    return function (input, init) {
+      var url = (typeof input === 'string') ? input : (input && input.url) || '';
+      var rel = null;
+      try {
+        var u = new URL(url, BASE);
+        if (u.origin === BASE) rel = u.pathname + u.search;
+      } catch (e) {}
+      if (!rel || !JW.proxy || !JW.proxy.length) return fetch(input, init);
+      var list = JW.proxy.slice();
+      function attempt(i) {
+        if (i >= list.length) return fetch(url, init);
+        var clean = String(list[i]).replace(/\/$/, '');
+        return fetch(clean + rel, init).then(function (res) {
+          if (!res || res.status >= 500) throw new Error('中转 ' + clean + ' 返回 ' + (res && res.status));
+          return res;
+        }).catch(function (e) {
+          console.warn('中转失败，换下一个：' + clean, e && e.message);
+          return attempt(i + 1);
+        });
+      }
+      return attempt(0);
+    };
+  }
+};
+JW.storagePublic = JW.url + '/storage/v1/object/public/' + JW.bucket + '/';
+
+(function () {
+  function newDeviceId() {
+    if (window.crypto && window.crypto.randomUUID) return 'gb-' + window.crypto.randomUUID();
+    return 'gb-' + Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  }
+  JW.deviceId = localStorage.getItem('jiangwan_gb_device') || '';
+  if (!JW.deviceId || JW.deviceId.length < 8 || JW.deviceId.length > 64) {
+    JW.deviceId = newDeviceId();
+    try { localStorage.setItem('jiangwan_gb_device', JW.deviceId); } catch (e) {}
+  }
+  function boot() {
+    if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
+      JW._settle(new Error('云端组件没加载到（vendor/supabase.js）'));
+      return;
+    }
+    try {
+      JW.sb = window.supabase.createClient(JW.url, JW.key, {
+        auth: { persistSession: true, autoRefreshToken: true },
+        global: JW.proxy && JW.proxy.length ? { fetch: JW.makeFetch() } : undefined
+      });
+    } catch (e) { JW._settle(e); return; }
+    JW.sb.auth.getSession().then(function (r) {
+      var u = r && r.data && r.data.session && r.data.session.user;
+      if (u && u.id) JW.uid = u.id;
+      return null;
+    }).catch(function () { return null; })
+      .then(function () {
+        if (JW.uid) return null;
+        return JW.retry(function () {
+          return JW.withTimeout(JW.sb.auth.signInAnonymously(), JW.timeoutMs, '登录匿名身份');
+        }, 2).then(function (res) {
+          if (res && res.error) throw new Error(res.error.message || '匿名登录被拒绝');
+          if (res && res.data && res.data.user) JW.uid = res.data.user.id || '';
+          return null;
+        });
+      })
+      .then(function () { JW._settle(null); })
+      .catch(function (e) { JW._settle(e); });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+</script>
+<script>
+
+/* ===== 用户中心 ===== */
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var COLORS = ['#c0392b','#e67e22','#d4a017','#27ae60','#16a085','#2980b9','#8e44ad','#d95f8f','#5d6d7e','#2c3e50'];
+  var EMOJIS = ['🙂','🐹','🐰','🦊','🐼','🐨','🐯','🦁','🐸','🐧','🐳','🦄','🌻','🌙','⚡','🍀'];
+
+  var name = '', mode = 'emoji', emoji = '🙂', color = COLORS[0], image = '', imagePath = '';
+  var uid = '', deviceId = '', sb = null;
+
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+  function fmt(ts){var d=new Date(ts);if(isNaN(d))return '';var p=function(n){return n<10?'0'+n:''+n};return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
+  function status(t, kind) {
+    var el = $('u-status');
+    if (!el) return;
+    if (!t) { el.hidden = true; el.textContent = ''; return; }
+    el.hidden = false; el.className = 'status' + (kind ? ' ' + kind : ''); el.textContent = t;
+  }
+  function avatarUrl(p) {
+    if (typeof p !== 'string' || !/^[A-Za-z0-9-]{1,64}\/[A-Za-z0-9._-]{1,80}$/.test(p)) return '';
+    return (window.JW && JW.storagePublic || '') + p;
+  }
+  function btrim(x) { return String(x == null ? '' : x).replace(/^\s+|\s+$/g, ''); }
+
+  /* 读取/保存本地身份 */
+  function loadLocal() {
+    try { name = localStorage.getItem('jiangwan_gb_name') || ''; } catch (e) {}
+    try {
+      var look = JSON.parse(localStorage.getItem('jiangwan_gb_look') || 'null');
+      if (look) {
+        if (look.mode) mode = look.mode;
+        if (look.emoji) emoji = look.emoji;
+        if (look.color) color = look.color;
+        if (look.image) image = look.image;
+        if (look.imagePath) imagePath = look.imagePath;
+      }
+    } catch (e) {}
+  }
+  function saveLocal() {
+    try { localStorage.setItem('jiangwan_gb_name', name); } catch (e) {}
+    try {
+      localStorage.setItem('jiangwan_gb_look', JSON.stringify({
+        mode: mode, emoji: emoji, color: color, image: image, imagePath: imagePath
+      }));
+    } catch (e) {}
+  }
+
+  /* 头像预览 */
+  function avatarNode(size) {
+    var el = document.createElement('div');
+    el.className = 'avatar-circle ' + (size === 'small' ? 'small' : 'big');
+    var url = avatarUrl(imagePath);
+    if (mode === 'image' && url) {
+      var im = document.createElement('img'); im.src = url; im.alt = '';
+      im.onerror = function () { el.textContent = emoji; el.style.background = color; };
+      el.appendChild(im);
+    } else {
+      el.style.background = color;
+      el.textContent = emoji;
+    }
+    return el;
+  }
+  function renderPreview() {
+    var pv = $('avatar-preview');
+    if (!pv) return;
+    pv.textContent = '';
+    pv.appendChild(avatarNode('big'));
+    var top = $('top-avatar');
+    if (top) { top.textContent = ''; top.appendChild(avatarNode('small')); }
+    var nm = $('top-name'); if (nm) nm.textContent = name || '还没设名字';
+  }
+
+  function renderPickers() {
+    var er = $('emoji-row');
+    if (er) {
+      er.textContent = '';
+      EMOJIS.forEach(function (em) {
+        var b = document.createElement('button');
+        b.type = 'button'; b.className = 'emoji-pick' + (em === emoji ? ' on' : '');
+        b.textContent = em;
+        b.onclick = function () { emoji = em; mode = 'emoji'; renderAll(); };
+        er.appendChild(b);
+      });
+    }
+    var cr = $('color-row');
+    if (cr) {
+      cr.textContent = '';
+      COLORS.forEach(function (c) {
+        var b = document.createElement('button');
+        b.type = 'button'; b.className = 'color-pick' + (c === color ? ' on' : '');
+        b.style.background = c;
+        b.onclick = function () { color = c; renderAll(); };
+        cr.appendChild(b);
+      });
+    }
+  }
+  function renderMode() {
+    var pe = $('panel-emoji'), pi = $('panel-image');
+    if (pe) pe.hidden = mode !== 'emoji';
+    if (pi) pi.hidden = mode !== 'image';
+    var be = $('mode-emoji'), bi = $('mode-image');
+    if (be) be.className = 'gb-sec-chip' + (mode === 'emoji' ? ' on' : '');
+    if (bi) bi.className = 'gb-sec-chip' + (mode === 'image' ? ' on' : '');
+    var clr = $('btn-avatar-clear');
+    if (clr) clr.hidden = !(mode === 'image' && imagePath);
+  }
+  function renderAll() {
+    renderPickers(); renderMode(); renderPreview(); saveLocal();
+  }
+
+  /* 上传头像 */
+  function uploadAvatar(file) {
+    return new Promise(function (res, rej) {
+      var im = new Image();
+      im.onload = function () {
+        var cv = document.createElement('canvas');
+        cv.width = 256; cv.height = 256;
+        var cx = cv.getContext('2d');
+        cx.fillStyle = '#fff'; cx.fillRect(0, 0, 256, 256);
+        var side = Math.min(im.width, im.height);
+        cx.drawImage(im, (im.width - side) / 2, (im.height - side) / 2, side, side, 0, 0, 256, 256);
+        cv.toBlob(function (b) {
+          if (!b) return rej(new Error('图片编码失败'));
+          var path = uid + '/avatar-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8) + '.jpg';
+          sb.storage.from('avatars').upload(path, b, { contentType: 'image/jpeg', upsert: false })
+            .then(function (r) { if (r.error) throw r.error; res(path); }).catch(rej);
+        }, 'image/jpeg', 0.85);
+      };
+      im.onerror = function () { rej(new Error('图片打不开（HEIC 请先转 JPG）')); };
+      var fr = new FileReader();
+      fr.onload = function () { im.src = fr.result; };
+      fr.onerror = function () { rej(new Error('读取文件失败')); };
+      fr.readAsDataURL(file);
+    });
+  }
+
+  /* 统计：我在各处的足迹 */
+  function loadStats() {
+    if (!sb) return Promise.resolve();
+    return sb.from('messages').select('id', { count: 'exact', head: true }).eq('device_id', deviceId)
+      .then(function (r) { $('stat-msg').textContent = (r && r.count != null) ? r.count : '—'; })
+      .catch(function () {})
+      .then(function () {
+        return sb.from('works').select('id', { count: 'exact', head: true }).eq('device_id', deviceId);
+      })
+      .then(function (r) { $('stat-work').textContent = (r && r.count != null) ? r.count : '—'; })
+      .catch(function () {})
+      .then(function () {
+        return sb.from('articles').select('id', { count: 'exact', head: true }).eq('device_id', deviceId);
+      })
+      .then(function (r) { $('stat-art').textContent = (r && r.count != null) ? r.count : '—'; })
+      .catch(function () { $('stat-art').textContent = '—'; });
+  }
+
+  /* 我发过的帖子 */
+  function loadMyPosts() {
+    if (!sb) return;
+    var box = $('my-posts');
+    if (!box) return;
+    box.textContent = '';
+    var load = document.createElement('div');
+    load.className = 'empty';
+    load.textContent = '加载中……';
+    box.appendChild(load);
+
+    var PAGE = {'未分区':'guestbook.html','学习':'gb-study.html','新闻':'gb-news.html','作品':'gb-works.html',
+                '失物招领':'gb-lost.html','游戏':'gb-game.html','二次元':'gb-acg.html','内娱':'gb-ent.html',
+                '学校吐槽':'gb-rant.html','意见建议':'gb-suggest.html','其他':'gb-other.html'};
+
+    sb.from('messages')
+      .select('id,created_at,name,content,main_section,sub_section_id,like_count')
+      .eq('device_id', deviceId)
+      .order('created_at', { ascending: false })
+      .limit(30)
+      .then(function (r) {
+        box.textContent = '';
+        var rows = (r && r.data) || [];
+        if (!rows.length) {
+          var e = document.createElement('div');
+          e.className = 'empty';
+          e.textContent = '你还没有发过帖子。';
+          box.appendChild(e);
+          return;
+        }
+        rows.forEach(function (m) {
+          var a = document.createElement('a');
+          a.className = 'my-post';
+          a.href = './' + (PAGE[m.main_section] || 'guestbook.html') + '?post=' + encodeURIComponent(m.id);
+          var t = document.createElement('div');
+          t.className = 'my-post-text';
+          t.textContent = m.content.slice(0, 60) + (m.content.length > 60 ? '…' : '');
+          var meta = document.createElement('div');
+          meta.className = 'my-post-meta';
+          meta.textContent = (m.main_section || '未分区') + ' · ' + fmt(m.created_at) + ' · 👍' + (m.like_count || 0);
+          a.appendChild(t); a.appendChild(meta);
+          box.appendChild(a);
+        });
+      }).catch(function (e) {
+        box.textContent = '';
+        var d = document.createElement('div');
+        d.className = 'empty';
+        d.textContent = '读取失败：' + ((e && e.message) || e);
+        box.appendChild(d);
+      });
+  }
+
+  function boot() {
+    loadLocal();
+    $('u-name').value = name;
+    renderAll();
+
+    $('u-name').oninput = function () { name = $('u-name').value; renderPreview(); };
+    $('u-save').onclick = function () {
+      name = btrim($('u-name').value);
+      if (!name) { status('名字不能空着。', 'err'); return; }
+      saveLocal();
+      renderPreview();
+      status('已保存 ✅ 之后留言、发作品会自动用这个名字和头像。', 'ok');
+      setTimeout(function () { if (/已保存/.test($('u-status').textContent)) status(''); }, 3500);
+    };
+    $('mode-emoji').onclick = function () { mode = 'emoji'; renderAll(); };
+    $('mode-image').onclick = function () { mode = 'image'; renderAll(); };
+    $('btn-avatar-clear').onclick = function () { image = ''; imagePath = ''; mode = 'emoji'; renderAll(); };
+    $('u-avatar-file').onchange = function (e) {
+      var f = e.target.files && e.target.files[0];
+      if (!f) return;
+      if (!sb) { status('还没连上服务器，稍等再传。', 'err'); e.target.value = ''; return; }
+      if (f.size > 8 * 1024 * 1024) { alert('头像超过 8MB，请换小一点的'); e.target.value = ''; return; }
+      status('正在上传头像……');
+      uploadAvatar(f).then(function (path) {
+        imagePath = path; image = avatarUrl(path); mode = 'image';
+        renderAll();
+        status('头像已上传 ✅', 'ok');
+        setTimeout(function () { if (/头像已上传/.test($('u-status').textContent)) status(''); }, 2500);
+      }).catch(function (err) {
+        status('上传失败：' + ((err && err.message) || err), 'err');
+      }).then(function () { e.target.value = ''; });
+    };
+    $('u-reset').onclick = function () {
+      if (!confirm('清空本机保存的名字和头像？（已发布的帖子和作品不受影响）')) return;
+      name = ''; mode = 'emoji'; emoji = '🙂'; color = COLORS[0]; image = ''; imagePath = '';
+      $('u-name').value = '';
+      renderAll();
+      status('已清空本机资料。', 'ok');
+    };
+
+    JW.whenReady(function (e) {
+      if (e) { status('连不上云端，只能改本机资料：' + (e.message || e), 'err'); return; }
+      sb = JW.sb; uid = JW.uid; deviceId = JW.deviceId;
+      $('u-device').textContent = deviceId ? (deviceId.slice(0, 8) + '…') : '—';
+      loadStats();
+      loadMyPosts();
+    });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+</script>
+
+<script>
+SITE.shell('user');
+SITE.footer(document.querySelector('.container'));
+
+</script>
+</body>
+</html>

@@ -141,7 +141,11 @@ var SITE = {
     { href: './',                  label: '首页',       en: 'Home',      key: 'home' },
     { href: './gallery.html',      label: '画廊',       en: 'Gallery',   key: 'gallery' },
     { href: './guestbook.html',    label: '留言板',     en: 'Guestbook', key: 'guestbook' },
-    { href: './journal.html',          label: '期刊投稿',   en: 'Journal',   key: 'journal' },
+    { href: './journal.html',      label: '期刊投稿',   en: 'Journal',   key: 'journal' },
+    { href: './user.html',         label: '用户中心',   en: 'Account',   key: 'user' }
+  ],
+  /* 「关于」折叠组 */
+  aboutPages: [
     { href: './about-school.html', label: '关于学校',   en: 'About School', key: 'school' },
     { href: './about-site.html',   label: '关于本站',   en: 'About Site',   key: 'site' }
   ]
@@ -153,6 +157,18 @@ SITE.shell = function (activeKey) {
     return '<a href="' + p.href + '"' + (p.key === activeKey ? ' class="on"' : '') + '>'
       + p.label + '<small>' + p.en + '</small></a>';
   }).join('');
+
+  // 「关于」折叠组：关于学校 / 关于本站
+  var aboutOpen = SITE.aboutPages.some(function (p) { return p.key === activeKey; });
+  var aboutLinks = SITE.aboutPages.map(function (p) {
+    return '<a class="sub-link" href="' + p.href + '"' + (p.key === activeKey ? ' class="on"' : '') + '>'
+      + p.label + '</a>';
+  }).join('');
+  links += '<div class="nav-group' + (aboutOpen ? ' open' : '') + '" id="nav-about">'
+    + '<button type="button" class="nav-group-btn' + (aboutOpen ? ' on' : '') + '" id="nav-about-btn">'
+    + '<span>关于<small>About</small></span><i class="caret">▾</i></button>'
+    + '<div class="nav-group-body">' + aboutLinks + '</div>'
+    + '</div>';
 
   var bar = document.createElement('div');
   bar.className = 'topbar';
@@ -178,6 +194,21 @@ SITE.shell = function (activeKey) {
   document.body.insertBefore(aside, document.body.firstChild);
   document.body.insertBefore(mask, document.body.firstChild);
   document.body.insertBefore(bar, document.body.firstChild);
+
+  var aboutBtn = aside.querySelector('#nav-about-btn');
+  if (aboutBtn) {
+    aboutBtn.onclick = function () {
+      var g = aside.querySelector('#nav-about');
+      var open = g.classList.toggle('open');
+      try { localStorage.setItem('jw_about_open', open ? '1' : '0'); } catch (e) {}
+    };
+    // 记住上次展开状态（只要不是当前页在关于里）
+    if (!aboutOpen) {
+      try {
+        if (localStorage.getItem('jw_about_open') === '1') aside.querySelector('#nav-about').classList.add('open');
+      } catch (e) {}
+    }
+  }
 
   bar.querySelector('#nav-toggle').onclick = function () {
     document.body.classList.toggle('nav-open');
@@ -716,8 +747,8 @@ var GB = (function () {
     var cancel = document.createElement('button'); cancel.type='button'; cancel.className='btn-ghost'; cancel.textContent='取消';
     cancel.onclick = function () { box.remove(); };
     send.onclick = function () {
-      var name = ($('gb-name') && $('gb-name').value.trim()) || localStorage.getItem('jiangwan_gb_name') || '';
-      if (!name) { alert('请先填你的名字'); return; }
+      var name = (localStorage.getItem('jiangwan_gb_name') || '').replace(/^\s+|\s+$/g, '');
+      if (!name) { alert('还没设名字，先去「用户中心」设一下。'); return; }
       var text = inp.value.trim();
       if (!text) { alert('回复不能为空'); return; }
       if (busy || !connected) { status('还没连上服务器，暂时发不了。', 'err'); return; }
@@ -880,10 +911,10 @@ var GB = (function () {
 
   /* ---------- 发帖 ---------- */
   function submit() {
-    var nameEl = $('gb-name'), ctEl = $('gb-content');
-    var name = nameEl ? nameEl.value.trim() : '';
+    var ctEl = $('gb-content');
+    var name = (localStorage.getItem('jiangwan_gb_name') || '').replace(/^\s+|\s+$/g, '');
     var content = ctEl ? ctEl.value.trim() : '';
-    if (!name) { alert('请填你的名字'); nameEl && nameEl.focus(); return; }
+    if (!name) { alert('还没设名字。点页面上方「去设置」，或进「用户中心」设好再发。'); return; }
     if (!content) { alert('请写点内容'); ctEl && ctEl.focus(); return; }
     if (!curSub) {
       alert('请先选一个小分区再发帖。\n\n如果这个分区里还没有小分区，点「＋ 新建小分区」建一个（不用密码），建好后会自动选中。');
@@ -986,23 +1017,10 @@ var GB = (function () {
         if (look.imagePath) selImagePath = look.imagePath;
       }
     } catch (e) {}
-    var nm = $('gb-name');
-    if (nm) nm.value = localStorage.getItem('jiangwan_gb_name') || '';
+    
 
-    // 头像选择器
-    var er = $('emoji-row'), cr = $('color-row');
-    if (er) EMOJIS.forEach(function (em) {
-      var b = document.createElement('button'); b.type='button'; b.className='emoji-pick'+(em===selEmoji?' on':''); b.textContent=em;
-      b.onclick = function(){ selEmoji=em; saveLook(); renderPickers(); };
-      er.appendChild(b);
-    });
-    if (cr) COLORS.forEach(function (c) {
-      var b = document.createElement('button'); b.type='button'; b.className='color-pick'+(c===selColor?' on':''); b.style.background=c;
-      b.onclick = function(){ selColor=c; saveLook(); renderPickers(); };
-      cr.appendChild(b);
-    });
-    renderPickers();
-    bindAvatarUI();
+    // 显示当前身份（在用户中心设置）
+    renderWho();
     renderImgPick();
 
     // 配图选择
@@ -1078,51 +1096,30 @@ var GB = (function () {
     });
   }
 
-  function bindAvatarUI() {
-    var be = $('mode-emoji'), bi = $('mode-image');
-    if (be) be.onclick = function () { setMode('emoji'); };
-    if (bi) bi.onclick = function () { setMode('image'); };
-    var clr = $('btn-avatar-clear');
-    if (clr) clr.onclick = function () { selImage = ''; selImagePath = ''; setMode('emoji'); };
-    var fi = $('gb-avatar-file');
-    if (fi) fi.onchange = function (e) {
-      var f = e.target.files && e.target.files[0];
-      if (!f) return;
-      if (!uid) { status('还在连接服务器，稍等再传头像。', 'err'); e.target.value = ''; return; }
-      if (f.size > 8 * 1024 * 1024) { alert('头像超过 8MB，请换一张小一点的'); e.target.value = ''; return; }
-      status('正在上传头像……');
-      uploadingAvatar = true;
-      uploadAvatar(f).then(function (path) {
-        selImagePath = path;
-        selImage = avatarUrl(path);
-        setMode('image');
-        status('头像已上传 ✅', 'ok');
-        setTimeout(function () { if (/头像已上传/.test((statusEl() || {}).textContent || '')) status(''); }, 2500);
-      }).catch(function (err) {
-        status('头像上传失败：' + ((err && err.message) || err), 'err');
-      }).then(function () { uploadingAvatar = false; e.target.value = ''; });
-    };
-    setMode(avatarMode);
-  }
   function statusEl() { return $('gb-status'); }
+
+  /* 显示当前身份（来自用户中心的设置） */
+  function renderWho() {
+    var box = $('gb-who-avatar'), nm = $('gb-who-name');
+    if (box) {
+      box.textContent = '';
+      var el = avatarNode(selColor, selEmoji, (avatarMode === 'image' ? selImagePath : ''), 'small');
+      el.style.width = '40px'; el.style.height = '40px'; el.style.fontSize = '1.2rem';
+      box.appendChild(el);
+    }
+    if (nm) {
+      var n = localStorage.getItem('jiangwan_gb_name') || '';
+      nm.textContent = n || '还没设名字（点「去设置」）';
+      nm.style.color = n ? '' : 'var(--accent)';
+    }
+  }
 
   function saveLook() {
     try { localStorage.setItem('jiangwan_gb_look', JSON.stringify({ mode:avatarMode, emoji:selEmoji, color:selColor, image:selImage, imagePath:selImagePath })); } catch (e) {}
     var pv = $('avatar-preview');
     if (pv) { pv.textContent=''; pv.appendChild(avatarNode(selColor, selEmoji, selImagePath, 'big')); }
   }
-  function renderPickers() {
-    var er = $('emoji-row');
-    if (er) Array.prototype.forEach.call(er.children, function (b) { b.className = 'emoji-pick' + (b.textContent === selEmoji ? ' on' : ''); });
-    var cr = $('color-row');
-    if (cr) Array.prototype.forEach.call(cr.children, function (b) { b.className = 'color-pick' + (b.style.background && rgbEq(b.style.background, selColor) ? ' on' : ''); });
-    saveLook();
-  }
-  function rgbEq(rgb, hex) {
-    var m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(rgb); if (!m) return false;
-    var h = hex.replace('#',''); 
-    return parseInt(m[1])===parseInt(h.slice(0,2),16) && parseInt(m[2])===parseInt(h.slice(2,4),16) && parseInt(m[3])===parseInt(h.slice(4,6),16);
-  }
+
 
   return { boot: boot, parseTags: parseTags, MAINS: MAINS };
 })();

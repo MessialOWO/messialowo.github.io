@@ -85,3 +85,26 @@ footer.site-footer .contact-list { display: flex; flex-wrap: wrap; justify-conte
   .container { padding: 0 16px 50px; }
   .card-box { padding: 20px; }
 }
+
+/* 「关于」折叠组 */
+.nav-group { margin-top: 4px; }
+.nav-group-btn {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; background: none; border: none; cursor: pointer;
+  font-family: inherit; font-size: 1rem; color: inherit; text-align: left;
+  border-radius: 10px;
+}
+.nav-group-btn:hover { background: rgba(255,255,255,.5); }
+.nav-group-btn.on { color: var(--accent); font-weight: 700; }
+.nav-group-btn span { display: flex; flex-direction: column; gap: 3px; }
+.nav-group-btn small { font-size: .72rem; letter-spacing: 2px; color: var(--muted); font-weight: 400; }
+.nav-group-btn .caret { font-style: normal; font-size: .8rem; color: var(--muted); transition: transform .18s ease; }
+.nav-group.open .caret { transform: rotate(180deg); }
+.nav-group-body { display: none; padding-left: 8px; }
+.nav-group.open .nav-group-body { display: block; }
+.nav-group-body a.sub-link {
+  display: block; padding: 10px 18px; border-radius: 8px;
+  font-size: .92rem; text-decoration: none; color: var(--text);
+}
+.nav-group-body a.sub-link:hover { background: rgba(255,255,255,.6); }
+.nav-group-body a.sub-link.on { color: var(--accent); background: var(--accent-light); font-weight: 700; }

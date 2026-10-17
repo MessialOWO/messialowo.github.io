@@ -55,7 +55,11 @@ var SITE = {
     { href: './',                  label: '首页',       en: 'Home',      key: 'home' },
     { href: './gallery.html',      label: '画廊',       en: 'Gallery',   key: 'gallery' },
     { href: './guestbook.html',    label: '留言板',     en: 'Guestbook', key: 'guestbook' },
-    { href: './journal.html',          label: '期刊投稿',   en: 'Journal',   key: 'journal' },
+    { href: './journal.html',      label: '期刊投稿',   en: 'Journal',   key: 'journal' },
+    { href: './user.html',         label: '用户中心',   en: 'Account',   key: 'user' }
+  ],
+  /* 「关于」折叠组 */
+  aboutPages: [
     { href: './about-school.html', label: '关于学校',   en: 'About School', key: 'school' },
     { href: './about-site.html',   label: '关于本站',   en: 'About Site',   key: 'site' }
   ]
@@ -67,6 +71,18 @@ SITE.shell = function (activeKey) {
     return '<a href="' + p.href + '"' + (p.key === activeKey ? ' class="on"' : '') + '>'
       + p.label + '<small>' + p.en + '</small></a>';
   }).join('');
+
+  // 「关于」折叠组：关于学校 / 关于本站
+  var aboutOpen = SITE.aboutPages.some(function (p) { return p.key === activeKey; });
+  var aboutLinks = SITE.aboutPages.map(function (p) {
+    return '<a class="sub-link" href="' + p.href + '"' + (p.key === activeKey ? ' class="on"' : '') + '>'
+      + p.label + '</a>';
+  }).join('');
+  links += '<div class="nav-group' + (aboutOpen ? ' open' : '') + '" id="nav-about">'
+    + '<button type="button" class="nav-group-btn' + (aboutOpen ? ' on' : '') + '" id="nav-about-btn">'
+    + '<span>关于<small>About</small></span><i class="caret">▾</i></button>'
+    + '<div class="nav-group-body">' + aboutLinks + '</div>'
+    + '</div>';
 
   var bar = document.createElement('div');
   bar.className = 'topbar';
@@ -92,6 +108,21 @@ SITE.shell = function (activeKey) {
   document.body.insertBefore(aside, document.body.firstChild);
   document.body.insertBefore(mask, document.body.firstChild);
   document.body.insertBefore(bar, document.body.firstChild);
+
+  var aboutBtn = aside.querySelector('#nav-about-btn');
+  if (aboutBtn) {
+    aboutBtn.onclick = function () {
+      var g = aside.querySelector('#nav-about');
+      var open = g.classList.toggle('open');
+      try { localStorage.setItem('jw_about_open', open ? '1' : '0'); } catch (e) {}
+    };
+    // 记住上次展开状态（只要不是当前页在关于里）
+    if (!aboutOpen) {
+      try {
+        if (localStorage.getItem('jw_about_open') === '1') aside.querySelector('#nav-about').classList.add('open');
+      } catch (e) {}
+    }
+  }
 
   bar.querySelector('#nav-toggle').onclick = function () {
     document.body.classList.toggle('nav-open');
