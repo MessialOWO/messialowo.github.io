@@ -27,34 +27,6 @@
   .my-post-text { font-size:.92rem; margin-bottom:6px; }
   .my-post-meta { font-size:.76rem; color:var(--muted); }
 
-  /* 连接线路 */
-  function bindLine() {
-    var radios = document.querySelectorAll('input[name="line-mode"]');
-    if (!radios.length || !window.JW || !JW.setLine) return;
-    var cur = (JW.getLine && JW.getLine()) || 'auto';
-    Array.prototype.forEach.call(radios, function (r) {
-      if (r.value === cur) r.checked = true;
-      r.onchange = function () {
-        if (!this.checked) return;
-        var mode = this.value === 'auto' ? null : this.value;
-        JW.setLine(mode);
-        var note = $('line-note');
-        if (note) {
-          note.textContent = this.value === 'auto'
-            ? '已切回默认。刷新页面后生效。'
-            : (this.value === 'relay' ? '已设为只用中转。刷新页面后生效。' : '已设为只连官方（国内可能连不上）。刷新页面后生效。');
-        }
-        status('已保存线路设置，刷新页面后生效。', 'ok');
-        setTimeout(function () { if (/线路设置/.test(($('u-status')||{}).textContent||'')) status(''); }, 3000);
-      };
-    });
-    var note = $('line-note');
-    if (note) {
-      note.textContent = cur === 'auto'
-        ? '当前：默认（走中转，Cloudflare 优先）'
-        : (cur === 'relay' ? '当前：只用中转' : '当前：只连官方（国内可能连不上）');
-    }
-  }
 
   /* 折叠面板 */
   .acc-fold {
@@ -94,18 +66,6 @@
   .msg-tools { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
   .msg-tools button { font-size: .78rem; padding: 6px 12px; }
 
-  /* 连接线路选项 */
-  .line-opts { display: flex; flex-direction: column; gap: 10px; }
-  .line-opt {
-    display: flex; align-items: flex-start; gap: 12px; cursor: pointer;
-    padding: 12px 14px; border-radius: 10px;
-    border: 1px solid var(--glass-brd); background: rgba(255,255,255,.55);
-  }
-  .line-opt:has(input:checked) { border-color: var(--accent); background: var(--accent-light); }
-  .line-opt input { margin-top: 3px; accent-color: var(--accent); flex-shrink: 0; }
-  .line-body { flex: 1; min-width: 0; }
-  .line-body b { display: block; font-size: .88rem; margin-bottom: 3px; }
-  .line-body small { font-size: .76rem; color: var(--muted); line-height: 1.65; }
 </style>
 <link rel="icon" href="./img/logo.png">
 <link rel="stylesheet" href="./assets/site.css">
@@ -181,46 +141,6 @@
     <div style="font-size:.76rem;color:var(--muted);line-height:1.7">
       图片会压到最长边 1600 像素再保存，避免占满浏览器空间。
     </div>
-  </div>
-</div>
-
-<!-- 折叠：连接线路 -->
-<div class="acc-fold" id="fold-line">
-  <button class="acc-fold-head" type="button" data-fold="line">
-    <span>连接线路</span>
-    <i class="acc-caret">▾</i>
-  </button>
-  <div class="acc-fold-body">
-    <div style="font-size:.8rem;color:var(--muted);line-height:1.8;margin-bottom:14px">
-      网站的数据服务器在海外，国内直连会被阻断，所以默认走中转。
-      如果遇到加载不出来，可以在这里切换线路试试。选择只保存在这台设备上。
-    </div>
-
-    <div class="line-opts">
-      <label class="line-opt">
-        <input type="radio" name="line-mode" value="auto" checked>
-        <span class="line-body">
-          <b>默认（推荐）</b>
-          <small>走中转线路（Cloudflare 优先，Deno 备用）。国内网络请保持这个。</small>
-        </span>
-      </label>
-      <label class="line-opt">
-        <input type="radio" name="line-mode" value="relay">
-        <span class="line-body">
-          <b>只用中转</b>
-          <small>效果与「默认」相同，显式声明走中转。</small>
-        </span>
-      </label>
-      <label class="line-opt">
-        <input type="radio" name="line-mode" value="direct">
-        <span class="line-body">
-          <b>只连官方</b>
-          <small>完全不走中转，直连 Supabase。<b>仅海外网络可用</b>，国内会连不上。</small>
-        </span>
-      </label>
-    </div>
-
-    <div id="line-note" style="font-size:.76rem;color:var(--muted);margin-top:10px;line-height:1.7"></div>
   </div>
 </div>
 
@@ -1303,35 +1223,6 @@ JW.storagePublic = (JW.proxy && JW.proxy.length ? String(JW.proxy[0]).replace(/\
     };
   }
 
-  /* 连接线路 */
-  function bindLine() {
-    var radios = document.querySelectorAll('input[name="line-mode"]');
-    if (!radios.length || !window.JW || !JW.setLine) return;
-    var cur = (JW.getLine && JW.getLine()) || 'auto';
-    Array.prototype.forEach.call(radios, function (r) {
-      if (r.value === cur) r.checked = true;
-      r.onchange = function () {
-        if (!this.checked) return;
-        var mode = this.value === 'auto' ? null : this.value;
-        JW.setLine(mode);
-        var note = $('line-note');
-        if (note) {
-          note.textContent = this.value === 'auto'
-            ? '已切回默认。刷新页面后生效。'
-            : (this.value === 'relay' ? '已设为只用中转。刷新页面后生效。' : '已设为只连官方（国内可能连不上）。刷新页面后生效。');
-        }
-        status('已保存线路设置，刷新页面后生效。', 'ok');
-        setTimeout(function () { if (/线路设置/.test(($('u-status')||{}).textContent||'')) status(''); }, 3000);
-      };
-    });
-    var note = $('line-note');
-    if (note) {
-      note.textContent = cur === 'auto'
-        ? '当前：默认（走中转，Cloudflare 优先）'
-        : (cur === 'relay' ? '当前：只用中转' : '当前：只连官方（国内可能连不上）');
-    }
-  }
-
   /* 折叠面板 */
   var FOLD_IDS = { msg: 'fold-msg', settings: 'fold-settings', bg: 'fold-bg' };
   function openFold(name) {
@@ -1381,7 +1272,6 @@ JW.storagePublic = (JW.proxy && JW.proxy.length ? String(JW.proxy[0]).replace(/\
     bindPassword();
     bindUsername();
     bindBackground();
-    bindLine();
 
     // 未登录时把设置区隐藏，醒目提示
     var inner = $('u-settings-inner'), warn = $('u-login-warn');

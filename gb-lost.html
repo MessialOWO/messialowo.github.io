@@ -813,7 +813,7 @@ var GB = (function () {
   var selEmoji = '🙂', selColor = COLORS[0], avatarMode = 'emoji', selImage = '', selImagePath = '';
   var uploadingAvatar = false;
   var pendingFiles = [], MAX_FILES = 4;   // 图片/音频/视频，共最多 4 个
-  var MAX_IMAGE_MB = 20, MAX_AUDIO_MB = 25, MAX_VIDEO_MB = 45;
+  var MAX_IMAGE_MB = 15, MAX_AUDIO_MB = 20, MAX_VIDEO_MB = 20;   // 受中转单文件限制
 
   function kindOf(file) {
     var t = (file.type || '').toLowerCase();
