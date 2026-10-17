@@ -1,6 +1,6 @@
 /* ===== 班级期刊 · 全站共享脚本（侧边栏 + 云端连接） ===== */
 var SITE = {
-  name: '达高中（非官网）',
+  name: '达高中墙Board',
   school: '达州市高级中学',
   pages: [
     { href: './',                  label: '首页',       en: 'Home',      key: 'home' },

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light">
-<title>留言板 · 学校吐槽 | 达高中（非官网）</title>
+<title>留言板 · 学校吐槽 | 达高中墙Board</title>
 <style>
   .avatar-circle { display:flex; align-items:center; justify-content:center; color:#fff; border-radius:50%; overflow:hidden; flex-shrink:0; line-height:1; user-select:none; }
   .avatar-circle.big { width:48px; height:48px; font-size:1.4rem; }
@@ -16,8 +16,25 @@
   .emoji-pick.on { border-color:var(--accent); background:var(--accent-light); }
   .color-pick { width:36px; height:36px; border-radius:50%; cursor:pointer; padding:0; border:2px solid transparent; box-shadow:0 0 0 1px var(--border) inset; }
   .color-pick.on { border-color:#2c2c2c; }
-  .gb-sections, .gb-subs { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
-  .gb-sort { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:14px; }
+  /* 分区：横向可滑动的一排 */
+  .gb-scroll {
+    overflow-x: auto; overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; -ms-overflow-style: none;
+    margin-bottom: 8px;
+    /* 左右留一点阴影提示"还能滑" */
+    mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+  }
+  .gb-scroll::-webkit-scrollbar { display: none; height: 0; }
+  .gb-sections, .gb-subs {
+    display: flex; flex-wrap: nowrap; gap: 6px;
+    align-items: center; padding: 2px 12px; min-width: min-content;
+  }
+  .gb-subs:empty { display: none; }
+  .gb-scroll-sub:empty { display: none; }
+  .gb-sort { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:12px 0 14px; }
+  .gb-sort .gb-sec-chip { font-size:.76rem; padding:4px 10px; }
   .gb-sort-label { font-size:.85rem; color:var(--muted); }
   .gb-sort-tip { font-size:.78rem; color:var(--muted); margin-left:4px; }
   .gb-fold-bar { margin-top:8px; }
@@ -29,7 +46,15 @@
   .gb-sub-more { font-family:inherit; font-size:.78rem; color:var(--accent); background:none; border:none; border-bottom:1px dashed rgba(192,57,43,.4); cursor:pointer; padding:2px 0; text-align:left; align-self:flex-start; }
   .gb-flash { animation: gbflash 2.4s ease; }
   @keyframes gbflash { 0%,100% { box-shadow:0 6px 18px rgba(31,27,22,.06); } 25%,75% { box-shadow:0 0 0 4px rgba(192,57,43,.35); } }
-  .gb-sec-chip { font-family:inherit; font-size:.88rem; cursor:pointer; padding:8px 14px; border:1px solid var(--glass-brd); border-radius:20px; background:rgba(255,255,255,.6); color:var(--text); box-shadow:0 2px 8px rgba(31,27,22,.06); text-decoration:none; }
+  .gb-sec-chip {
+    font-family: inherit; font-size: .8rem; cursor: pointer;
+    padding: 5px 11px; border: 1px solid var(--glass-brd); border-radius: 16px;
+    background: rgba(255,255,255,.6); color: var(--text);
+    box-shadow: 0 1px 5px rgba(31,27,22,.05); text-decoration: none;
+    flex: 0 0 auto; white-space: nowrap; line-height: 1.35;
+  }
+  .gb-subs .gb-sec-chip { font-size: .74rem; padding: 3px 9px; border-radius: 13px; }
+  .gb-search-chip { padding: 5px 10px; }
   .gb-sec-chip:hover { background:rgba(255,255,255,.85); transform:translateY(-1px); }
   .gb-sec-chip.on { background:linear-gradient(160deg,#c0392b,#962820) !important; color:#fff !important; font-weight:700; }
   .gb-sec-chip.add { border-style:dashed; color:var(--accent); }
@@ -90,19 +115,24 @@
   <h1>留言板 · 学校吐槽</h1>
   <div class="en">Guestbook</div>
 </div>
-<div class="gb-sections">
-<a class="gb-sec-chip" href="./guestbook.html">未分区</a>
-<a class="gb-sec-chip" href="./gb-study.html">学习</a>
-<a class="gb-sec-chip" href="./gb-news.html">新闻</a>
-<a class="gb-sec-chip" href="./gb-works.html">作品</a>
-<a class="gb-sec-chip" href="./gb-lost.html">失物招领</a>
-<a class="gb-sec-chip" href="./gb-game.html">游戏</a>
-<a class="gb-sec-chip" href="./gb-acg.html">二次元</a>
-<a class="gb-sec-chip" href="./gb-ent.html">内娱</a>
-<a class="gb-sec-chip on" href="./gb-rant.html">学校吐槽</a>
-<a class="gb-sec-chip" href="./gb-suggest.html">意见建议</a>
-<a class="gb-sec-chip" href="./gb-other.html">其他</a>
-<a class="gb-sec-chip" href="./search.html">🔍 搜索</a>
+<div class="gb-scroll" id="gb-main-scroll">
+  <div class="gb-sections" id="gb-sections">
+    <a class="gb-sec-chip" href="./guestbook.html">未分区</a>
+    <a class="gb-sec-chip" href="./gb-study.html">学习</a>
+    <a class="gb-sec-chip" href="./gb-news.html">新闻</a>
+    <a class="gb-sec-chip" href="./gb-works.html">作品</a>
+    <a class="gb-sec-chip" href="./gb-lost.html">失物招领</a>
+    <a class="gb-sec-chip" href="./gb-game.html">游戏</a>
+    <a class="gb-sec-chip" href="./gb-acg.html">二次元</a>
+    <a class="gb-sec-chip" href="./gb-ent.html">内娱</a>
+    <a class="gb-sec-chip on" href="./gb-rant.html">学校吐槽</a>
+    <a class="gb-sec-chip" href="./gb-suggest.html">意见建议</a>
+    <a class="gb-sec-chip" href="./gb-other.html">其他</a>
+    <a class="gb-sec-chip gb-search-chip" href="./search.html">🔍</a>
+  </div>
+</div>
+<div class="gb-scroll gb-scroll-sub" id="gb-sub-scroll">
+  <div class="gb-subs" id="gb-subs"></div>
 </div>
 <div class="gb-notice" id="gb-notice" hidden>
   <button class="gb-notice-x" id="gb-notice-x" type="button" aria-label="关闭提醒" title="不再显示">✕</button>
@@ -139,7 +169,6 @@
 </div>
 
 <div class="gb-sort" id="gb-sort"></div>
-<div class="gb-subs" id="gb-subs"></div>
 <div id="gb-list"></div>
 <div class="lb" id="lightbox" hidden>
 <div class="lb-bar"><span class="lb-title" id="lb-title"></span>
@@ -152,7 +181,7 @@
 <script>
 /* ===== 班级期刊 · 全站共享脚本（侧边栏 + 云端连接） ===== */
 var SITE = {
-  name: '达高中（非官网）',
+  name: '达高中墙Board',
   school: '达州市高级中学',
   pages: [
     { href: './',                  label: '首页',       en: 'Home',      key: 'home' },
@@ -473,17 +502,13 @@ var GB = (function () {
     var box = $('gb-subs');
     if (!box) return;
     box.textContent = '';
-    var lab = document.createElement('span');
-    lab.className = 'gb-sort-label';
-    lab.textContent = '发帖到：';
-    box.appendChild(lab);
     var list = subs.filter(function (x) { return x.main_section === curMain; });
     if (!curMain) return;          // 只有大分区页才有小分区栏
 
     if (!list.length) {
       var hint = document.createElement('span');
-      hint.style.cssText = 'font-size:.85rem;color:var(--muted);align-self:center';
-      hint.textContent = '还没有小分区，先建一个才能发帖：';
+      hint.style.cssText = 'font-size:.78rem;color:var(--muted);align-self:center;white-space:nowrap';
+      hint.textContent = '还没有小分区，先建一个：';
       box.appendChild(hint);
     }
     // 只有一个小分区时不需要「全部」
@@ -491,7 +516,7 @@ var GB = (function () {
       var all = document.createElement('button');
       all.type = 'button'; all.className = 'gb-sec-chip';
       all.textContent = '全部';
-      all.onclick = function () { curSub = ''; renderSubBar(); render(); };
+      all.onclick = function () { curSub = ''; renderSubBar(); render(); scrollChipIntoView(all); };
       box.appendChild(all);
     }
     list.forEach(function (sec) {
@@ -500,7 +525,13 @@ var GB = (function () {
       b.className = 'gb-sec-chip' + (curSub === sec.id ? ' on' : '');
       var n = messages.filter(function (m) { return m.sub_section_id === sec.id; }).length;
       b.textContent = sec.name + (n ? ' ' + n : '');
-      b.onclick = function () { curSub = (curSub === sec.id ? '' : sec.id); renderSubBar(); render(); };
+      // 点小分区就是选中它，不做"再点取消"（否则会跳回"全部"，看起来像丢了分区）
+      b.onclick = function () {
+        if (curSub === sec.id) return;
+        curSub = sec.id;
+        renderSubBar(); render();
+        scrollChipIntoView(b);
+      };
       box.appendChild(b);
     });
     // 「未分类」是每个大分区的固定小分区，不允许删除
@@ -509,17 +540,17 @@ var GB = (function () {
     var isFixed = curObj && /(未分组|未分类|未归类|默认)$/.test(btrimName(curObj.name));
     if (curSub && !isFixed) {
       var del = document.createElement('button');
-      del.type = 'button'; del.className = 'gb-sec-chip del'; del.textContent = '🗑 删除小分区';
+      del.type = 'button'; del.className = 'gb-sec-chip del'; del.textContent = '🗑 删除';
       del.onclick = function () { deleteSub(curSub); };
       box.appendChild(del);
     } else if (isFixed) {
       var fix = document.createElement('span');
-      fix.style.cssText = 'font-size:.78rem;color:var(--muted);align-self:center';
-      fix.textContent = '这是默认小分区，不能删除';
+      fix.style.cssText = 'font-size:.72rem;color:var(--muted);align-self:center;white-space:nowrap';
+      fix.textContent = '默认分区';
       box.appendChild(fix);
     }
     var add = document.createElement('button');
-    add.type = 'button'; add.className = 'gb-sec-chip add'; add.textContent = '＋ 新建小分区';
+    add.type = 'button'; add.className = 'gb-sec-chip add'; add.textContent = '＋ 新建';
     add.onclick = newSub;
     box.appendChild(add);
   }
@@ -896,6 +927,17 @@ var GB = (function () {
           if (target) curSub = target.id;
         }
       });
+  }
+
+  /* 把横滑条里点中的按钮滚到可见位置 */
+  function scrollChipIntoView(btn) {
+    try {
+      var row = btn.closest ? btn.closest('.gb-scroll') : null;
+      if (!row) return;
+      var r = btn.getBoundingClientRect(), rr = row.getBoundingClientRect();
+      if (r.left < rr.left + 16) row.scrollLeft -= (rr.left + 16 - r.left);
+      else if (r.right > rr.right - 16) row.scrollLeft += (r.right - rr.right + 16);
+    } catch (e) {}
   }
 
   function btrimName(x) { return String(x == null ? '' : x).replace(/^\s+|\s+$/g, ''); }
