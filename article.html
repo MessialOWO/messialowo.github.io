@@ -44,6 +44,29 @@
   .comment-time { font-size:.75rem; color:var(--muted); }
   .comment-body { white-space:pre-wrap; word-break:break-word; font-size:.95rem; }
   .comment-form { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+  .comment-head { align-items: center; }
+  .c-ava {
+    width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #fff; font-size: .95rem; overflow: hidden; line-height: 1;
+  }
+  .c-ava img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .c-name-wrap { display: inline-flex; flex-direction: column; line-height: 1.3; }
+  .comment-uid { font-size: .62rem; color: #9a9a9a; }
+  .c-who {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    padding-bottom: 8px; margin-bottom: 4px;
+    border-bottom: 1px dashed var(--border);
+  }
+  .c-who .c-ava { width: 28px; height: 28px; font-size: .82rem; }
+  .c-who-name { font-size: .82rem; font-weight: 700; }
+  .c-who-name small { font-size: .66rem; color: #9a9a9a; font-weight: 400; margin-left: 4px; }
+  .c-needlogin {
+    width: 100%; text-align: center; padding: 14px;
+    font-size: .82rem; color: var(--muted);
+    background: rgba(255,255,255,.5); border: 1px dashed var(--border); border-radius: 9px;
+  }
+  .c-needlogin a { color: var(--accent); font-weight: 700; }
   .comment-form input { flex:1 1 120px; min-width:0; padding:9px 12px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:16px; background:var(--bg); color:var(--text); }
   .comment-form input.grow { flex:3 1 200px; }
 
@@ -583,6 +606,88 @@ JW.storagePublic = (JW.proxy && JW.proxy.length ? String(JW.proxy[0]).replace(/\
   var $ = function (id) { return document.getElementById(id); };
   var boardId = new URLSearchParams(location.search).get('board') || '';
   var sb = null, article = null, board = null, issue = null, comments = [];
+  /* ---------- 账户 ---------- */
+  function account() {
+    try { return JSON.parse(localStorage.getItem('jw_account') || 'null'); } catch (e) { return null; }
+  }
+  function loggedIn() { var a = account(); return !!(a && a.username); }
+  function myName() { var a = account(); return a ? (a.nickname || String(a.username).replace(/^@+/, '')) : ''; }
+  function myUsername() { var a = account(); return a ? String(a.username).replace(/^@+/, '') : ''; }
+
+  function storageUrl(p) {
+    if (typeof p !== 'string' || !/^[A-Za-z0-9-]{1,64}\/[A-Za-z0-9._-]{1,80}$/.test(p)) return '';
+    return (JW.storagePublic || '') + p;
+  }
+
+  /* 评论作者的账户资料缓存 */
+  var profCache = {};
+  function loadProfiles(list) {
+    var keys = [], names = [];
+    (list || []).forEach(function (it) {
+      var u = (typeof it === 'string') ? it : it && it.author_username;
+      var n = (typeof it === 'object' && it) ? it.name : '';
+      if (u) {
+        var k = String(u).replace(/^@+/, '').toLowerCase();
+        if (k && keys.indexOf(k) < 0) keys.push(k);
+      }
+      if (n) {
+        var nn = String(n).replace(/^\s+|\s+$/g, '');
+        if (nn && names.indexOf(nn.toLowerCase()) < 0) names.push(nn);
+      }
+    });
+    if (!JW.sb) return Promise.resolve();
+    var jobs = [];
+    if (keys.length) {
+      jobs.push(JW.sb.rpc('get_profiles', { p_usernames: keys }).then(function (r) {
+        if (r.error) return;
+        var arr = r.data;
+        if (typeof arr === 'string') { try { arr = JSON.parse(arr); } catch (e) { arr = []; } }
+        (arr || []).forEach(function (p) {
+          var k = String(p.username).replace(/^@+/, '').toLowerCase();
+          if (k) profCache[k] = p;
+        });
+      }).catch(function () {}));
+    }
+    // 用户名查不到（账户改名后旧评论还挂旧名）：按显示名再查
+    names.slice(0, 15).forEach(function (nm) {
+      jobs.push(JW.sb.rpc('get_profile', { p_username: nm }).then(function (r) {
+        if (r.error || !r.data) return;
+        var p = r.data;
+        if (typeof p === 'string') { try { p = JSON.parse(p); } catch (e) { return; } }
+        if (p) profCache['#name:' + nm.toLowerCase()] = p;
+      }).catch(function () {}));
+    });
+    return Promise.all(jobs);
+  }
+  function authorOf(c) {
+    var u = c.author_username;
+    if (u) {
+      var hit = profCache[String(u).replace(/^@+/, '').toLowerCase()];
+      if (hit) return hit;
+    }
+    // 用户名没查到 → 用显示名兜底
+    if (c && c.name) {
+      var byName = profCache['#name:' + String(c.name).replace(/^\s+|\s+$/g, '').toLowerCase()];
+      if (byName) return byName;
+    }
+    return null;
+  }
+  /* 评论头像（有账户资料就用最新的） */
+  function avatarHtml(c) {
+    var p = authorOf(c);
+    var color = p ? p.avatar_color : '#c0392b';
+    var emoji = p ? p.avatar_emoji : '🙂';
+    var path = p ? (p.avatar_mode === 'image' ? p.avatar_path : null) : null;
+    var inner;
+    if (path && storageUrl(path)) {
+      inner = '<img src="' + esc(storageUrl(path)) + '" alt="" style="width:100%;height:100%;object-fit:cover">';
+    } else {
+      inner = esc(emoji);
+    }
+    var bg = /^#[0-9a-fA-F]{6}$/.test(color || '') ? color : '#c0392b';
+    return '<span class="c-ava" style="background:' + bg + '">' + inner + '</span>';
+  }
+
   var deviceId = '', busy = false;
 
   function esc(s) {
@@ -660,40 +765,75 @@ JW.storagePublic = (JW.proxy && JW.proxy.length ? String(JW.proxy[0]).replace(/\
     cm.className = 'comments';
     var h4 = document.createElement('h4'); h4.textContent = '评论 ' + comments.length; cm.appendChild(h4);
     comments.forEach(function (c) {
+      var p = authorOf(c);
+      var showName = p ? (p.nickname || String(p.username).replace(/^@+/, '')) : (c.name || '匿名');
+      var showUid = c.author_username ? ('@' + String(c.author_username).replace(/^@+/, '')) : '';
       var item = document.createElement('div'); item.className = 'comment';
-      item.innerHTML = '<div class="comment-head"><span class="comment-name">' + esc(c.name) + '</span>'
-        + '<span class="comment-time">' + fmt(c.created_at) + '</span></div>'
-        + '<div class="comment-body">' + esc(c.content) + '</div>';
+      var head = document.createElement('div'); head.className = 'comment-head';
+      head.innerHTML = avatarHtml(c)
+        + '<span class="c-name-wrap"><span class="comment-name">' + esc(showName) + '</span>'
+        + (showUid ? '<span class="comment-uid">' + esc(showUid) + '</span>' : '')
+        + '</span>'
+        + '<span class="comment-time">' + fmt(c.created_at) + '</span>';
+      var body = document.createElement('div'); body.className = 'comment-body';
+      body.textContent = c.content;
+      item.appendChild(head); item.appendChild(body);
       cm.appendChild(item);
     });
+
+    /* 评论输入区：登录后用账户身份，不填名字 */
     var form = document.createElement('div'); form.className = 'comment-form';
-    form.innerHTML = '<input type="text" id="c-name" maxlength="20" placeholder="你的名字">'
-      + '<input type="text" id="c-text" class="grow" maxlength="500" placeholder="写点评论……">'
-      + '<button class="btn-main" id="c-send" type="button">发表</button>';
+    if (loggedIn()) {
+      form.innerHTML = '<div class="c-who">'
+        + '<span class="c-ava" style="background:' + esc((account().avatarColor || '#c0392b')) + '">'
+        + esc(account().avatarEmoji || '🙂') + '</span>'
+        + '<span class="c-who-name">' + esc(myName()) + ' <small>@' + esc(myUsername()) + '</small></span>'
+        + '</div>'
+        + '<input type="text" id="c-text" class="grow" maxlength="500" placeholder="写点评论……">'
+        + '<button class="btn-main" id="c-send" type="button">发表</button>';
+    } else {
+      form.innerHTML = '<div class="c-needlogin">'
+        + '<a href="./auth.html?next=' + encodeURIComponent('article.html' + location.search) + '">登录</a>'
+        + ' 后才能评论（用你的账户身份发言）'
+        + '</div>';
+    }
     cm.appendChild(form);
     card.appendChild(cm);
     host.appendChild(card);
 
-    $('c-send').onclick = function () {
-      var n = $('c-name').value.trim(), t = $('c-text').value.trim();
-      if (!n) return alert('请填名字');
-      if (!t) return alert('评论不能为空');
-      if (busy) return; busy = true;
-      JW.sb.from('article_comments').insert({ article_id: article.id, device_id: deviceId, name: n.slice(0,20), content: t.slice(0,500) })
-        .then(function (r) { if (r.error) throw r.error; status('评论已发布 ✅'); setTimeout(function(){status('');},2000); return loadComments(); })
-        .then(function () { render(); })
-        .catch(function (e) { status('评论失败：' + (e.message || e)); })
-        .then(function () { busy = false; });
-    };
+    if (loggedIn()) {
+      $('c-send').onclick = function () {
+        var t = $('c-text').value.trim();
+        if (!t) return alert('评论不能为空');
+        if (!myUsername()) { alert('还没登录，请先登录。'); return; }
+        if (busy) return; busy = true;
+        JW.sb.from('article_comments').insert({
+          article_id: article.id,
+          device_id: deviceId,
+          name: myName().slice(0, 20),
+          content: t.slice(0, 500),
+          author_username: myUsername()
+        }).then(function (r) { if (r.error) throw r.error; status('评论已发布 ✅'); setTimeout(function(){status('');},2000); return loadComments(); })
+          .then(function () { render(); })
+          .catch(function (e) { status('评论失败：' + (e.message || e)); })
+          .then(function () { busy = false; });
+      };
+      var ti = $('c-text');
+      if (ti) ti.addEventListener('keydown', function (e) { if (e.key === 'Enter') $('c-send').click(); });
+    }
     status('');
   }
 
   function loadComments() {
     if (!article) { comments = []; return Promise.resolve(); }
-    return JW.sb.from('article_comments').select('id,created_at,name,content')
+    return JW.sb.from('article_comments').select('id,created_at,name,content,author_username')
       .eq('article_id', article.id).eq('hidden', false)
       .order('created_at', { ascending: true }).limit(200)
-      .then(function (r) { if (!r.error) comments = r.data || []; });
+      .then(function (r) {
+        if (!r.error) comments = r.data || [];
+        // 预载这些评论作者的账户资料（头像、最新昵称）
+        return loadProfiles(comments);
+      });
   }
 
   function load() {
