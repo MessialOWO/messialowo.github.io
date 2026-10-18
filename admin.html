@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<meta name="robots" content="noindex, nofollow">
+<title>管理面板</title>
+<style>
+  body { background: #12100f !important; color: #e8e4de; }
+  .container { max-width: 1040px; padding: 0 18px 60px; }
+  a { color: #ff8a80; }
+
+  .ad-gate {
+    max-width: 380px; margin: 14vh auto 0; padding: 30px 26px;
+    background: #1c1917; border: 1px solid #2e2926; border-radius: 16px;
+  }
+  .ad-gate h1 { font-size: 1.15rem; margin-bottom: 6px; color: #f0ebe4; }
+  .ad-gate p { font-size: .78rem; color: #7d7671; margin-bottom: 20px; line-height: 1.7; }
+  .ad-input {
+    width: 100%; padding: 11px 13px; margin-bottom: 12px;
+    background: #12100f; border: 1px solid #332d29; border-radius: 9px;
+    color: #e8e4de; font-family: inherit; font-size: 1rem;
+  }
+  .ad-input:focus { outline: none; border-color: #c0392b; }
+  .ad-btn {
+    padding: 10px 20px; border-radius: 9px; border: 1px solid #3a332f;
+    background: #26211d; color: #e8e4de; font-family: inherit;
+    font-size: .88rem; cursor: pointer; transition: all .15s;
+  }
+  .ad-btn:hover { background: #332c27; border-color: #4a413a; }
+  .ad-btn:disabled { opacity: .45; cursor: default; }
+  .ad-btn-primary { background: #c0392b; border-color: #c0392b; color: #fff; }
+  .ad-btn-primary:hover { background: #d0453a; border-color: #d0453a; }
+  .ad-btn-danger { background: #4a1f1a; border-color: #6d2a22; color: #ff9d92; }
+  .ad-btn-danger:hover { background: #5d2620; }
+
+  .ad-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 22px 0 16px; border-bottom: 1px solid #2a2521; margin-bottom: 22px;
+    flex-wrap: wrap; gap: 10px;
+  }
+  .ad-title { font-size: 1.15rem; color: #f0ebe4; }
+  .ad-title small { display: block; font-size: .68rem; color: #6b645f; letter-spacing: 1px; margin-top: 3px; }
+
+  .ad-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
+  .ad-tab {
+    padding: 7px 15px; border-radius: 8px; cursor: pointer;
+    background: #1c1917; border: 1px solid #2e2926; color: #9a938d;
+    font-family: inherit; font-size: .82rem;
+  }
+  .ad-tab.on { background: #c0392b; border-color: #c0392b; color: #fff; }
+  .ad-tab:hover:not(.on) { background: #26211d; }
+
+  .ad-card {
+    background: #1a1715; border: 1px solid #2a2521;
+    border-radius: 12px; padding: 18px 20px; margin-bottom: 14px;
+  }
+  .ad-card h3 { font-size: .88rem; color: #b8b0a8; margin-bottom: 14px; letter-spacing: .5px; }
+
+  .ad-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; }
+  .ad-stat {
+    background: #12100f; border: 1px solid #242019; border-radius: 9px;
+    padding: 13px 14px;
+  }
+  .ad-stat b { display: block; font-size: 1.35rem; color: #f0ebe4; line-height: 1.2; }
+  .ad-stat span { font-size: .7rem; color: #6b645f; }
+
+  .ad-line {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 0; border-bottom: 1px solid #221e1a; font-size: .82rem; gap: 10px;
+  }
+  .ad-line:last-child { border-bottom: none; }
+  .ad-line .k { color: #8b847e; }
+  .ad-line .v { color: #e8e4de; text-align: right; }
+  .ad-ok { color: #4caf50; }
+  .ad-bad { color: #ef5350; }
+  .ad-wait { color: #ffb74d; }
+
+  .ad-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+  .ad-count { font-size: .76rem; color: #6b645f; margin-left: auto; }
+
+  .ad-list { display: flex; flex-direction: column; gap: 6px; max-height: 62vh; overflow-y: auto; }
+  .ad-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    background: #12100f; border: 1px solid #242019; border-radius: 8px;
+    padding: 10px 12px; font-size: .8rem;
+  }
+  .ad-item:hover { border-color: #332d29; }
+  .ad-item input[type=checkbox] { margin-top: 2px; accent-color: #c0392b; flex-shrink: 0; }
+  .ad-item-body { flex: 1; min-width: 0; }
+  .ad-item-top { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin-bottom: 3px; }
+  .ad-item-name { color: #d8d1ca; font-weight: 700; }
+  .ad-item-meta { color: #6b645f; font-size: .7rem; }
+  .ad-item-text { color: #8b847e; line-height: 1.6; word-break: break-word; }
+  .ad-item-tag {
+    font-size: .64rem; padding: 1px 7px; border-radius: 6px;
+    background: #26211d; color: #9a938d;
+  }
+  .ad-empty { text-align: center; padding: 30px; color: #5a5350; font-size: .82rem; }
+  .ad-toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+    background: #2a2521; border: 1px solid #3a332f; color: #e8e4de;
+    padding: 11px 20px; border-radius: 10px; font-size: .84rem;
+    z-index: 300; box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  }
+  .ad-toast[hidden] { display: none; }
+</style>
+<link rel="icon" href="./img/logo.png">
+<link rel="stylesheet" href="./assets/site.css">
+<link rel="stylesheet" href="./assets/liquid-glass.css">
+</head>
+<body class="bare-page">
+<div class="ad-toast" id="ad-toast" hidden></div>
+
+<!-- 密码门 -->
+<div class="ad-gate" id="ad-gate">
+  <h1>管理面板</h1>
+  <p>需要管理密码。这个页面不在网站导航里，只能通过地址直接访问。</p>
+  <input class="ad-input" type="password" id="ad-pw" placeholder="管理密码" autocomplete="off">
+  <div id="ad-login-msg" style="font-size:.76rem;color:#ef5350;min-height:1.2em;margin-bottom:12px"></div>
+  <button class="ad-btn ad-btn-primary" id="ad-login-btn" type="button" style="width:100%">进入</button>
+</div>
+
+<!-- 主面板 -->
+<div id="ad-panel" hidden>
+  <div class="ad-head">
+    <div class="ad-title">管理面板<small>ADMIN CONSOLE</small></div>
+    <div style="display:flex;gap:8px">
+      <button class="ad-btn" id="ad-refresh" type="button">刷新</button>
+      <button class="ad-btn" id="ad-logout" type="button">退出</button>
+    </div>
+  </div>
+
+  <div class="ad-tabs">
+    <button class="ad-tab on" data-tab="overview" type="button">概览</button>
+    <button class="ad-tab" data-tab="diag" type="button">连接诊断</button>
+    <button class="ad-tab" data-tab="manage" type="button">内容管理</button>
+  </div>
+
+  <!-- 概览 -->
+  <div id="ad-sec-overview">
+    <div class="ad-card">
+      <h3>数据统计</h3>
+      <div id="ad-overview-body"></div>
+    </div>
+  </div>
+
+  <!-- 连接诊断 -->
+  <div id="ad-sec-diag" hidden>
+    <div class="ad-card">
+      <h3>线路可达性与延迟</h3>
+      <div class="ad-actions">
+        <button class="ad-btn" id="ad-diag-run" type="button">重新测试</button>
+      </div>
+      <div id="ad-diag-body"></div>
+    </div>
+  </div>
+
+  <!-- 内容管理 -->
+  <div id="ad-sec-manage" hidden>
+    <div class="ad-card">
+      <h3>批量删除</h3>
+      <div class="ad-tabs" id="ad-kind-tabs" style="margin-bottom:14px"></div>
+      <div class="ad-actions">
+        <button class="ad-btn" id="ad-sel-all" type="button">全选</button>
+        <button class="ad-btn" id="ad-sel-none" type="button">取消全选</button>
+        <button class="ad-btn ad-btn-danger" id="ad-del-btn" type="button" disabled>删除选中</button>
+        <span class="ad-count" id="ad-sel-count"></span>
+      </div>
+      <div class="ad-list" id="ad-list"></div>
+    </div>
+  </div>
+</div>
+<script src="./vendor/supabase.js"></script>
+<script>
+/* ===== 班级期刊 · 云端连接（所有页面共用） ===== */
+var JW = {
+  url: 'https://wvqrnkgjwnlhjhfuonts.supabase.co',
+  key: 'sb_publishable_cGy9MFHh3-t2i0kEnbHeeg_A1-rUMaF',
+  bucket: 'avatars',
+  timeoutMs: 10000,
+  /* 中转线路列表（按顺序尝试）
+     ⚠ 国内直连 Supabase 会被重置，所以实际全靠中转。
+     Cloudflare Pages 额度无限，放第一位；Deno 额度紧张，只作备用。 */
+  proxy: [
+    'https://jw-relay.pages.dev',
+    'https://arid-bluejay-4932.messialowo.deno.net'
+  ],
+  /* 中转健康状态：连续失败就暂时跳过，直接连主库，避免每次白等超时 */
+  _proxyFail: {}, _proxySkipUntil: 0,
+  _directOK: null, _directFailCount: 0, _directSkipUntil: 0,
+  /* 用户手动选择：'direct' 只直连 / 'relay' 走中转 / null 未选（先试直连） */
+  lineMode: null, _asking: false,      // null=默认(直连优先+5秒询问) / 'direct' / 'relay'
+  LINE_KEY: 'jw_line_mode',
+  sb: null, uid: '', deviceId: '', ready: false, error: null, _waiters: [],
+  whenReady: function (cb) { if (JW.ready) cb(JW.error); else JW._waiters.push(cb); },
+  _settle: function (err) {
+    JW.error = err || null; JW.ready = true;
+    JW._waiters.splice(0).forEach(function (cb) { try { cb(JW.error); } catch (e) { console.error(e); } });
+    try { document.dispatchEvent(new Event('jw:ready')); } catch (e) {}
+  },
+  withTimeout: function (p, ms, what) {
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      var t = setTimeout(function () {
+        if (done) return; done = true;
+        reject(new Error('连接超时：' + (what || '请求') + '（' + Math.round(ms / 1000) + ' 秒无响应）'));
+      }, ms);
+      Promise.resolve(p).then(function (v) { if (done) return; done = true; clearTimeout(t); resolve(v); },
+        function (e) { if (done) return; done = true; clearTimeout(t); reject(e); });
+    });
+  },
+  retry: function (fn, times) {
+    times = times === undefined ? 2 : times;
+    var n = 0;
+    var run = function () {
+      n++;
+      return Promise.resolve().then(fn).catch(function (e) {
+        if (n >= times) throw e;
+        return new Promise(function (r) { setTimeout(r, 1200); }).then(run);
+      });
+    };
+    return run();
+  },
+  makeFetch: function () {
+    var BASE = JW.url;
+    return function (input, init) {
+      var url = (typeof input === 'string') ? input : (input && input.url) || '';
+      var rel = null;
+      try {
+        var u = new URL(url, BASE);
+        if (u.origin === BASE) rel = u.pathname + u.search;
+      } catch (e) {}
+      if (!rel || !JW.proxy || !JW.proxy.length) return fetch(input, init);
+
+      /* 文件存储：国内直连 Supabase 会被重置，所以也走中转（Cloudflare 带宽无限） */
+
+      /* ===== 连接策略 =====
+         实测：国内直连 Supabase 会被 RST 重置，所以默认直接走中转。
+         中转顺序：Cloudflare Pages（额度无限）→ Deno（额度紧张，备用）
+         用户可在「用户中心 → 连接线路」里改成只连官方（海外网络适用）。
+         所有中转都失败时，最后再试直连兜底。 */
+      var cleanList = JW.proxy.map(function (x) { return String(x).replace(/\/$/, ''); });
+
+      function viaRelay() {
+        if (!cleanList.length) return fetch(url, init);
+        function attempt(i) {
+          if (i >= cleanList.length) {
+            console.warn('所有中转都失败，最后试直连');
+            return fetch(url, init);
+          }
+          var clean = cleanList[i];
+          return fetch(clean + rel, init).then(function (res) {
+            if (!res || res.status >= 500) throw new Error('中转返回 ' + (res && res.status));
+            return res;
+          }).catch(function (e) {
+            console.warn('中转失败：' + clean, e && e.message);
+            return attempt(i + 1);
+          });
+        }
+        return attempt(0);
+      }
+
+      // 用户明确选「只连官方」→ 直连
+      if (JW.lineMode === 'direct') return fetch(url, init);
+
+      // 默认 / 「只用中转」→ 走中转
+      return viaRelay();
+    };
+  }
+};
+/* 图片/音视频的公开地址：国内直连 Supabase 会被重置，所以走中转
+   （Cloudflare Pages 带宽无限，图片走它不心疼） */
+JW.storagePublic = (JW.proxy && JW.proxy.length ? String(JW.proxy[0]).replace(/\/$/, '') : JW.url)
+                 + '/storage/v1/object/public/' + JW.bucket + '/';
+
+(function () {
+  /* ---- 连接线路：读用户手动选择；不选就是「自动」 ---- */
+  try {
+    var lm = localStorage.getItem(JW.LINE_KEY);
+    if (lm === 'direct' || lm === 'relay') JW.lineMode = lm;
+  } catch (e) {}
+
+  JW.setLine = function (mode) {
+    JW.lineMode = (mode === 'direct' || mode === 'relay') ? mode : null;
+    try {
+      if (JW.lineMode) localStorage.setItem(JW.LINE_KEY, JW.lineMode);
+      else localStorage.removeItem(JW.LINE_KEY);
+    } catch (e) {}
+    return JW.lineMode;
+  };
+  JW.getLine = function () { return JW.lineMode; };
+  JW.proxyList = function () { return JW.proxy.slice(); };
+
+  function newDeviceId() {
+    if (window.crypto && window.crypto.randomUUID) return 'gb-' + window.crypto.randomUUID();
+    return 'gb-' + Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  }
+  JW.deviceId = localStorage.getItem('jiangwan_gb_device') || '';
+  if (!JW.deviceId || JW.deviceId.length < 8 || JW.deviceId.length > 64) {
+    JW.deviceId = newDeviceId();
+    try { localStorage.setItem('jiangwan_gb_device', JW.deviceId); } catch (e) {}
+  }
+  function boot() {
+    if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
+      JW._settle(new Error('云端组件没加载到（vendor/supabase.js）'));
+      return;
+    }
+    try {
+      JW.sb = window.supabase.createClient(JW.url, JW.key, {
+        auth: { persistSession: true, autoRefreshToken: true },
+        global: JW.proxy && JW.proxy.length ? { fetch: JW.makeFetch() } : undefined
+      });
+    } catch (e) { JW._settle(e); return; }
+    JW.sb.auth.getSession().then(function (r) {
+      var u = r && r.data && r.data.session && r.data.session.user;
+      if (u && u.id) JW.uid = u.id;
+      return null;
+    }).catch(function () { return null; })
+      .then(function () {
+        if (JW.uid) return null;
+        return JW.retry(function () {
+          return JW.withTimeout(JW.sb.auth.signInAnonymously(), JW.timeoutMs, '登录匿名身份');
+        }, 2).then(function (res) {
+          if (res && res.error) throw new Error(res.error.message || '匿名登录被拒绝');
+          if (res && res.data && res.data.user) JW.uid = res.data.user.id || '';
+          return null;
+        });
+      })
+      .then(function () { JW._settle(null); })
+      .catch(function (e) { JW._settle(e); });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+</script>
+<script>
+
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var PW_SALT = 'jw-salt-2026';
+  var PWH = '';               // 密码哈希（登录后保存，放 sessionStorage）
+  var SKEY = 'jw_admin_hash';
+  var CUR = 'overview';       // 当前标签
+  var LIST_KIND = 'message';  // 当前列表类型
+
+  function toast(msg, ms) {
+    var t = $('ad-toast');
+    t.textContent = msg;
+    t.hidden = false;
+    clearTimeout(t._t);
+    t._t = setTimeout(function () { t.hidden = true; }, ms || 2600);
+  }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  function fmtTime(ts) {
+    var d = new Date(ts); if (isNaN(d)) return '';
+    var p = function (n) { return n < 10 ? '0' + n : '' + n; };
+    return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  function fmtBytes(b) {
+    b = Number(b) || 0;
+    if (b < 1024) return b + ' B';
+    if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+    if (b < 1073741824) return (b / 1048576).toFixed(2) + ' MB';
+    return (b / 1073741824).toFixed(2) + ' GB';
+  }
+
+  function sha(text) {
+    if (window.crypto && crypto.subtle && window.TextEncoder) {
+      return crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then(function (b) {
+        return Array.prototype.map.call(new Uint8Array(b), function (x) {
+          return ('0' + x.toString(16)).slice(-2);
+        }).join('');
+      });
+    }
+    return Promise.reject(new Error('当前环境不支持加密（请用 https 打开）'));
+  }
+
+  /* ================= 登录 ================= */
+  function doLogin() {
+    var pw = $('ad-pw').value;
+    if (!pw) { $('ad-login-msg').textContent = '请输入管理密码'; return; }
+    var btn = $('ad-login-btn');
+    btn.disabled = true; btn.textContent = '验证中…';
+    $('ad-login-msg').textContent = '';
+    sha(PW_SALT + '|' + pw).then(function (h) {
+      return JW.sb.rpc('check_article_password', { p_hash: h }).then(function (r) {
+        return { h: h, ok: r.data === true };
+      });
+    }).then(function (o) {
+      if (!o.ok) throw new Error('bad password');
+      PWH = o.h;
+      try { sessionStorage.setItem(SKEY, PWH); } catch (e) {}
+      enter();
+    }).catch(function (e) {
+      $('ad-login-msg').textContent = /bad password/.test((e && e.message) || '') ? '密码不对' : ('失败：' + ((e && e.message) || e));
+    }).then(function () { btn.disabled = false; btn.textContent = '进入'; });
+  }
+
+  function enter() {
+    $('ad-gate').hidden = true;
+    $('ad-panel').hidden = false;
+    loadOverview();
+  }
+
+  /* ================= 概览 ================= */
+  function loadOverview() {
+    var box = $('ad-overview-body');
+    box.innerHTML = '<div class="ad-empty">读取中……</div>';
+    JW.sb.rpc('admin_stats', { p_pw_hash: PWH }).then(function (r) {
+      if (r.error) throw r.error;
+      var d = r.data;
+      if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) {} }
+      if (!d) throw new Error('无数据');
+      box.innerHTML = '';
+
+      var stats = [
+        ['帖子', d.messages], ['回复', d.replies], ['附件', d.message_images],
+        ['文章', d.articles], ['作品', d.works], ['账户', d.accounts],
+        ['小分区', d.sections], ['通知', d.notifications],
+        ['期刊', d.issues], ['板块', d.boards]
+      ];
+      var g = document.createElement('div');
+      g.className = 'ad-grid';
+      stats.forEach(function (s) {
+        var el = document.createElement('div');
+        el.className = 'ad-stat';
+        el.innerHTML = '<b>' + (s[1] == null ? '—' : s[1]) + '</b><span>' + s[0] + '</span>';
+        g.appendChild(el);
+      });
+      box.appendChild(g);
+
+      // 存储与近期
+      var extra = document.createElement('div');
+      extra.style.marginTop = '14px';
+      var rows = [
+        ['附件占用（数据库记录）', fmtBytes(d.storage_bytes)],
+        ['近 7 天新帖', d.recent_messages],
+        ['近 7 天新文章', d.recent_articles],
+        ['置顶帖', d.pinned_messages],
+        ['隐藏帖', d.hidden_messages]
+      ];
+      rows.forEach(function (r) {
+        var l = document.createElement('div');
+        l.className = 'ad-line';
+        l.innerHTML = '<span class="k">' + esc(r[0]) + '</span><span class="v">' + esc(String(r[1] == null ? '—' : r[1])) + '</span>';
+        extra.appendChild(l);
+      });
+      box.appendChild(extra);
+
+      // 附件类型分布
+      if (d.media && d.media.length) {
+        var h3 = document.createElement('h3');
+        h3.style.marginTop = '18px';
+        h3.textContent = '附件类型分布';
+        box.appendChild(h3);
+        d.media.forEach(function (m) {
+          var l = document.createElement('div');
+          l.className = 'ad-line';
+          l.innerHTML = '<span class="k">' + esc(m.type) + '</span>'
+            + '<span class="v">' + m.cnt + ' 个 · ' + fmtBytes(m.bytes) + '</span>';
+          box.appendChild(l);
+        });
+      }
+
+      // 各分区帖子数
+      if (d.subsections && d.subsections.length) {
+        var h4 = document.createElement('h3');
+        h4.style.marginTop = '18px';
+        h4.textContent = '各大分区的小分区数';
+        box.appendChild(h4);
+        d.subsections.forEach(function (s) {
+          var l = document.createElement('div');
+          l.className = 'ad-line';
+          l.innerHTML = '<span class="k">' + esc(s.main) + '</span><span class="v">' + s.subs + ' 个</span>';
+          box.appendChild(l);
+        });
+      }
+    }).catch(function (e) {
+      box.innerHTML = '<div class="ad-empty ad-bad">读取失败：' + esc((e && e.message) || e) + '</div>';
+    });
+  }
+
+  /* ================= 连接诊断 ================= */
+  function probe(label, url, headers) {
+    var t0 = performance.now();
+    return new Promise(function (res) {
+      var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      var timer = setTimeout(function () {
+        if (ctl) { try { ctl.abort(); } catch (e) {} }
+        res({ label: label, ok: false, ms: null, note: '超时（8 秒）' });
+      }, 8000);
+      var init = { method: 'GET', cache: 'no-store' };
+      if (ctl) init.signal = ctl.signal;
+      if (headers) init.headers = headers;
+      fetch(url, init).then(function (r) {
+        clearTimeout(timer);
+        res({ label: label, ok: r.ok || r.status < 500, ms: Math.round(performance.now() - t0), note: 'HTTP ' + r.status });
+      }).catch(function (e) {
+        clearTimeout(timer);
+        res({ label: label, ok: false, ms: null, note: (e && e.message) ? String(e.message).slice(0, 40) : '失败' });
+      });
+    });
+  }
+
+  function runDiag() {
+    var box = $('ad-diag-body');
+    box.innerHTML = '<div class="ad-empty">正在测试各条线路……</div>';
+    var KEY = JW.key;
+    var hdr = { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY };
+    var probes = [
+      probe('直连 Supabase', JW.url + '/rest/v1/gb_sections?select=name&limit=1', hdr)
+    ];
+    (JW.proxy || []).forEach(function (p, i) {
+      var name = p.indexOf('pages.dev') >= 0 ? 'Cloudflare 中转'
+               : (p.indexOf('deno.net') >= 0 ? 'Deno 中转' : ('中转 ' + (i + 1)));
+      probes.push(probe(name, String(p).replace(/\/$/, '') + '/rest/v1/gb_sections?select=name&limit=1', hdr));
+    });
+    probes.push(probe('GitHub Pages（本站）', './index.html?v=' + Date.now()));
+    probes.push(probe('Supabase 存储', JW.url.replace('https://', 'https://') + '/storage/v1/object/public/avatars/', null));
+
+    Promise.all(probes).then(function (results) {
+      box.innerHTML = '';
+      results.forEach(function (r) {
+        var l = document.createElement('div');
+        l.className = 'ad-line';
+        var status = r.ok
+          ? '<span class="ad-ok">✅ ' + (r.ms != null ? r.ms + ' ms' : '可达') + '</span>'
+          : '<span class="ad-bad">❌ ' + esc(r.note || '不可达') + '</span>';
+        l.innerHTML = '<span class="k">' + esc(r.label) + '</span><span class="v">' + status + '</span>';
+        box.appendChild(l);
+      });
+
+      // 汇总
+      var sum = document.createElement('div');
+      sum.className = 'ad-line';
+      sum.style.marginTop = '10px';
+      sum.style.borderTop = '1px solid #2a2521';
+      sum.style.paddingTop = '10px';
+      var good = results.filter(function (x) { return x.ok; }).length;
+      sum.innerHTML = '<span class="k">可用线路</span><span class="v">' + good + ' / ' + results.length + '</span>';
+      box.appendChild(sum);
+    });
+  }
+
+  /* ================= 内容管理 ================= */
+  var KINDS = [
+    ['message', '帖子'], ['reply', '回复'], ['article', '文章'],
+    ['work', '作品'], ['image', '附件'], ['notification', '通知']
+  ];
+
+  function renderKindTabs() {
+    var box = $('ad-kind-tabs');
+    box.textContent = '';
+    KINDS.forEach(function (k) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ad-tab' + (LIST_KIND === k[0] ? ' on' : '');
+      b.textContent = k[1];
+      b.onclick = function () { LIST_KIND = k[0]; renderKindTabs(); loadList(); };
+      box.appendChild(b);
+    });
+  }
+
+  function loadList() {
+    var box = $('ad-list');
+    box.innerHTML = '<div class="ad-empty">读取中……</div>';
+    $('ad-sel-count').textContent = '';
+    JW.sb.rpc('admin_list', { p_kind: LIST_KIND, p_pw_hash: PWH, p_limit: 200, p_offset: 0 })
+      .then(function (r) {
+        if (r.error) throw r.error;
+        var rows = r.data;
+        if (typeof rows === 'string') { try { rows = JSON.parse(rows); } catch (e) { rows = []; } }
+        box.innerHTML = '';
+        if (!rows || !rows.length) {
+          box.innerHTML = '<div class="ad-empty">这个分类下没有内容。</div>';
+          return;
+        }
+        rows.forEach(function (it) {
+          var el = document.createElement('label');
+          el.className = 'ad-item';
+          var cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.value = it.id;
+          cb.onchange = updateSelCount;
+          var body = document.createElement('div');
+          body.className = 'ad-item-body';
+          body.innerHTML =
+            '<div class="ad-item-top">'
+            + '<span class="ad-item-name">' + esc(it.name || '(无名)') + '</span>'
+            + (it.tag ? '<span class="ad-item-tag">' + esc(it.tag) + '</span>' : '')
+            + (it.is_pinned ? '<span class="ad-item-tag" style="background:#3d1d18;color:#ff9d92">置顶</span>' : '')
+            + (it.hidden ? '<span class="ad-item-tag">隐藏</span>' : '')
+            + '<span class="ad-item-meta">' + fmtTime(it.created_at) + '</span>'
+            + '</div>'
+            + '<div class="ad-item-text">' + esc(it.text || '') + '</div>';
+          el.appendChild(cb);
+          el.appendChild(body);
+          box.appendChild(el);
+        });
+        updateSelCount();
+      }).catch(function (e) {
+        box.innerHTML = '<div class="ad-empty ad-bad">读取失败：' + esc((e && e.message) || e) + '</div>';
+      });
+  }
+
+  function selectedIds() {
+    return Array.prototype.map.call(
+      document.querySelectorAll('#ad-list input[type=checkbox]:checked'),
+      function (c) { return c.value; }
+    );
+  }
+  function updateSelCount() {
+    var n = selectedIds().length;
+    $('ad-sel-count').textContent = n ? ('已选 ' + n + ' 项') : '';
+    $('ad-del-btn').disabled = n === 0;
+  }
+
+  function selectAll(on) {
+    Array.prototype.forEach.call(
+      document.querySelectorAll('#ad-list input[type=checkbox]'),
+      function (c) { c.checked = on; }
+    );
+    updateSelCount();
+  }
+
+  function delSelected() {
+    var ids = selectedIds();
+    if (!ids.length) return;
+    var kindName = (KINDS.filter(function (k) { return k[0] === LIST_KIND; })[0] || ['', LIST_KIND])[1];
+    if (!confirm('确定删除选中的 ' + ids.length + ' 条' + kindName + '？\n\n不可恢复。')) return;
+    var btn = $('ad-del-btn');
+    btn.disabled = true; btn.textContent = '删除中…';
+    JW.sb.rpc('admin_bulk_delete', { p_kind: LIST_KIND, p_ids: ids, p_pw_hash: PWH })
+      .then(function (r) {
+        if (r.error) throw r.error;
+        var d = r.data;
+        if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) {} }
+        toast('已删除 ' + ((d && d.deleted) || 0) + ' 条');
+        loadList();
+        if (CUR === 'overview') loadOverview();
+      }).catch(function (e) {
+        toast('删除失败：' + ((e && e.message) || e), 4000);
+      }).then(function () { btn.disabled = false; btn.textContent = '删除选中'; });
+  }
+
+  /* ================= 标签切换 ================= */
+  function showTab(name) {
+    CUR = name;
+    Array.prototype.forEach.call(document.querySelectorAll('.ad-tab[data-tab]'), function (b) {
+      b.classList.toggle('on', b.dataset.tab === name);
+    });
+    $('ad-sec-overview').hidden = name !== 'overview';
+    $('ad-sec-diag').hidden = name !== 'diag';
+    $('ad-sec-manage').hidden = name !== 'manage';
+    if (name === 'overview') loadOverview();
+    if (name === 'diag') runDiag();
+    if (name === 'manage') { renderKindTabs(); loadList(); }
+  }
+
+  /* ================= 启动 ================= */
+  function boot() {
+    $('ad-login-btn').onclick = doLogin;
+    $('ad-pw').addEventListener('keydown', function (e) { if (e.key === 'Enter') doLogin(); });
+    $('ad-logout').onclick = function () {
+      try { sessionStorage.removeItem(SKEY); } catch (e) {}
+      PWH = '';
+      location.reload();
+    };
+    Array.prototype.forEach.call(document.querySelectorAll('.ad-tab[data-tab]'), function (b) {
+      b.onclick = function () { showTab(b.dataset.tab); };
+    });
+    $('ad-refresh').onclick = function () { showTab(CUR); };
+    $('ad-sel-all').onclick = function () { selectAll(true); };
+    $('ad-sel-none').onclick = function () { selectAll(false); };
+    $('ad-del-btn').onclick = delSelected;
+    $('ad-diag-run').onclick = runDiag;
+
+    JW.whenReady(function (e) {
+      if (e) {
+        $('ad-login-msg').textContent = '连不上服务器：' + ((e && e.message) || e);
+        return;
+      }
+      var saved = '';
+      try { saved = sessionStorage.getItem(SKEY) || ''; } catch (e2) {}
+      if (saved) { PWH = saved; enter(); }
+    });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+</script>
+
+</body>
+</html>
