@@ -5,6 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light">
 <title>文章 | 达高中墙Board</title>
+<meta name="description" content="达高中墙Board 班级期刊文章：同学们写的散文、诗歌、议论与学习笔记。">
+<meta name="keywords" content="达州市高级中学,达高中,班级期刊,学生文章,散文,诗歌">
+<meta name="author" content="某肖Messial">
+<link rel="canonical" href="https://messialowo.github.io/article.html">
+<meta name="robots" content="noindex, nofollow">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="达高中墙Board">
+<meta property="og:title" content="文章 | 达高中墙Board">
+<meta property="og:description" content="达高中墙Board 班级期刊文章：同学们写的散文、诗歌、议论与学习笔记。">
+<meta property="og:url" content="https://messialowo.github.io/article.html">
+<meta property="og:image" content="https://messialowo.github.io/img/logo.png">
+<meta property="og:locale" content="zh_CN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="文章 | 达高中墙Board">
+<meta name="twitter:description" content="达高中墙Board 班级期刊文章。">
+<meta name="twitter:image" content="https://messialowo.github.io/img/logo.png">
+<meta name="theme-color" content="#c0392b">
 <link rel="icon" href="./img/logo.png">
 <link rel="stylesheet" href="./assets/site.css">
 <link rel="stylesheet" href="./assets/liquid-glass.css">
@@ -353,6 +370,44 @@ SITE.BG = (function () {
     clear: function () {
       try { localStorage.removeItem(SRC_KEY); localStorage.removeItem(CFG_KEY); } catch (e) {}
       apply('', {});
+    }
+  };
+})();
+
+
+/* 文章加载后更新 SEO 信息（分享出去时标题正确） */
+(function () {
+  function setMeta(name, val) {
+    if (!val) return;
+    var m = document.querySelector('meta[name="' + name + '"]');
+    if (m) m.setAttribute('content', val);
+  }
+  function setProp(prop, val) {
+    if (!val) return;
+    var m = document.querySelector('meta[property="' + prop + '"]');
+    if (m) m.setAttribute('content', val);
+  }
+  window.__jwSetArticleSEO = function (title, author, body) {
+    if (!title) return;
+    var full = title + ' | 达高中墙Board';
+    document.title = full;
+    var desc = (body || '').replace(/\s+/g, ' ').trim().slice(0, 110);
+    if (desc) {
+      setMeta('description', desc);
+      setProp('og:description', desc);
+      setMeta('twitter:description', desc);
+    }
+    setProp('og:title', full);
+    setMeta('twitter:title', full);
+    if (author) {
+      setMeta('author', author);
+      var m = document.querySelector('meta[property="article:author"]');
+      if (!m) {
+        m = document.createElement('meta');
+        m.setAttribute('property', 'article:author');
+        document.head.appendChild(m);
+      }
+      m.setAttribute('content', author);
     }
   };
 })();

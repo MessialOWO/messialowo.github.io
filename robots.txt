@@ -1,0 +1,20 @@
+# 达高中墙Board
+# 只开放首页和留言板；其余页面靠自身的 noindex 标签阻止收录
+
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /relay.html
+Disallow: /articles.html
+
+User-agent: Baiduspider
+Allow: /
+Disallow: /admin.html
+
+User-agent: bingbot
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+Sitemap: https://messialowo.github.io/sitemap.xml
