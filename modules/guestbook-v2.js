@@ -1061,7 +1061,7 @@ var GB = (function () {
       this.style.height = Math.min(this.scrollHeight, Math.round(window.innerHeight * 0.4)) + 'px';
     });
 
-    showLoading('加载中，服务器在国外，请耐心等待www');
+    showLoading('加载中，请耐心等待…');
     loadSections().then(loadAll).then(function () {
       connected = true;
       renderSortBar(); renderSubBar(); render();

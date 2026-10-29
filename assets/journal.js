@@ -32,7 +32,7 @@
     panel.textContent = '';
     var box = document.createElement('div');
     box.className = 'jr-loading';
-    box.innerHTML = '<span class="jr-spin"></span><span>' + (text || '加载中，服务器在国外，请耐心等待www') + '</span>';
+    box.innerHTML = '<span class="jr-spin"></span><span>' + (text || '加载中，请耐心等待…') + '</span>';
     panel.appendChild(box);
   }
 
