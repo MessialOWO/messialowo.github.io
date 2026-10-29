@@ -234,7 +234,8 @@ var GB = (function () {
     item.addEventListener('click', function (e) {
       var t = e.target;
       if (!t || !t.closest) return;
-      if (t.closest('button, a, input, textarea, select, audio, video, .gb-action-btn, .gb-attach, .gb-img, .gb-fold-bar, [data-no-nav]')) return;
+      // 交互元素一律不跳：按钮、链接、输入框、媒体、附件、折叠条、头像/昵称（点它们要开资料卡）
+      if (t.closest('button, a, input, textarea, select, audio, video, .gb-action-btn, .gb-attach, .gb-img, .gb-fold-bar, .avatar-circle, [data-profile], [data-no-nav]')) return;
       // 有选区（用户刚选中文字）时不跳
       try { if (String(window.getSelection() || '').length > 0) return; } catch (err) {}
       location.href = './post.html?id=' + encodeURIComponent(msg.id);
