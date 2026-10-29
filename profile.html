@@ -682,7 +682,7 @@ JW.storagePublic = (JW.proxy && JW.proxy.length ? String(JW.proxy[0]).replace(/\
     h += '<div class="pf-bio' + (prof.bio ? '' : ' empty') + '">'
        + esc(prof.bio || '这个人很懒，什么都没写') + '</div>';
     h += '<div class="pf-stats">';
-    h += '<div class="pf-stat"><b>' + (prof.post_count || 0) + '</b><span>发帖</span></div>';
+    h += '<div class="pf-stat"><b>' + ((prof.post_count != null ? prof.post_count : prof.posts) || 0) + '</b><span>发帖</span></div>';
     h += '<div class="pf-stat"><b>' + (prof.likes_received || 0) + '</b><span>获赞</span></div>';
     h += '<div class="pf-stat"><b>' + (prof.reply_count || 0) + '</b><span>回复</span></div>';
     h += '<div class="pf-stat"><b>' + (prof.work_count || 0) + '</b><span>作品</span></div>';
@@ -696,7 +696,7 @@ JW.storagePublic = (JW.proxy && JW.proxy.length ? String(JW.proxy[0]).replace(/\
     var posts = prof.recent_posts || [];
     if (typeof posts === 'string') { try { posts = JSON.parse(posts); } catch (e) { posts = []; } }
     h += '<div class="pf-sec-title">' + (isSelf() ? '我发的帖子' : 'TA 发的帖子')
-       + (prof.post_count > posts.length ? '（最近 ' + posts.length + ' 条，共 ' + prof.post_count + ' 条）' : '')
+       + (((prof.post_count != null ? prof.post_count : prof.posts) || 0) > posts.length ? '（最近 ' + posts.length + ' 条，共 ' + ((prof.post_count != null ? prof.post_count : prof.posts) || 0) + ' 条）' : '')
        + '</div>';
     if (!posts.length) {
       h += '<div class="pf-empty">还没有发过帖子。</div>';
