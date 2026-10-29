@@ -107,6 +107,7 @@
       <div id="u-acct-name" style="font-size:1.05rem;font-weight:700">未登录</div>
       <div id="u-acct-sub" style="font-size:.76rem;color:var(--muted);margin-top:3px">登录后才能改密码、看消息</div>
     </div>
+    <a id="u-acct-home" href="./profile.html" class="btn-ghost" style="text-decoration:none;padding:8px 16px;font-size:.85rem;white-space:nowrap;display:none;margin-right:8px">我的主页</a>
     <a id="u-acct-go" href="./auth.html" class="btn-main" style="text-decoration:none;padding:8px 16px;font-size:.85rem;white-space:nowrap">登录 / 注册</a>
   </div>
 </div>
@@ -856,6 +857,21 @@ var PROFILE = (function () {
       s2.textContent = fmtDate(p.created_at);
       meta.appendChild(s2);
     }
+
+    // 查看完整个人主页
+    var acts = $('pc-actions');
+    if (acts) {
+      acts.textContent = '';
+      var uname = String(p.username || '').replace(/^@+/, '');
+      if (uname) {
+        var go = document.createElement('button');
+        go.type = 'button';
+        go.className = 'pc-btn-main';
+        go.textContent = '查看完整主页';
+        go.onclick = function () { location.href = './profile.html?u=' + encodeURIComponent(uname); };
+        acts.appendChild(go);
+      }
+    }
   }
 
   function openByUsername(username) {
@@ -1139,6 +1155,7 @@ var PROFILE = (function () {
 
   function renderAccountCard() {
     var av = $('u-acct-avatar'), nm = $('u-acct-name'), sub = $('u-acct-sub'), go = $('u-acct-go');
+    var home = $('u-acct-home');
     if (!av) return;
     av.textContent = '';
     if (isLogged()) {
@@ -1158,6 +1175,10 @@ var PROFILE = (function () {
       av.appendChild(el);
       nm.textContent = account.username;
       sub.textContent = account.nickname ? ('显示名：' + account.nickname) : '还没设显示名';
+      if (home) {
+        home.style.display = '';
+        home.href = './profile.html?u=' + encodeURIComponent(String(account.username).replace(/^@+/, ''));
+      }
       go.textContent = '退出';
       go.href = '#';
       go.onclick = function (e) {
@@ -1176,6 +1197,7 @@ var PROFILE = (function () {
       go.textContent = '登录 / 注册';
       go.href = './auth.html?next=' + encodeURIComponent('./user.html');
       go.onclick = null;
+      if (home) home.style.display = 'none';
     }
   }
 

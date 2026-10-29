@@ -960,6 +960,21 @@ var PROFILE = (function () {
       s2.textContent = fmtDate(p.created_at);
       meta.appendChild(s2);
     }
+
+    // 查看完整个人主页
+    var acts = $('pc-actions');
+    if (acts) {
+      acts.textContent = '';
+      var uname = String(p.username || '').replace(/^@+/, '');
+      if (uname) {
+        var go = document.createElement('button');
+        go.type = 'button';
+        go.className = 'pc-btn-main';
+        go.textContent = '查看完整主页';
+        go.onclick = function () { location.href = './profile.html?u=' + encodeURIComponent(uname); };
+        acts.appendChild(go);
+      }
+    }
   }
 
   function openByUsername(username) {
