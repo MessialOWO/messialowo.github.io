@@ -4,22 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light">
-<title>留言板 · 学校吐槽 | 达高中墙Board</title>
-<meta name="description" content="达高中墙Board 留言板「学校吐槽」：同学们在这里发帖、回复、贴图和分享标签。">
+<title>发帖区 · 学校吐槽 | 达高中墙Board</title>
+<meta name="description" content="达高中墙Board 发帖区「学校吐槽」：同学们在这里发帖、回复、贴图和分享标签。">
 <meta name="keywords" content="达州市高级中学,达高中,达高中墙Board,达州,高中,留言板,班级期刊,学生网站,达高中非官网">
 <meta name="author" content="某肖Messial">
 <link rel="canonical" href="https://messialowo.github.io/gb-rant.html">
 <meta name="robots" content="noindex, nofollow">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="达高中墙Board">
-<meta property="og:title" content="留言板 · 学校吐槽 | 达高中墙Board">
-<meta property="og:description" content="达高中墙Board 留言板「学校吐槽」：同学们在这里发帖、回复、贴图和分享标签。">
+<meta property="og:title" content="发帖区 · 学校吐槽 | 达高中墙Board">
+<meta property="og:description" content="达高中墙Board 发帖区「学校吐槽」：同学们在这里发帖、回复、贴图和分享标签。">
 <meta property="og:url" content="https://messialowo.github.io/gb-rant.html">
 <meta property="og:image" content="https://messialowo.github.io/img/logo.png">
 <meta property="og:locale" content="zh_CN">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="留言板 · 学校吐槽 | 达高中墙Board">
-<meta name="twitter:description" content="达高中墙Board 留言板「学校吐槽」：同学们在这里发帖、回复、贴图和分享标签。">
+<meta name="twitter:title" content="发帖区 · 学校吐槽 | 达高中墙Board">
+<meta name="twitter:description" content="达高中墙Board 发帖区「学校吐槽」：同学们在这里发帖、回复、贴图和分享标签。">
 <meta name="twitter:image" content="https://messialowo.github.io/img/logo.png">
 <meta name="theme-color" content="#c0392b">
 <style>
@@ -304,7 +304,7 @@
 <div class="main">
 <div class="container">
 <div class="page-head">
-  <h1>留言板 · 学校吐槽</h1>
+  <h1>发帖区 · 学校吐槽</h1>
   <div class="en">Guestbook</div>
 </div>
 <div class="gb-scroll" id="gb-main-scroll">
@@ -396,7 +396,7 @@ var SITE = {
   pages: [
     { href: './',                  label: '首页',       en: 'Home',      key: 'home' },
     { href: './gallery.html',      label: '画廊',       en: 'Gallery',   key: 'gallery' },
-    { href: './guestbook.html',    label: '留言板',     en: 'Guestbook', key: 'guestbook' },
+    { href: './guestbook.html',    label: '发帖区',     en: 'Posts',     key: 'guestbook' },
     { href: './journal.html',      label: '期刊投稿',   en: 'Journal',   key: 'journal' }
   ],
   /* 「用户中心」折叠组 */
@@ -1242,7 +1242,18 @@ var GB = (function () {
   function postEl(msg) {
     var item = document.createElement('div');
     item.className = 'gb-item' + (msg.is_pinned ? ' pinned' : '');
-    item.id = 'p-' + msg.id;                      // 供搜索页跳转定位
+    item.id = 'p-' + msg.id;
+    item.classList.add('gb-clickable');
+    item.setAttribute('data-post-id', msg.id);
+    // 点卡片空白处进详情页；按钮/图片/链接等交互元素不跳
+    item.addEventListener('click', function (e) {
+      var t = e.target;
+      if (!t || !t.closest) return;
+      if (t.closest('button, a, input, textarea, select, audio, video, .gb-action-btn, .gb-attach, .gb-img, .gb-fold-bar, [data-no-nav]')) return;
+      // 有选区（用户刚选中文字）时不跳
+      try { if (String(window.getSelection() || '').length > 0) return; } catch (err) {}
+      location.href = './post.html?id=' + encodeURIComponent(msg.id);
+    });
     var ef = effective(msg);
     item.appendChild(avatarNode(ef.color, ef.emoji, ef.path, 'big', ef.username || msg.name));
 
@@ -1424,7 +1435,8 @@ var GB = (function () {
       btn.onclick = function () {
         replyShown[msg.id] = limit + REPLY_STEP;
         render();
-        scrollToEl(document.getElementById('p-' + msg.id));
+        var el = document.getElementById('p-' + msg.id);
+        if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start' });
       };
       bar.appendChild(btn);
     } else if (limit > REPLY_FOLD) {
@@ -1435,7 +1447,8 @@ var GB = (function () {
       btn2.onclick = function () {
         replyShown[msg.id] = REPLY_FOLD;
         render();
-        scrollToEl(document.getElementById('p-' + msg.id));
+        var el2 = document.getElementById('p-' + msg.id);
+        if (el2 && el2.scrollIntoView) el2.scrollIntoView({ block: 'start' });
       };
       bar.appendChild(btn2);
     }
@@ -2068,17 +2081,10 @@ var GB = (function () {
       connected = true;
       renderSortBar(); renderSubBar(); render();
       status('');
-      // 从搜索页跳过来：定位到那条帖子
+      // 旧的 ?post=<id> 链接：自动转到帖子详情页
       var pid = new URLSearchParams(location.search).get('post');
       if (pid) {
-        setTimeout(function () {
-          var el = document.getElementById('p-' + pid);
-          if (el) {
-            scrollToEl(el);
-            el.classList.add('gb-flash');
-            setTimeout(function () { el.classList.remove('gb-flash'); }, 2600);
-          }
-        }, 200);
+        location.replace('./post.html?id=' + encodeURIComponent(pid));
       }
     }).catch(function (e) {
       status('加载失败：' + ((e && e.message) || e), 'err');

@@ -1,0 +1,476 @@
+/* ========== 作品集（云端存储） ========== */
+(function () {
+  const $ = id => document.getElementById(id);
+  const grid = $('grid'), form = $('work-form');
+  const staticHTML = grid ? grid.innerHTML : '';
+  const NAME_KEY = 'jiangwan_work_author';
+
+  /* 账户登录状态 */
+  function isLoggedIn() {
+    try {
+      var a = JSON.parse(localStorage.getItem('jw_account') || 'null');
+      return !!(a && a.username);
+    } catch (e) { return false; }
+  }
+  function needLogin(msg) {
+    alert(msg || '登录后才能上传作品。');
+    location.href = './auth.html?next=' + encodeURIComponent(location.pathname.split('/').pop() + location.search);
+  }
+
+  var works = [];          // 云端作品
+  var connected = false;
+  var pendingImg = '';      // 本地预览用的 objectURL
+  var pendingBlob = null;   // 待上传的原图文件
+  var pendingExt = 'jpg';
+  var busy = false;
+
+  function setNote(text, kind) {
+    var el = $('work-note');
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = 'gb-status' + (kind ? ' ' + kind : '');
+    el.hidden = !text;
+  }
+
+  function avatarUrlOf(path) {
+    var base = (window.JW && JW.storagePublic) ? JW.storagePublic : '';
+    if (!base || typeof path !== 'string') return '';
+    if (!/^[A-Za-z0-9-]{1,64}\/[A-Za-z0-9._-]{1,80}$/.test(path)) return '';
+    return base + path;
+  }
+
+  function usedKB() {
+    let n = 0;
+    try { for (const k of Object.keys(localStorage)) n += (localStorage.getItem(k) || '').length; } catch (_) {}
+    return Math.round(n * 2 / 1024);
+  }
+
+  /* localStorage 里只留一份待续传的草稿（图太大就存不进去，此时退化为只读提示） */
+  function saveDraft() {
+    try {
+      localStorage.setItem('class_works_draft', JSON.stringify({ img: pendingImg, title: $('f-title').value, author: $('f-author').value }));
+      return true;
+    } catch (err) {
+      const quota = err && (err.name === 'QuotaExceededError' || err.code === 22 || err.code === 1014);
+      if (quota) setNote('本地存储放不下这张图的草稿（已用约 ' + usedKB() + ' KB），不过不影响上传。', 'err');
+      return false;
+    }
+  }
+
+  /* ---- 缩略图：用原图现场压缩，缓存到本机（不额外上传文件）----
+     第一次打开会压一次（约 0.5-1 秒），之后从缓存直接读，秒开。 */
+  var THUMB_KEY = 'jiangwan_work_thumbs_v1';
+  var THUMB_MAX = 640;
+  var thumbCache = {};
+  try {
+    var c = JSON.parse(localStorage.getItem(THUMB_KEY) || '{}');
+    if (c && typeof c === 'object') thumbCache = c;
+  } catch (e) { thumbCache = {}; }
+
+  function saveThumbCache() {
+    try {
+      localStorage.setItem(THUMB_KEY, JSON.stringify(thumbCache));
+      return true;
+    } catch (err) {
+      // 缓存满了：清空重存，只保留当前这批
+      try {
+        var fresh = {};
+        Object.keys(thumbCache).slice(-15).forEach(function (k) { fresh[k] = thumbCache[k]; });
+        thumbCache = fresh;
+        localStorage.setItem(THUMB_KEY, JSON.stringify(thumbCache));
+      } catch (e2) {}
+      return false;
+    }
+  }
+
+  /* 用图片 URL 现场压成小图，返回 dataURL */
+  function makeThumbFromUrl(url, maxEdge, quality) {
+    return fetch(url).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.blob();
+    }).then(function (blob) {
+      return new Promise(function (resolve, reject) {
+        var objUrl = URL.createObjectURL(blob);
+        var img = new Image();
+        img.onload = function () {
+          URL.revokeObjectURL(objUrl);
+          var scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+          var w = Math.max(1, Math.round(img.width * scale));
+          var h = Math.max(1, Math.round(img.height * scale));
+          var cv = document.createElement('canvas');
+          cv.width = w; cv.height = h;
+          var ctx = cv.getContext('2d');
+          ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(cv.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = function () { URL.revokeObjectURL(objUrl); reject(new Error('解码失败')); };
+        img.src = objUrl;
+      });
+    });
+  }
+
+  /* 给一张卡片填上压缩图 */
+  function fillThumb(card) {
+    var img = card.querySelector('img[data-path]');
+    if (!img) return;
+    var path = img.getAttribute('data-path');
+    var full = img.getAttribute('data-full');
+    if (thumbCache[path]) { img.src = thumbCache[path]; return; }
+    if (card.dataset.thumbLoading) return;
+    card.dataset.thumbLoading = '1';
+    img.classList.add('thumb-loading');
+    makeThumbFromUrl(full, THUMB_MAX, 0.82).then(function (dataUrl) {
+      thumbCache[path] = dataUrl;
+      saveThumbCache();
+      img.src = dataUrl;
+      img.classList.remove('thumb-loading');
+    }).catch(function (e) {
+      console.warn('缩略图压缩失败，改用原图显示', path, e);
+      img.src = full;                       // 压缩失败就退回原图，不影响看
+      img.classList.remove('thumb-loading');
+    }).then(function () { delete card.dataset.thumbLoading; });
+  }
+
+  function bindView() {
+    grid.querySelectorAll('.card').forEach(function (card) {
+      var img = card.querySelector('img');
+      if (!img) return;
+      // 点开看的是原图（列表里显示的是压缩图）
+      img.onclick = function () {
+        var h3 = card.querySelector('.info h3');
+        var full = img.getAttribute('data-full') || img.src;
+        if (full) openLightbox(full, h3 ? h3.textContent : '作品', full);
+      };
+      if (img.getAttribute('data-path')) fillThumb(card);   // 压缩列表图
+    });
+  }
+
+  function sha256Hex(text) {
+    if (window.crypto && window.crypto.subtle && window.TextEncoder) {
+      return window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then(function (b) {
+        return Array.prototype.map.call(new Uint8Array(b), function (x) {
+          return ('0' + x.toString(16)).slice(-2);
+        }).join('');
+      });
+    }
+    return Promise.reject(new Error('浏览器不支持加密接口'));
+  }
+
+  function bindDel() {
+    grid.querySelectorAll('.del[data-id]').forEach(b => {
+      b.onclick = () => {
+        if (!confirm('删除这件作品？图片会一起删掉，不可恢复。')) return;
+        var pw = prompt('删除需要管理密码：');
+        if (pw === null || !pw.trim()) return;
+        var id = b.dataset.id, path = b.dataset.path || '';
+        if (!connected || !window.JW || !JW.sb) { setNote('还没连上云端，删不了。请检查网络后重试。', 'err'); return; }
+        busy = true;
+        setNote('正在校验密码并删除……');
+        sha256Hex('jw-salt-2026|' + pw.trim()).then(function (hash) {
+          return JW.sb.rpc('delete_work', { p_work_id: id, p_pw_hash: hash });
+        }).then(function (res) {
+          if (res.error) throw res.error;
+          var out = res.data;
+          if (typeof out === 'string') { try { out = JSON.parse(out); } catch (e) {} }
+          if (!out || out.deleted !== true) throw new Error('bad password');
+          if (path) return JW.sb.storage.from(JW.bucket).remove([path]).then(function () { return null; });
+          return null;
+        }).then(function () {
+          works = works.filter(w => w.id !== id);
+          render();
+          setNote('已删除 ✅', 'ok');
+          setTimeout(function () { setNote(''); }, 2000);
+        }).catch(function (e) {
+          console.error(e);
+          var m = (e && e.message) || String(e);
+          setNote(/bad password/i.test(m) ? '密码不对，没有删除。' : ('删除失败：' + m), 'err');
+        }).then(function () { busy = false; });
+      };
+    });
+  }
+
+  function render() {
+    var cloud = works.map(function (w, i) {
+      var full = avatarUrlOf(w.image_path);        // 原图：只有点开大图时才加载
+      var cached = thumbCache[w.image_path] || '';
+      // 列表先用本地缓存的压缩图；没有缓存就先留空（下面会现场压缩）
+      return '' +
+        '<div class="card" data-id="' + esc(w.id) + '">\n' +
+        '        <img src="' + esc(cached) + '" data-full="' + esc(full) + '" data-path="' + esc(w.image_path) + '" alt="' + esc(w.title) + '" loading="lazy" decoding="async">\n' +
+        '        <div class="info"><h3>' + esc(w.title) + '</h3></div>\n' +
+        '        <button class="del" type="button" data-id="' + esc(w.id) + '" data-path="' + esc(w.image_path) + '" aria-label="删除">×</button>\n' +
+        '      </div>';
+    }).join('');
+    grid.innerHTML = staticHTML + cloud;
+    bindView();
+    if (cloud) {
+      bindDel();
+    } else if (!staticHTML.trim()) {
+      grid.innerHTML = '<div class="empty">' + (connected ? '还没有作品，点上方按钮添加' : '作品加载中……') + '</div>';
+    }
+  }
+
+  /* 原图上传：不再压缩，直接把用户选的文件传上去 */
+  var EXT_BY_MIME = {
+    'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp',
+    'image/gif': 'gif', 'image/heic': 'heic', 'image/heif': 'heif', 'image/bmp': 'bmp'
+  };
+  function extOf(file) {
+    var byMime = EXT_BY_MIME[(file.type || '').toLowerCase()];
+    if (byMime) return byMime;
+    var m = /(\.[a-z0-9]+)$/i.exec(file.name || '');
+    if (m) return m[1].slice(1).toLowerCase().replace('jpeg', 'jpg');
+    return 'jpg';
+  }
+  function pickWorkFile(file) {
+    if (!file.type || file.type.indexOf('image/') !== 0) {
+      return Promise.reject(new Error('这不是图片文件'));
+    }
+    var maxMB = 45;
+    if (file.size > maxMB * 1024 * 1024) {
+      return Promise.reject(new Error('图片超过 ' + maxMB + 'MB，服务器放不下，请换一张小一点的'));
+    }
+    // 预览用 objectURL 即可，不读进内存，原图多大都没关系
+    return Promise.resolve({
+      blob: file,
+      previewUrl: URL.createObjectURL(file),
+      ext: extOf(file),
+      name: file.name || '',
+      size: file.size
+    });
+  }
+
+  /* ---- 大图查看 + 下载 ---- */
+  function openLightbox(url, title, path) {
+    var box = document.getElementById('lightbox');
+    var img = document.getElementById('lb-img');
+    if (!box || !img) return;
+    img.src = url;
+    img.alt = title || '作品';
+    var t = document.getElementById('lb-title');
+    if (t) t.textContent = (title || '作品') + '　（长按图片可直接保存）';
+    box.hidden = false;
+    box.dataset.path = path || '';
+    box.dataset.name = (title || '作品').replace(/[\\/:*?"<>|]/g, '_');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeLightbox() {
+    var box = document.getElementById('lightbox');
+    if (!box) return;
+    box.hidden = true;
+    document.getElementById('lb-img').removeAttribute('src');
+    document.body.style.overflow = '';
+  }
+  function downloadCurrent() {
+    var box = document.getElementById('lightbox');
+    var img = document.getElementById('lb-img');
+    if (!box || !img || !img.src) return;
+    var name = (box.dataset.name || '作品') + (/\.(png|webp|gif|heic)$/i.exec(img.src) ? '' : '') + '.' + (function () {
+      var m = /\.([a-z0-9]{2,4})(?:\?|$)/i.exec(box.dataset.path || img.src);
+      return m ? m[1].toLowerCase() : 'jpg';
+    })();
+    var btn = document.getElementById('lb-download');
+    if (btn) { btn.disabled = true; btn.textContent = '下载中…'; }
+    // 先抓成 blob 再触发下载，避免跨域时 download 属性失效
+    fetch(img.src).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.blob();
+    }).then(function (blob) {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      if (btn) { btn.textContent = '✅ 已开始下载'; setTimeout(function () { btn.disabled = false; btn.textContent = '⬇ 下载原图'; }, 2000); }
+    }).catch(function (err) {
+      console.error(err);
+      // 抓不到就新开一个窗口，让浏览器自己处理（长按保存也能用）
+      window.open(img.src, '_blank');
+      if (btn) { btn.disabled = false; btn.textContent = '⬇ 下载原图'; }
+    });
+  }
+  (function bindLightbox() {
+    var box = document.getElementById('lightbox');
+    if (!box) return;
+    document.getElementById('lb-close').onclick = closeLightbox;
+    document.getElementById('lb-download').onclick = downloadCurrent;
+    // 只点「图片外的空白区域」才关闭，避免点按钮时把事件又冒泡回来
+    var stage = box.querySelector('.lb-stage');
+    if (stage) stage.onclick = function (e) { if (e.target === stage) closeLightbox(); };
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeLightbox(); });
+  })();
+
+  $('btn-add').onclick = function () {
+    if (!isLoggedIn()) { needLogin('登录后才能上传作品。'); return; }
+    form.classList.add('show');
+  };
+  $('btn-cancel').onclick = function () { form.classList.remove('show'); reset(); };
+
+  $('f-img').onchange = function (e) {
+    var file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (file.size > 20 * 1024 * 1024) {
+      alert('图片太大了（超过 20MB），请换一张。');
+      e.target.value = '';
+      return;
+    }
+    pickWorkFile(file).then(function (out) {
+      if (pendingImg) { try { URL.revokeObjectURL(pendingImg); } catch (err) {} }
+      pendingImg = out.previewUrl;      // 本地预览地址
+      pendingBlob = out.blob;           // 原图本身
+      pendingExt = out.ext;
+      var mb = (out.size / 1024 / 1024);
+      setNote('已选择原图：' + (out.name || '图片') + '（'
+        + (mb >= 1 ? mb.toFixed(1) + ' MB' : Math.round(out.size / 1024) + ' KB')
+        + '）\n上传的是原图；列表里会自动压成小图显示，点开看的是原图。填好标题后点保存。', 'ok');
+    }).catch(function (err) {
+      alert(err.message);
+      pendingImg = ''; pendingBlob = null;
+      e.target.value = '';
+      setNote('');
+    });
+  };
+
+  $('btn-save').onclick = function () {
+    if (!isLoggedIn()) { needLogin('登录后才能上传作品。'); return; }
+    var title = $('f-title').value.trim();
+    if (!pendingImg || !pendingBlob) return alert('请先选择作品图片');
+    if (!title) return alert('请填标题');
+    if (busy) return;
+    if (!connected || !window.JW || !JW.sb) { setNote('还没连上云端，暂时传不了作品。请检查网络后重试。', 'err'); return; }
+
+    busy = true;
+    var saveBtn = $('btn-save');
+    saveBtn.disabled = true;
+    saveBtn.textContent = '上传中…';
+    setNote('正在上传作品图片……');
+
+    var uid = JW.uid || ('anon-' + Date.now().toString(36));
+    var stamp = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+    var path = uid + '/work-' + stamp + '.' + (pendingExt || 'jpg');
+
+    setNote('正在上传原图……');
+    JW.sb.storage.from(JW.bucket).upload(path, pendingBlob, { contentType: (pendingBlob && pendingBlob.type) || 'image/jpeg', upsert: false })
+      .then(function (res) {
+        if (res.error) throw res.error;
+        return JW.sb.from('works').insert({
+          title: title.slice(0, 40),
+          author: '',
+          image_path: path,
+          device_id: JW.deviceId
+        });
+      })
+      .then(function (res) {
+        if (res && res.error) throw res.error;
+        try { localStorage.setItem(NAME_KEY, author); } catch (e) {}
+        var draft = localStorage.getItem('class_works_draft');
+        if (draft) { try { localStorage.removeItem('class_works_draft'); } catch (e) {} }
+        reset();
+        form.classList.remove('show');
+        setNote('作品已上传到云端 ✅ 列表显示缩略图，点开才是原图。', 'ok');
+        setTimeout(function () { setNote(''); }, 3500);
+        return loadWorks();
+      })
+      .catch(function (err) {
+        console.error(err);
+        var m = err && err.message ? err.message : String(err);
+        if (err && err.code === '42501') m = '传得太快了：1 分钟最多 6 件，歇一会儿再传。';
+        else if (/Bucket not found/i.test(m)) m = '存储桶还没建好（请先执行第四步 SQL）';
+        else if (/row-level security|AccessDenied/i.test(m)) m = '没有上传权限（请确认匿名登录已开启）';
+        else if (/Failed to fetch|NetworkError|Load failed/i.test(m)) m = '网络断了，图片没传上去。请重试。';
+        setNote('上传失败：' + m, 'err');
+      })
+      .then(function () {
+        busy = false;
+        saveBtn.disabled = false;
+        saveBtn.textContent = '保存';
+      });
+  };
+
+  function reset() {
+    $('f-img').value = ''; $('f-title').value = '';
+    if (pendingImg) { try { URL.revokeObjectURL(pendingImg); } catch (e) {} }
+    pendingImg = ''; pendingBlob = null;
+  }
+
+  /* 导出代码功能已移除 */ void function () {
+    if (!works.length) return alert('云端还没有作品');
+    var cards = works.map(function (w) {
+      var url = avatarUrlOf(w.image_path);
+      return '      <div class="card">\n' +
+             '        <img src="' + esc(url) + '" alt="' + esc(w.title) + '">\n' +
+             '        <div class="info">\n' +
+             '          <h3>' + esc(w.title) + '</h3>\n' +
+             '          <p>' + esc(w.author) + '</p>\n' +
+             '        </div>\n' +
+             '      </div>';
+    }).join('\n');
+    copyText(cards, '把它粘贴到 index.html 里 <div class="grid" id="grid"> 与 </div> 之间（这样即使以后不用数据库，作品也留在页面里）');
+  };
+
+  var WORKS_CACHE = 'jiangwan_works_cache_v1';
+  function readCache() {
+    try {
+      var c = JSON.parse(localStorage.getItem(WORKS_CACHE) || 'null');
+      return (c && c.items && c.items.length) ? c : null;
+    } catch (e) { return null; }
+  }
+  function writeCache(items) {
+    try {
+      localStorage.setItem(WORKS_CACHE, JSON.stringify({ at: Date.now(), items: (items || []).slice(0, 60) }));
+    } catch (e) {}
+  }
+
+  function loadWorks() {
+    if (!window.JW || !JW.sb) return Promise.resolve();
+    var cached = readCache();
+    if (cached) {                       // 先用上次的缓存把画面填上，别让同学看到空白
+      works = cached.items;
+      render();
+      setNote('正在更新……', '');
+    }
+    return JW.sb.from('works')
+      .select('id,created_at,title,author,image_path')
+      .eq('hidden', false)
+      .order('created_at', { ascending: false })
+      .limit(200)
+      .then(function (res) {
+        if (res.error) throw res.error;
+        works = res.data || [];
+        writeCache(works);
+        connected = true;
+        render();
+        setNote('');
+      })
+      .catch(function (e) {
+        if (cached) {                   // 有缓存：内容照常看，只是不能发新的
+          connected = false;
+          setNote('当前网络连不上服务器，显示的是上次加载的内容。可以正常浏览，暂时不能上传新作品。', 'err');
+          return null;
+        }
+        throw e;
+      });
+  }
+
+  /* 首次渲染：先显示页面里手写的静态作品 */
+  render();
+
+  /* 等留言板把 Supabase 客户端初始化好，再拉云端作品 */
+  document.addEventListener('jw:ready', function () {
+    loadWorks().catch(function (e) {
+      console.error(e);
+      connected = false;
+      render();
+      setNote('作品加载失败：' + (e.message || e) + '（页面其它内容照常可用）', 'err');
+    });
+  });
+
+  /* 恢复上次填的作者名，省得每次重填 */
+  try {
+    var savedAuthor = localStorage.getItem(NAME_KEY);
+    if (savedAuthor) $('f-author').value = savedAuthor;
+  } catch (e) {}
+})();

@@ -292,7 +292,7 @@ var SITE = {
   pages: [
     { href: './',                  label: '首页',       en: 'Home',      key: 'home' },
     { href: './gallery.html',      label: '画廊',       en: 'Gallery',   key: 'gallery' },
-    { href: './guestbook.html',    label: '留言板',     en: 'Guestbook', key: 'guestbook' },
+    { href: './guestbook.html',    label: '发帖区',     en: 'Posts',     key: 'guestbook' },
     { href: './journal.html',      label: '期刊投稿',   en: 'Journal',   key: 'journal' }
   ],
   /* 「用户中心」折叠组 */
@@ -1096,7 +1096,7 @@ var PROFILE = (function () {
         rows.forEach(function (m) {
           var a = document.createElement('a');
           a.className = 'my-post';
-          a.href = './' + (PAGE[m.main_section] || 'guestbook.html') + '?post=' + encodeURIComponent(m.id);
+          a.href = './post.html?id=' + encodeURIComponent(m.id);
           var t = document.createElement('div');
           t.className = 'my-post-text';
           t.textContent = m.content.slice(0, 60) + (m.content.length > 60 ? '…' : '');
@@ -1415,7 +1415,7 @@ var PROFILE = (function () {
       tools.className = 'msg-tools';
       var allRead = document.createElement('button');
       allRead.type = 'button'; allRead.className = 'btn-ghost'; allRead.textContent = '全部标为已读';
-      allRead.onclick = function () { markRead(null); };
+      allRead.onclick = function () { markRead(null).catch(function () {}); };
       tools.appendChild(allRead);
       box.appendChild(tools);
 
@@ -1423,11 +1423,19 @@ var PROFILE = (function () {
         var a = document.createElement('a');
         a.className = 'msg-item' + (n.is_read ? '' : ' unread');
         a.href = n.link ? ('./' + n.link) : '#';
+        a.setAttribute('data-nid', n.id);
         var tt = document.createElement('div'); tt.className = 'msg-tt'; tt.textContent = n.title || '通知';
         var bd = document.createElement('div'); bd.className = 'msg-bd'; bd.textContent = n.body || '';
         var tm = document.createElement('div'); tm.className = 'msg-tm'; tm.textContent = fmt(n.created_at);
         a.appendChild(tt); a.appendChild(bd); a.appendChild(tm);
-        a.onclick = function () { if (!n.is_read) markRead(n.id, true); };
+        a.onclick = function (e) {
+          var href = a.getAttribute('href');
+          if (n.is_read) return;                 // 已读的就正常跳
+          e.preventDefault();                     // 未读：先标记，再跳
+          markRead(n.id, true).then(function () {
+            if (href && href !== '#') location.href = href;
+          });
+        };
         box.appendChild(a);
       });
     }).catch(function (e) {
@@ -1441,22 +1449,44 @@ var PROFILE = (function () {
   }
 
   function markRead(id, silent) {
-    hashPw(accountPw).then(function (h) {
+    return hashPw(accountPw).then(function (h) {
       return JW.sb.rpc('mark_notifications_read', {
         p_username: account.username, p_pw_hash: h, p_id: id
       });
     }).then(function (r) {
       if (r.error) throw r.error;
-      if (!silent) loadMessages();
-      else {
-        // 单条：只把红点数量减一
-        var badge = $('msg-badge');
-        if (badge && !badge.hidden) {
+      if (!silent) { loadMessages(); return; }
+      // 单条：立即在本地把那条去掉未读样式，并把红点减一
+      if (id) {
+        document.querySelectorAll('#msg-list .msg-item.unread').forEach(function (el) {
+          if (el.getAttribute('data-nid') === String(id)) el.classList.remove('unread');
+        });
+      } else {
+        document.querySelectorAll('#msg-list .msg-item.unread').forEach(function (el) {
+          el.classList.remove('unread');
+        });
+      }
+      var badge = $('msg-badge');
+      if (badge && !badge.hidden) {
+        if (!id) { badge.hidden = true; }
+        else {
           var n = parseInt(badge.textContent, 10) || 0;
           if (n > 1) badge.textContent = n - 1; else badge.hidden = true;
         }
       }
-    }).catch(function () {});
+    }).catch(function (e) {
+      // 失败也要让用户知道，不能静默吞掉
+      var box = $('msg-list');
+      if (box) {
+        var d = document.createElement('div');
+        d.className = 'empty';
+        d.style.color = 'var(--accent)';
+        d.textContent = '标记已读失败：' + ((e && e.message) || e);
+        box.insertBefore(d, box.firstChild);
+        setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, 4000);
+      }
+      throw e;
+    });
   }
 
   /* ================= 自定义背景 ================= */

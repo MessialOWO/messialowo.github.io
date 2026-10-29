@@ -5,7 +5,7 @@ var SITE = {
   pages: [
     { href: './',                  label: '首页',       en: 'Home',      key: 'home' },
     { href: './gallery.html',      label: '画廊',       en: 'Gallery',   key: 'gallery' },
-    { href: './guestbook.html',    label: '留言板',     en: 'Guestbook', key: 'guestbook' },
+    { href: './guestbook.html',    label: '发帖区',     en: 'Posts',     key: 'guestbook' },
     { href: './journal.html',      label: '期刊投稿',   en: 'Journal',   key: 'journal' }
   ],
   /* 「用户中心」折叠组 */
